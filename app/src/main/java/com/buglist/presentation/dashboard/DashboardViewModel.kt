@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.data.remote.UpdateState
 import com.buglist.domain.model.PersonWithBalance
+import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.CalculateTotalBalanceUseCase
 import com.buglist.domain.usecase.CheckForUpdateUseCase
 import com.buglist.domain.usecase.GetPersonsWithBalancesUseCase
 import com.buglist.domain.usecase.PersonSortOrder
+import kotlinx.coroutines.Dispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +46,8 @@ sealed class DashboardUiState {
 class DashboardViewModel @Inject constructor(
     getPersonsWithBalancesUseCase: GetPersonsWithBalancesUseCase,
     calculateTotalBalanceUseCase: CalculateTotalBalanceUseCase,
-    private val checkForUpdateUseCase: CheckForUpdateUseCase
+    private val checkForUpdateUseCase: CheckForUpdateUseCase,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val _sortOrder = MutableStateFlow(PersonSortOrder.NAME)
@@ -74,6 +77,11 @@ class DashboardViewModel @Inject constructor(
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
 
     init {
+        // Seed default tags on first launch — safe here because DashboardViewModel
+        // is only created after auth success + DB initialization.
+        viewModelScope.launch(Dispatchers.IO) {
+            tagRepository.insertDefaultTagsIfEmpty()
+        }
         checkForUpdate()
     }
 

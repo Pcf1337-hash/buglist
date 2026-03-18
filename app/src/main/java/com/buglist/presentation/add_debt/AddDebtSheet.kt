@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -29,10 +31,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -79,7 +83,26 @@ fun AddDebtSheet(
     val uiState by viewModel.debtUiState.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val selectedTagIds by viewModel.selectedTagIds.collectAsStateWithLifecycle()
-    val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // 80% swipe-down threshold: track sheet height and current drag offset.
+    // confirmValueChange blocks the hide transition unless the sheet has been
+    // dragged ≥ 80% of its own height (or the layout hasn't been measured yet).
+    var sheetHeightPx by remember { mutableFloatStateOf(0f) }
+    val dismissAllowed = remember { mutableStateOf(false) }
+    val sheetState: SheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { targetValue ->
+            targetValue != SheetValue.Hidden || dismissAllowed.value
+        }
+    )
+
+    // Observe the sheet's drag offset via snapshotFlow and update dismissAllowed.
+    // requireOffset() is backed by snapshot state so snapshotFlow re-emits on every frame.
+    LaunchedEffect(sheetState, sheetHeightPx) {
+        if (sheetHeightPx <= 0f) return@LaunchedEffect
+        snapshotFlow { runCatching { sheetState.requireOffset() }.getOrDefault(0f) }
+            .collect { offset -> dismissAllowed.value = offset >= sheetHeightPx * 0.8f }
+    }
 
     // In edit mode: pre-select the tags attached to the existing debt entry.
     LaunchedEffect(existingDebt) {
@@ -120,7 +143,8 @@ fun AddDebtSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BugListColors.Surface
+        containerColor = BugListColors.Surface,
+        modifier = Modifier.onSizeChanged { size -> sheetHeightPx = size.height.toFloat() }
     ) {
         Column(
             modifier = Modifier

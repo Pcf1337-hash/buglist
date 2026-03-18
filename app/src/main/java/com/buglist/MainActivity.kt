@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import com.buglist.di.DatabaseProvider
-import com.buglist.domain.repository.TagRepository
 import com.buglist.presentation.BugListNavHost
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTheme
@@ -53,9 +52,6 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var databaseProvider: DatabaseProvider
 
-    @Inject
-    lateinit var tagRepository: TagRepository
-
     override fun onCreate(savedInstanceState: Bundle?) {
         // SplashScreen API: installSplashScreen MUST be called before super.onCreate().
         // It installs the splash theme and registers the exit animation callback.
@@ -93,8 +89,7 @@ class MainActivity : FragmentActivity() {
                         activity = this@MainActivity,
                         biometricManager = biometricAuthManager,
                         sessionManager = sessionManager,
-                        databaseProvider = databaseProvider,
-                        tagRepository = tagRepository
+                        databaseProvider = databaseProvider
                     )
                 }
             }

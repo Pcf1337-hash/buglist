@@ -9,8 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,7 +16,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.buglist.BugListApplication
 import com.buglist.di.DatabaseProvider
-import com.buglist.domain.repository.TagRepository
 import com.buglist.presentation.add_person.AddPersonSheet
 import com.buglist.presentation.auth.AuthScreen
 import com.buglist.presentation.auth.AuthUiState
@@ -66,15 +63,13 @@ object Routes {
  * @param biometricManager  [BiometricAuthManager] injected by MainActivity.
  * @param sessionManager    [SessionManager] for auth-state guard and session tracking.
  * @param databaseProvider  [DatabaseProvider] whose async init is triggered after auth success.
- * @param tagRepository     [TagRepository] for seeding default tags after first auth.
  */
 @Composable
 fun BugListNavHost(
     activity: FragmentActivity,
     biometricManager: BiometricAuthManager,
     sessionManager: SessionManager,
-    databaseProvider: DatabaseProvider,
-    tagRepository: TagRepository
+    databaseProvider: DatabaseProvider
 ) {
     val navController = rememberNavController()
     val isAuthenticated by sessionManager.isAuthenticated.collectAsStateWithLifecycle()
@@ -111,11 +106,6 @@ fun BugListNavHost(
                     // initializeAsync() is idempotent so safe to call multiple times.
                     val application = activity.application as BugListApplication
                     databaseProvider.initializeAsync(application)
-
-                    // Seed default tags once the DB is open (idempotent — no-op if already seeded).
-                    withContext(Dispatchers.IO) {
-                        tagRepository.insertDefaultTagsIfEmpty()
-                    }
 
                     navController.navigate(Routes.DASHBOARD) {
                         popUpTo(Routes.AUTH) { inclusive = true }

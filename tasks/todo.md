@@ -4,8 +4,8 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-03-18
-**Status:** [~] Tag-System + Release v1.5.0 – in Arbeit
-**Letzte Änderungen:** Tag-System vollständig implementiert, Version auf 1.5.0 gebumpt
+**Status:** [x] Tag-System + Release v1.5.0 – abgeschlossen
+**Letzte Änderungen:** Tag-System vollständig implementiert, v1.5.0 released (b-106)
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---
