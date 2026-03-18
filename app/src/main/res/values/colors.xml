@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BugList Design System Colors -->
+    <color name="background">#0D0D0D</color>
+    <color name="surface">#1A1A1A</color>
+    <color name="surface_high">#242424</color>
+    <color name="gold">#FFD700</color>
+    <color name="gold_dim">#B8960C</color>
+    <color name="platinum">#E5E4E2</color>
+    <color name="muted">#666666</color>
+    <color name="debt_red">#FF3B3B</color>
+    <color name="debt_green">#00E676</color>
+    <color name="divider">#2A2A2A</color>
+</resources>

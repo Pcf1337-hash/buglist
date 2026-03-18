@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BugList</string>
+
+    <!-- Auth Screen -->
+    <string name="auth_title">BUGLIST</string>
+    <string name="auth_subtitle">AUTHENTICATE TO ENTER</string>
+    <string name="auth_biometric_prompt_title">BugList Access</string>
+    <string name="auth_biometric_prompt_subtitle">Verify your identity to decrypt your data</string>
+    <string name="auth_biometric_prompt_negative">Cancel</string>
+    <string name="auth_error_too_many_attempts">TOO MANY ATTEMPTS. TRY AGAIN LATER.</string>
+    <string name="auth_key_invalidated">BIOMETRIC DATA CHANGED. RE-AUTHENTICATE REQUIRED.</string>
+    <string name="auth_error_failed">AUTHENTICATION FAILED</string>
+    <string name="auth_error_no_biometric">NO BIOMETRIC ENROLLED. SET UP IN SETTINGS.</string>
+    <string name="auth_retry">RETRY</string>
+
+    <!-- Navigation -->
+    <string name="nav_statistics">Statistiken</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="nav_dashboard">Dashboard</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">DASHBOARD</string>
+    <string name="dashboard_owed_to_me">SCHULDET MIR</string>
+    <string name="dashboard_i_owe">ICH SCHULDE</string>
+    <string name="dashboard_total_balance">GESAMTSALDO</string>
+    <string name="dashboard_empty_title">NO CREW YET</string>
+    <string name="dashboard_empty_subtitle">Add someone to track debts with</string>
+    <string name="dashboard_fab_add_person">+ PERSON</string>
+    <string name="dashboard_add_person">Person hinzufügen</string>
+    <string name="dashboard_crew_header">CREW</string>
+    <string name="dashboard_open_debts">offen</string>
+
+    <!-- Person Detail -->
+    <string name="person_detail_tab_open">OFFEN</string>
+    <string name="person_detail_tab_paid">BEZAHLT</string>
+    <string name="person_detail_tab_all">ALLE</string>
+    <string name="person_detail_fab_add_debt">+ SCHULD</string>
+    <string name="person_detail_add_debt">Schuld hinzufügen</string>
+    <string name="person_detail_swipe_partial_payment">TEILZAHLUNG</string>
+    <string name="person_detail_swipe_delete">STORNIEREN</string>
+    <string name="person_detail_empty">KEINE SCHULDEN</string>
+    <string name="person_detail_delete_title">Person löschen?</string>
+    <string name="person_detail_delete_message">%1$s und alle zugehörigen Schulden werden permanent gelöscht.</string>
+
+    <!-- Add Debt Sheet -->
+    <string name="add_debt_title">NEUE SCHULD</string>
+    <string name="add_debt_direction_owed_to_me">SCHULDET MIR</string>
+    <string name="add_debt_direction_i_owe">ICH SCHULDE</string>
+    <string name="add_debt_description_hint">Beschreibung (optional)</string>
+    <string name="add_debt_due_date_hint">Fälligkeitsdatum (optional)</string>
+    <string name="add_debt_save">SPEICHERN</string>
+
+    <!-- Add Person Sheet -->
+    <string name="add_person_title">PERSON HINZUFÜGEN</string>
+    <string name="add_person_name_hint">Name*</string>
+    <string name="add_person_phone_hint">Telefon (optional)</string>
+    <string name="add_person_notes_hint">Notizen (optional)</string>
+    <string name="add_person_save">HINZUFÜGEN</string>
+
+    <!-- Partial Payment Sheet -->
+    <string name="add_payment_title">TEILZAHLUNG</string>
+    <string name="add_payment_remaining">Noch offen</string>
+    <string name="add_payment_pay_all">ALLES BEZAHLEN</string>
+    <string name="add_payment_note_hint">Notiz (optional)</string>
+    <string name="add_payment_book">BUCHEN</string>
+    <string name="add_payment_last_payment_toast_prefix">Letzte Tilgung:</string>
+
+    <!-- Statistics Screen -->
+    <string name="statistics_title">STATISTIKEN</string>
+    <string name="statistics_monthly_chart_title">LETZTE 6 MONATE</string>
+    <string name="statistics_top_debtors_title">TOP SCHULDNER</string>
+    <string name="statistics_no_data">Noch keine Daten vorhanden</string>
+    <string name="statistics_no_debtors">Keine ausstehenden Schulden</string>
+
+    <!-- Statistics – new sections -->
+    <string name="statistics_overview_title">GESAMT-ÜBERBLICK</string>
+    <string name="statistics_owed_to_me">SCHULDET MIR</string>
+    <string name="statistics_i_owe">ICH SCHULDE</string>
+    <string name="statistics_net_balance">NETTO-BILANZ</string>
+    <string name="statistics_open_entries">OFFENE EINTRÄGE</string>
+    <string name="statistics_top_creditors_title">TOP GLÄUBIGER</string>
+    <string name="statistics_no_creditors">Keine offenen Schulden von dir</string>
+    <string name="statistics_activity_title">LETZTE AKTIVITÄT</string>
+    <string name="statistics_no_activity">Noch keine Einträge</string>
+    <string name="statistics_status_distribution_title">STATUS-VERTEILUNG</string>
+    <string name="statistics_paid_history_title">BEZAHLTE SCHULDEN</string>
+    <string name="statistics_paid_received">Bereits erhalten</string>
+    <string name="statistics_paid_out">Bereits bezahlt</string>
+    <string name="statistics_entries_count">%1$d Einträge</string>
+    <string name="statistics_entry_count_singular">%1$d Eintrag</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">EINSTELLUNGEN</string>
+    <string name="settings_section_preferences">EINSTELLUNGEN</string>
+    <string name="settings_section_data">DATEN</string>
+    <string name="settings_section_about">ÜBER DIE APP</string>
+    <string name="settings_currency_label">Währung</string>
+    <string name="settings_auto_lock_label">Auto-Lock Timeout</string>
+    <string name="settings_export_button">DATEN EXPORTIEREN</string>
+    <string name="settings_delete_all_button">ALLE DATEN LÖSCHEN</string>
+    <string name="settings_delete_all_title">ALLE DATEN LÖSCHEN?</string>
+    <string name="settings_delete_all_message">Diese Aktion kann nicht rückgängig gemacht werden. Alle Schulden und Personen werden permanent gelöscht.</string>
+    <string name="settings_version_label">App-Version</string>
+
+    <!-- Generic Actions -->
+    <string name="action_save">SPEICHERN</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_delete">Löschen</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_confirm">Bestätigen</string>
+    <string name="action_undo">RÜCKGÄNGIG</string>
+
+    <!-- Status Labels -->
+    <string name="status_open">OFFEN</string>
+    <string name="status_partial">TEILWEISE</string>
+    <string name="status_paid">BEZAHLT</string>
+    <string name="status_cancelled">STORNIERT</string>
+
+    <!-- Generic -->
+    <string name="generic_error">Ein Fehler ist aufgetreten</string>
+    <string name="generic_loading">Laden…</string>
+
+    <!-- DebtCard -->
+    <string name="debt_card_payment_history">ZAHLUNGSHISTORIE</string>
+    <string name="debt_card_paid_info">%1$s von %2$s bezahlt – noch %3$s offen</string>
+    <string name="debt_card_no_payments">Noch keine Zahlungen</string>
+
+    <!-- PersonDetail -->
+    <string name="person_not_found">Person nicht gefunden</string>
+    <string name="person_detail_debt_deleted">Schuld gelöscht</string>
+    <string name="person_detail_debt_cancelled">Schuld storniert</string>
+
+    <!-- AddDebt -->
+    <string name="add_debt_date_label">Datum</string>
+    <string name="add_debt_due_date_label">Fällig am (optional)</string>
+    <string name="edit_debt_title">EINTRAG BEARBEITEN</string>
+
+    <!-- Settings Debug -->
+    <string name="settings_seed_data_button">50 PERSONEN + 500 EINTRÄGE GENERIEREN</string>
+    <string name="settings_section_debug">DEBUG</string>
+
+    <!-- Settlement Sheet -->
+    <string name="settlement_title">SCHULDEN TILGEN</string>
+    <string name="settlement_open_entries">Offene Schulden: %1$d Einträge</string>
+    <string name="settlement_total_open">Gesamtbetrag offen:</string>
+    <string name="settlement_pay_all">ALLES BEZAHLEN</string>
+    <string name="settlement_or_enter_amount">oder Betrag eingeben</string>
+    <string name="settlement_preview_title">VORSCHAU DER VERRECHNUNG</string>
+    <string name="settlement_preview_paid">BEZAHLT</string>
+    <string name="settlement_preview_partial">TEILWEISE</string>
+    <string name="settlement_preview_open">OFFEN</string>
+    <string name="settlement_confirm_button">TILGUNG BESTÄTIGEN</string>
+    <string name="settlement_confirm_dialog_title">Tilgung bestätigen?</string>
+    <string name="settlement_confirm_dialog_message">%1$s werden verrechnet.</string>
+    <string name="settlement_no_open_debts">Keine offenen Schulden vorhanden.</string>
+    <string name="settlement_success_title">TILGUNG ERFOLGREICH</string>
+    <string name="settlement_success_settled">verrechnet</string>
+    <string name="settlement_success_done">FERTIG</string>
+    <string name="settlement_success_entry_paid">Schuld vom %1$s bezahlt</string>
+    <string name="settlement_success_entry_partial">Schuld vom %1$s — noch %2$s offen</string>
+    <string name="settlement_snackbar_success">Tilgung von %1$s gebucht ✓</string>
+    <string name="settlement_button_label">TILGEN</string>
+    <string name="settlement_direction_owed_to_me">SCHULDEN DER PERSON AN MICH</string>
+    <string name="settlement_direction_i_owe">MEINE SCHULDEN AN PERSON</string>
+    <string name="settlement_open_list_title">OFFENE SCHULDEN</string>
+    <string name="settlement_last_toast_prefix">Letzte Tilgung:</string>
+
+    <!-- Tags -->
+    <string name="settings_tags_section">TAGS</string>
+    <string name="settings_tags_add_hint">Neues Tag…</string>
+    <string name="settings_tags_empty">Noch keine Tags vorhanden.</string>
+    <string name="add_debt_tags_label">TAGS</string>
+    <string name="tag_delete_content_description">Tag löschen: %1$s</string>
+</resources>

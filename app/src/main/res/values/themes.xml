@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        BugList Theme – Always Dark.
+        windowBackground set to #0D0D0D to prevent white flash on startup.
+        See L-014 in lessons.md.
+    -->
+    <style name="Theme.BugList" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <!-- windowLightNavigationBar requires API 27 — moved to values-v27/themes.xml -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+
+    <!--
+        SplashScreen theme (L-075).
+
+        Used as android:theme for MainActivity. The SplashScreen API reads:
+        - windowSplashScreenBackground: fill color of the splash window (#0D0D0D = brand black)
+        - windowSplashScreenAnimatedIcon: icon shown centered on the splash (launcher foreground)
+        - postSplashScreenTheme: theme applied to MainActivity after the splash exits
+
+        The splash is kept on screen via splashScreen.setKeepOnScreenCondition { ... } in
+        MainActivity until sqlCipherInitJob completes.
+
+        Note: windowSplashScreenIconBackgroundColor is intentionally omitted — the icon itself
+        is used directly on the dark background.
+    -->
+    <style name="Theme.BugList.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.BugList</item>
+    </style>
+</resources>
