@@ -164,7 +164,7 @@ private fun StatisticsContent(
             TopPersonsSection(
                 title = stringResource(R.string.statistics_top_debtors_title),
                 items = data.topDebtors,
-                amountColor = BugListColors.DebtRed,
+                amountColor = BugListColors.DebtGreen,
                 emptyText = stringResource(R.string.statistics_no_debtors),
                 onPersonClick = onNavigateToPerson
             )
@@ -175,7 +175,7 @@ private fun StatisticsContent(
             TopPersonsSection(
                 title = stringResource(R.string.statistics_top_creditors_title),
                 items = data.topCreditors,
-                amountColor = BugListColors.DebtGreen,
+                amountColor = BugListColors.DebtRed,
                 emptyText = stringResource(R.string.statistics_no_creditors),
                 onPersonClick = onNavigateToPerson
             )
@@ -220,13 +220,13 @@ private fun OverviewSection(data: StatisticsData) {
             OverviewCard(
                 label = stringResource(R.string.statistics_owed_to_me),
                 amount = data.openTotals.openOwedToMe,
-                amountColor = BugListColors.DebtRed,
+                amountColor = BugListColors.DebtGreen,
                 modifier = Modifier.weight(1f)
             )
             OverviewCard(
                 label = stringResource(R.string.statistics_i_owe),
                 amount = data.openTotals.openIOwe,
-                amountColor = BugListColors.DebtGreen,
+                amountColor = BugListColors.DebtRed,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -718,7 +718,7 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(BugListColors.DebtRed, RoundedCornerShape(2.dp))
+                            .background(BugListColors.DebtGreen, RoundedCornerShape(2.dp))
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
@@ -731,7 +731,7 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(BugListColors.DebtGreen, RoundedCornerShape(2.dp))
+                            .background(BugListColors.DebtRed, RoundedCornerShape(2.dp))
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
@@ -758,7 +758,7 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
                         rememberColumnCartesianLayer(
                             columnProvider = ColumnCartesianLayer.ColumnProvider.series(
                                 rememberLineComponent(
-                                    fill = fill(BugListColors.DebtRed),
+                                    fill = fill(BugListColors.DebtGreen),
                                     thickness = 16.dp,
                                     shape = CorneredShape.rounded(
                                         topLeftPercent = 40,
@@ -766,7 +766,7 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
                                     )
                                 ),
                                 rememberLineComponent(
-                                    fill = fill(BugListColors.DebtGreen),
+                                    fill = fill(BugListColors.DebtRed),
                                     thickness = 16.dp,
                                     shape = CorneredShape.rounded(
                                         topLeftPercent = 40,
