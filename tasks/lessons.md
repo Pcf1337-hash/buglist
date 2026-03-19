@@ -6,6 +6,28 @@
 
 ---
 
+## Sicherheit & Biometrie
+
+### L-088 – Samsung Galaxy A Series: BIOMETRIC_STRONG schlägt fehl (Class 2 Sensor)
+**Problem:** Galaxy A-Geräte zeigen "Biometric Hardware unavailable: NONE_ENROLLED" obwohl Fingerabdruck eingerichtet ist.
+**Ursache:** Samsung Galaxy A Fingerprint-Sensoren sind Class 2 (BIOMETRIC_WEAK), nicht Class 3 (BIOMETRIC_STRONG). `canAuthenticate(BIOMETRIC_STRONG)` gibt `BIOMETRIC_ERROR_NONE_ENROLLED` zurück, weil keine Class-3-Biometrie existiert – auch wenn Fingerabdrücke registriert sind.
+**Regel:** Immer Fallback auf `BIOMETRIC_WEAK or DEVICE_CREDENTIAL` implementieren. CryptoObject funktioniert NICHT mit dieser Kombination (Android-Einschränkung). In BugList ist Biometrie ein Gate – die DB-Passphrase wird von Tink/PassphraseManager unabhängig geschützt, daher ist `SuccessNoCipher` (kein CryptoObject) sicher.
+```kotlin
+// RICHTIG: Fallback-Priorität
+when {
+    isBiometricAvailable() -> authenticateStrong(...)   // BIOMETRIC_STRONG + CryptoObject
+    isFallbackAvailable()  -> authenticateFallback(...) // BIOMETRIC_WEAK or DEVICE_CREDENTIAL, kein CryptoObject
+    else -> onResult(AuthResult.HardwareUnavailable(...))
+}
+// Fallback-Prompt: KEIN setNegativeButtonText() wenn DEVICE_CREDENTIAL inkludiert
+BiometricPrompt.PromptInfo.Builder()
+    .setAllowedAuthenticators(BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
+    // KEIN .setNegativeButtonText() – DEVICE_CREDENTIAL hat eigenen Cancel-Button
+    .build()
+```
+
+---
+
 ## Workflow & MCP
 
 ### L-000 – MCP nach jedem Task nutzen, nicht nur bei Fehlern

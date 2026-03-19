@@ -22,8 +22,12 @@ sealed class AuthUiState {
     /** BiometricPrompt is currently showing. */
     object Authenticating : AuthUiState()
 
-    /** Authentication succeeded. [cipher] is ready for DB unlock. */
-    data class Authenticated(val cipher: Cipher) : AuthUiState()
+    /**
+     * Authentication succeeded.
+     * [cipher] is non-null on BIOMETRIC_STRONG path, null on fallback path
+     * (Samsung Galaxy A series / BIOMETRIC_WEAK / DEVICE_CREDENTIAL).
+     */
+    data class Authenticated(val cipher: Cipher? = null) : AuthUiState()
 
     /** Authentication failed with an error message. [retryCount] tracks attempts. */
     data class Error(val message: String, val errorCode: Int = -1, val retryCount: Int = 0) : AuthUiState()
@@ -92,6 +96,14 @@ class AuthViewModel @Inject constructor(
             is AuthResult.Success -> {
                 retryCount = 0
                 _uiState.value = AuthUiState.Authenticated(result.cipher)
+            }
+
+            AuthResult.SuccessNoCipher -> {
+                // Fallback path: Samsung Galaxy A series / BIOMETRIC_WEAK / DEVICE_CREDENTIAL.
+                // Cipher is null — biometrics used as gate only. PassphraseManager (Tink)
+                // handles DB passphrase independently. See L-088 in lessons.md.
+                retryCount = 0
+                _uiState.value = AuthUiState.Authenticated(cipher = null)
             }
 
             is AuthResult.Failure -> {

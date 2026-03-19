@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.AuthenticationCallback
@@ -17,8 +18,14 @@ import javax.inject.Singleton
  * Result of a biometric authentication attempt.
  */
 sealed class AuthResult {
-    /** Authentication succeeded. The [cipher] is ready for cryptographic operations. */
+    /** Authentication succeeded with CryptoObject binding (BIOMETRIC_STRONG path). */
     data class Success(val cipher: javax.crypto.Cipher) : AuthResult()
+
+    /**
+     * Authentication succeeded via fallback path (BIOMETRIC_WEAK or DEVICE_CREDENTIAL).
+     * No CryptoObject is available — used as a gate only (Samsung Galaxy A series).
+     */
+    object SuccessNoCipher : AuthResult()
 
     /** Authentication failed (wrong fingerprint, cancelled, etc). */
     data class Failure(val errorCode: Int, val message: String) : AuthResult()
@@ -86,6 +93,17 @@ class BiometricAuthManager @Inject constructor(
     }
 
     /**
+     * Returns true if any authentication (weak biometric or device credential) is available.
+     * Used to detect Samsung Galaxy A series devices where the sensor is Class 2 (BIOMETRIC_WEAK)
+     * and canAuthenticate(BIOMETRIC_STRONG) incorrectly returns NONE_ENROLLED.
+     */
+    fun isFallbackAvailable(): Boolean {
+        val manager = BiometricManager.from(context)
+        return manager.canAuthenticate(BIOMETRIC_WEAK or DEVICE_CREDENTIAL) ==
+                BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /**
      * Returns true if at least DEVICE_CREDENTIAL is available as fallback.
      */
     fun isDeviceCredentialAvailable(): Boolean {
@@ -115,11 +133,37 @@ class BiometricAuthManager @Inject constructor(
         negativeButton: String,
         onResult: (AuthResult) -> Unit
     ) {
-        if (!isBiometricAvailable()) {
-            onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
-            return
+        when {
+            isBiometricAvailable() -> {
+                // Preferred path: BIOMETRIC_STRONG with CryptoObject binding.
+                authenticateStrong(activity, title, subtitle, negativeButton, onResult)
+            }
+            isFallbackAvailable() -> {
+                // Fallback path: Samsung Galaxy A series and other devices with Class 2
+                // sensors. canAuthenticate(BIOMETRIC_STRONG) returns NONE_ENROLLED even
+                // when a fingerprint is enrolled because the sensor is Class 2 (WEAK).
+                // DEVICE_CREDENTIAL is included so PIN/pattern/password also works.
+                // No CryptoObject — biometrics used as gate only (PassphraseManager
+                // uses Tink independently and is not affected). See L-088 in lessons.md.
+                authenticateFallback(activity, title, subtitle, onResult)
+            }
+            else -> {
+                onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
+            }
         }
+    }
 
+    /**
+     * BIOMETRIC_STRONG path with CryptoObject binding.
+     * Preferred on devices where Class 3 biometrics are available.
+     */
+    private fun authenticateStrong(
+        activity: FragmentActivity,
+        title: String,
+        subtitle: String,
+        negativeButton: String,
+        onResult: (AuthResult) -> Unit
+    ) {
         val cipher = try {
             keystoreManager.getEncryptCipher()
         } catch (e: KeyPermanentlyInvalidatedException) {
@@ -168,10 +212,56 @@ class BiometricAuthManager @Inject constructor(
             }
         )
 
-        // CRITICAL: Always authenticate with CryptoObject. Never call
-        // biometricPrompt.authenticate(promptInfo) without CryptoObject.
-        // See L-024 in lessons.md.
         biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
+    }
+
+    /**
+     * Fallback path for Samsung Galaxy A series and other Class 2 devices.
+     *
+     * Uses BIOMETRIC_WEAK or DEVICE_CREDENTIAL — no CryptoObject (Android restriction:
+     * CryptoObject requires BIOMETRIC_STRONG). Biometrics serve as a gate only.
+     * The database passphrase is independently protected by Tink (PassphraseManager).
+     *
+     * Note: No negative button when DEVICE_CREDENTIAL is included in authenticators.
+     */
+    private fun authenticateFallback(
+        activity: FragmentActivity,
+        title: String,
+        subtitle: String,
+        onResult: (AuthResult) -> Unit
+    ) {
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
+            // No setNegativeButtonText — DEVICE_CREDENTIAL provides its own cancel UI
+            .build()
+
+        val executor = ContextCompat.getMainExecutor(activity)
+
+        val biometricPrompt = BiometricPrompt(
+            activity,
+            executor,
+            object : AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(
+                    result: BiometricPrompt.AuthenticationResult
+                ) {
+                    // No CryptoObject in this path by design — see method KDoc.
+                    onResult(AuthResult.SuccessNoCipher)
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    onResult(AuthResult.Failure(errorCode, errString.toString()))
+                }
+
+                override fun onAuthenticationFailed() {
+                    // Individual failed attempt — BiometricPrompt handles retry UI.
+                }
+            }
+        )
+
+        // No CryptoObject — intentional for the fallback path.
+        biometricPrompt.authenticate(promptInfo)
     }
 
     /**
@@ -192,11 +282,30 @@ class BiometricAuthManager @Inject constructor(
         negativeButton: String,
         onResult: (AuthResult) -> Unit
     ) {
-        if (!isBiometricAvailable()) {
-            onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
-            return
+        when {
+            isBiometricAvailable() -> {
+                authenticateForDecryptStrong(iv, activity, title, subtitle, negativeButton, onResult)
+            }
+            isFallbackAvailable() -> {
+                authenticateFallback(activity, title, subtitle, onResult)
+            }
+            else -> {
+                onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
+            }
         }
+    }
 
+    /**
+     * BIOMETRIC_STRONG decrypt path with CryptoObject binding.
+     */
+    private fun authenticateForDecryptStrong(
+        iv: ByteArray,
+        activity: FragmentActivity,
+        title: String,
+        subtitle: String,
+        negativeButton: String,
+        onResult: (AuthResult) -> Unit
+    ) {
         val cipher = try {
             keystoreManager.getDecryptCipher(iv)
         } catch (e: KeyPermanentlyInvalidatedException) {
