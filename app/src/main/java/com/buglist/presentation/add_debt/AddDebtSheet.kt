@@ -184,9 +184,9 @@ fun AddDebtSheet(
                     fontFamily = RobotoCondensedFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 15.sp,
-                    // "SCHULDET MIR" (isOwedToMe=false in UI = DB true) → ROT
-                    // "ICH SCHULDE" (isOwedToMe=true in UI = DB false) → GRÜN
-                    color = if (!isOwedToMe) BugListColors.DebtRed else BugListColors.DebtGreen,
+                    // "SCHULDET MIR" (isOwedToMe=false in UI = DB true) → GRÜN  (Geld kommt zu mir)
+                    // "ICH SCHULDE" (isOwedToMe=true in UI = DB false) → ROT   (Geld geht weg)
+                    color = if (!isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -194,8 +194,8 @@ fun AddDebtSheet(
                     checked = isOwedToMe,
                     onCheckedChange = { isOwedToMe = it },
                     colors = SwitchDefaults.colors(
-                        checkedTrackColor = BugListColors.DebtGreen,
-                        uncheckedTrackColor = BugListColors.DebtRed
+                        checkedTrackColor = BugListColors.DebtRed,    // checked = "ICH SCHULDE" → ROT
+                        uncheckedTrackColor = BugListColors.DebtGreen // unchecked = "SCHULDET MIR" → GRÜN
                     )
                 )
             }

@@ -224,7 +224,7 @@ private fun DashboardSummaryHeader(
         )
         Spacer(Modifier.height(4.dp))
         AmountText(
-            amount = -totalBalance,
+            amount = totalBalance,
             fontSize = 48.sp,
             modifier = Modifier.fillMaxWidth()
         )
@@ -236,13 +236,13 @@ private fun DashboardSummaryHeader(
             BalanceTile(
                 label = stringResource(R.string.dashboard_owed_to_me),
                 amount = totalOwedToMe,
-                positive = false,
+                positive = true,
                 modifier = Modifier.weight(1f)
             )
             BalanceTile(
                 label = stringResource(R.string.dashboard_i_owe),
                 amount = totalIOwe,
-                positive = true,
+                positive = false,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -315,7 +315,7 @@ private fun PersonCard(
             }
         }
         AmountText(
-            amount = -personWithBalance.netBalance,
+            amount = personWithBalance.netBalance,
             fontSize = 20.sp
         )
     }
