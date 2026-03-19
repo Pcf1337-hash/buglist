@@ -91,7 +91,7 @@ fun DebtCard(
                     debtWithPayments.remaining
                 }
                 AmountText(
-                    amount = if (entry.isOwedToMe) -displayAmount else displayAmount,
+                    amount = if (entry.isOwedToMe) displayAmount else -displayAmount,
                     currency = entry.currency,
                     fontSize = 28.sp
                 )

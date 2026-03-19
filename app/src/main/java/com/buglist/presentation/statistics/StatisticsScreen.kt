@@ -237,8 +237,8 @@ private fun OverviewSection(data: StatisticsData) {
         ) {
             // Net balance — positive = good (owed to me), negative = bad (I owe)
             val netBalanceColor = when {
-                data.totalBalance > 0 -> BugListColors.DebtRed
-                data.totalBalance < 0 -> BugListColors.DebtGreen
+                data.totalBalance > 0 -> BugListColors.DebtGreen
+                data.totalBalance < 0 -> BugListColors.DebtRed
                 else -> BugListColors.Muted
             }
             OverviewCard(
@@ -472,7 +472,7 @@ private fun ActivityRow(
             .format(Date(activity.debtWithPayments.entry.date))
     }
     val entry = activity.debtWithPayments.entry
-    val amountColor = if (entry.isOwedToMe) BugListColors.DebtRed else BugListColors.DebtGreen
+    val amountColor = if (entry.isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

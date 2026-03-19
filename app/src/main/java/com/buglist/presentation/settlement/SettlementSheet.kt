@@ -359,7 +359,7 @@ private fun SettlementInputContent(
                 text = formatAmount(totalOpen, currency),
                 fontFamily = BebasNeueFontFamily,
                 fontSize = 24.sp,
-                color = if (isOwedToMe) BugListColors.DebtRed else BugListColors.DebtGreen
+                color = if (isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed
             )
         }
 

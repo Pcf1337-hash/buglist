@@ -430,7 +430,7 @@ private fun PersonDetailHeader(
             color = BugListColors.Platinum
         )
         Spacer(Modifier.height(8.dp))
-        AmountText(amount = -netBalance, fontSize = 40.sp)
+        AmountText(amount = netBalance, fontSize = 40.sp)
 
         // TILGEN button(s) — only shown when there are open/partial debts
         if (hasAnyOpenDebts) {
