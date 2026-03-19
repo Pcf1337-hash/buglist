@@ -3,9 +3,9 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-03-18
-**Status:** [x] Tag-System + Release v1.5.0 – abgeschlossen
-**Letzte Änderungen:** Tag-System vollständig implementiert, v1.5.0 released (b-106)
+**Letztes Update:** 2026-03-19
+**Status:** [x] v1.5.1 – 6 Änderungen implementiert
+**Letzte Änderungen:** Swipe-Threshold, Kommentar-Feld entfernt, Easter Egg, Toast-Cleanup, Update-Download-Flow
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---
@@ -573,3 +573,45 @@
 > Version: 1.3.0 (versionCode=3)
 > Kaltstart auf physischem Gerät (R3CX5067R8F): 178ms TotalTime
 > GitHub Release: https://github.com/Pcf1337-hash/buglist/releases/tag/v1.3.0
+
+---
+
+## RELEASE v1.5.1 – 6 Änderungen (2026-03-19)
+
+### Änderung 1 – Tilgungs-Modal: erst bei 80% Swipe schließen
+- [x] `AddPaymentSheet`: 80%-Swipe-Threshold per `confirmValueChange + snapshotFlow`-Pattern (wie `AddDebtSheet`, L-083)
+- [x] Imports ergänzt: `SheetValue`, `mutableFloatStateOf`, `snapshotFlow`, `onSizeChanged`
+
+### Änderung 2 – Kommentar-Feld im AddDebtSheet entfernt (UI only)
+- [x] `OutlinedTextField` für Beschreibung aus UI entfernt
+- [x] `description`-Variable (`rememberSaveable`) entfernt
+- [x] `initialDescription` entfernt
+- [x] `saveDebt()` übergibt `description = null`, `updateDebt()` übergibt `existingDebt.description` (Wert bleibt erhalten beim Bearbeiten)
+- [x] Imports für `OutlinedTextField`, `OutlinedTextFieldDefaults`, `RoundedCornerShape` aus AddDebtSheet entfernt
+- [x] Datenbank-Entity `description` bleibt UNVERÄNDERT
+
+### Änderung 3 – Version 1.5.1
+- [x] `build.gradle.kts`: `versionCode = 8`, `versionName = "1.5.1"`
+- [x] Keine weiteren Versionsnummern im Code gefunden
+
+### Änderung 4 – Easter Egg "Nos"
+- [x] `PersonDetailScreen`: `showKissEgg: Boolean` State hinzugefügt
+- [x] `onSaved`-Callbacks in AddDebtSheet und AddPaymentSheet prüfen `person.name.lowercase() == "nos"` → setzen `showKissEgg = true`
+- [x] `SettlementSheet.onSuccess`: ebenfalls "Nos"-Check
+- [x] `KissEggOverlay`: Composable mit `Animatable` Fade-In (400ms) → Hold (700ms) → Fade-Out (400ms), 💋 in 120sp
+- [x] Imports: `Animatable`, `tween`, `graphicsLayer`, `BebasNeueFontFamily`, `LaunchedEffect`
+
+### Änderung 5 – Doppelte Success-Messages entfernt
+- [x] `SettlementSheet`: `toastEvent`-Collector (`LaunchedEffect(Unit)`) entfernt — keine Toast-Anzeige nach Tilgung
+- [x] `PersonDetailScreen.onSuccess`: Snackbar-`scope.launch`-Block entfernt, `settlementSuccessPrefix`-Variable entfernt
+- [x] Unused Imports entfernt: `Toast`, `LocalContext` aus SettlementSheet
+- [x] `ShowLastPaymentToast` in `AddPaymentSheet` BEHALTEN — ist Doppelbuchungs-Schutz, keine Erfolgs-Meldung
+
+### Änderung 6 – APK-Update Download-Dialog
+- [x] `util/UpdateDownloadManager.kt`: DownloadState sealed class + DownloadManager-basierter Download + FileProvider-Intent + 100KB-Mindestgröße-Check
+- [x] `presentation/dashboard/StartupViewModel.kt`: Hilt-ViewModel, `checkOnStartup()` (idempotent, 24h-Cooldown), `startDownload()`, `buildInstallIntent()`, `dismissUpdate()`, `skipUpdate()`
+- [x] `presentation/components/StartupUpdateDialog.kt`: 4-Phasen-Dialog (Idle/Downloading/Ready/Error) mit `LinearProgressIndicator`
+- [x] `presentation/BugListNavHost.kt`: StartupViewModel + LaunchedEffect → `checkOnStartup()` im Dashboard-Route; `StartupUpdateDialog` wird bei `UpdateState.UpdateAvailable` angezeigt
+- [x] `AndroidManifest.xml`: `REQUEST_INSTALL_PACKAGES` Permission hinzugefügt
+- [x] `file_provider_paths.xml`: bereits `<cache-path path="." />` → APK wird korrekt über FileProvider ausgeliefert
+- [x] Download-URL: konfigurierbar via `UpdateConfig.API_URL` in `util/UpdateConfig.kt`

@@ -564,6 +564,38 @@ Gilt für alle `RoomDatabase`-Methoden die keine suspend-Funktionen sind: `clear
 - Navigation nach Löschen via `SharedFlow<Unit>` (One-Shot-Event, kein StateFlow-Flag) — L-082-Muster
 - `onDeleteAll`-Callback in `SettingsScreen` als Parameter, verdrahtet im NavHost mit `popUpTo(AUTH) + navigate(DASHBOARD)`
 
+### L-089 – Animatable für Fade-In/Out-Overlays in Compose
+
+**Problem:** Einmalige Overlay-Animation (Fade-In → Hold → Fade-Out) — LaunchedEffect mit delay() und Animatable.
+**Regel:** `remember { Animatable(0f) }` + `LaunchedEffect(Unit)` mit `animateTo(1f, tween(...))` → `delay(...)` → `animateTo(0f, tween(...))` → `onFinished()`. Alpha anwenden via `Modifier.graphicsLayer { this.alpha = alpha.value }`.
+```kotlin
+val alpha = remember { Animatable(0f) }
+LaunchedEffect(Unit) {
+    alpha.animateTo(1f, animationSpec = tween(400))
+    delay(700L)
+    alpha.animateTo(0f, animationSpec = tween(400))
+    onFinished()
+}
+Box(modifier = Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha.value }) { ... }
+```
+
+### L-090 – REQUEST_INSTALL_PACKAGES für APK-Install via Intent benötigt
+
+**Problem:** `Intent(ACTION_VIEW)` mit MIME `application/vnd.android.package-archive` zeigt keinen Install-Dialog auf API 26+.
+**Ursache:** Ab Android 8 (API 26 = minSdk) braucht die App die Permission `REQUEST_INSTALL_PACKAGES`.
+**Regel:** Im Manifest hinzufügen:
+```xml
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+```
+
+### L-091 – DownloadManager.Request: Uri.fromFile() für cacheDir reicht für DownloadManager, FileProvider für Install-Intent
+
+**Problem:** `DownloadManager.setDestinationUri(Uri.parse("file://..."))` vs FileProvider.
+**Regel:**
+- `DownloadManager.Request.setDestinationUri(Uri.fromFile(file))` — `Uri.fromFile()` ist für DownloadManager intern OK
+- Für den Install-Intent MUSS FileProvider verwendet werden: `FileProvider.getUriForFile(context, "$applicationId.fileprovider", file)` + `FLAG_GRANT_READ_URI_PERMISSION`
+- `Uri.fromFile()` direkt im Intent würde auf Android 7+ FileUriExposedException werfen
+
 _Initialdokumentation: 2026-03-17_
 _Perfektionierungsrunde: 2026-03-18_
 _Auto-Update System: 2026-03-18_
@@ -575,4 +607,5 @@ _Farb-Inversion + Settlement-Toast: 2026-03-18_
 _SettlementSheet + LongPress-Edit: 2026-03-18_
 _Statistik-Ausbau + TILGEN-Verifikation: 2026-03-18_
 _DeleteAllData-Bugfix: 2026-03-18_
+_v1.5.1 Changes: 2026-03-19_
 _Wird nach jedem Fehler erweitert._

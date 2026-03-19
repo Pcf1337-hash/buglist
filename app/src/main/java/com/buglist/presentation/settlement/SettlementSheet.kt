@@ -1,6 +1,5 @@
 package com.buglist.presentation.settlement
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -102,13 +100,9 @@ fun SettlementSheet(
     val sheetState: SheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
-    val context = LocalContext.current
 
     var amountInput by rememberSaveable { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
-
-    // String resources captured outside LaunchedEffect to satisfy @Composable constraint
-    val lastSettlementToastPrefix = stringResource(R.string.settlement_last_toast_prefix)
 
     // Load open debts when sheet opens
     LaunchedEffect(personId, isOwedToMe) {
@@ -119,21 +113,6 @@ fun SettlementSheet(
     LaunchedEffect(amountInput) {
         val parsed = parseAmountInput(amountInput)
         viewModel.updatePreview(parsed)
-    }
-
-    // Collect one-shot toast events — fires immediately after settlement,
-    // independently of the Success state transition that closes the sheet.
-    LaunchedEffect(Unit) {
-        viewModel.toastEvent.collect { (amount, date) ->
-            val formattedAmount = formatAmount(amount, currency)
-            val formattedDate = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-                .format(Date(date))
-            Toast.makeText(
-                context,
-                "$lastSettlementToastPrefix $formattedAmount am $formattedDate",
-                Toast.LENGTH_LONG
-            ).show()
-        }
     }
 
     // React to Success state — close sheet and notify caller

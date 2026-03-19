@@ -14,15 +14,20 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -72,8 +77,23 @@ fun AddPaymentSheet(
     viewModel: AddDebtViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.paymentUiState.collectAsStateWithLifecycle()
-    val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+
+    // 80% swipe-down threshold — mirrors the pattern used in AddDebtSheet (L-083).
+    var sheetHeightPx by remember { mutableFloatStateOf(0f) }
+    val dismissAllowed = remember { mutableStateOf(false) }
+    val sheetState: SheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { targetValue ->
+            targetValue != SheetValue.Hidden || dismissAllowed.value
+        }
+    )
+
+    LaunchedEffect(sheetState, sheetHeightPx) {
+        if (sheetHeightPx <= 0f) return@LaunchedEffect
+        snapshotFlow { runCatching { sheetState.requireOffset() }.getOrDefault(0f) }
+            .collect { offset -> dismissAllowed.value = offset >= sheetHeightPx * 0.8f }
+    }
 
     var amountInput by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
@@ -108,7 +128,8 @@ fun AddPaymentSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BugListColors.Surface
+        containerColor = BugListColors.Surface,
+        modifier = Modifier.onSizeChanged { size -> sheetHeightPx = size.height.toFloat() }
     ) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             // Header

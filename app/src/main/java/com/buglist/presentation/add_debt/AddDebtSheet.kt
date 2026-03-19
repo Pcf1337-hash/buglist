@@ -15,13 +15,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
@@ -57,8 +54,8 @@ import com.buglist.presentation.theme.RobotoCondensedFontFamily
 /**
  * Bottom sheet for entering a new debt entry or editing an existing one.
  *
- * Uses [AmountInputPad] for amount entry, a direction toggle, and an optional
- * description field. Date defaults to now for new entries.
+ * Uses [AmountInputPad] for amount entry, a direction toggle, and optional tag chips.
+ * Date defaults to now for new entries. The description field is intentionally omitted from UI.
  *
  * When [existingDebt] is non-null the sheet opens in edit mode: prefilled values,
  * title "EINTRAG BEARBEITEN", and the save button calls [AddDebtViewModel.updateDebt].
@@ -127,11 +124,8 @@ fun AddDebtSheet(
         // UI toggle: false = "SCHULDET MIR" (DB isOwedToMe=true), true = "ICH SCHULDE" (DB isOwedToMe=false)
         existingDebt?.let { !it.isOwedToMe } ?: false
     }
-    val initialDescription = remember(existingDebt) { existingDebt?.description ?: "" }
-
     var amountInput by rememberSaveable { mutableStateOf(initialAmountInput) }
     var isOwedToMe by rememberSaveable { mutableStateOf(initialIsOwedToMeUiToggle) }
-    var description by rememberSaveable { mutableStateOf(initialDescription) }
 
     LaunchedEffect(uiState) {
         if (uiState is AddDebtUiState.Success) {
@@ -255,33 +249,6 @@ fun AddDebtSheet(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            // Description (optional)
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = {
-                    Text(
-                        stringResource(R.string.add_debt_description_hint),
-                        fontFamily = RobotoCondensedFontFamily,
-                        color = BugListColors.Muted
-                    )
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BugListColors.Gold,
-                    unfocusedBorderColor = BugListColors.Divider,
-                    focusedTextColor = BugListColors.Platinum,
-                    unfocusedTextColor = BugListColors.Platinum,
-                    cursorColor = BugListColors.Gold
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-
             Spacer(Modifier.height(16.dp))
 
             // Error message
@@ -307,7 +274,7 @@ fun AddDebtSheet(
                             isOwedToMe = !isOwedToMe,
                             date = existingDebt.date,
                             dueDate = existingDebt.dueDate,
-                            description = description
+                            description = existingDebt.description
                         )
                     } else {
                         viewModel.saveDebt(
@@ -316,7 +283,7 @@ fun AddDebtSheet(
                             isOwedToMe = !isOwedToMe,
                             date = System.currentTimeMillis(),
                             dueDate = null,
-                            description = description
+                            description = null
                         )
                     }
                 },

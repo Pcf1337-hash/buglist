@@ -15,17 +15,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.buglist.BugListApplication
+import com.buglist.data.remote.UpdateState
 import com.buglist.di.DatabaseProvider
 import com.buglist.presentation.add_person.AddPersonSheet
 import com.buglist.presentation.auth.AuthScreen
 import com.buglist.presentation.auth.AuthUiState
 import com.buglist.presentation.auth.AuthViewModel
+import com.buglist.presentation.components.StartupUpdateDialog
 import com.buglist.presentation.dashboard.DashboardScreen
+import com.buglist.presentation.dashboard.StartupViewModel
 import com.buglist.presentation.person_detail.PersonDetailScreen
 import com.buglist.presentation.settings.SettingsScreen
 import com.buglist.presentation.statistics.StatisticsScreen
 import com.buglist.security.BiometricAuthManager
 import com.buglist.security.SessionManager
+import com.buglist.util.DownloadState
 
 /**
  * Navigation routes used throughout the app.
@@ -127,6 +131,15 @@ fun BugListNavHost(
         composable(Routes.DASHBOARD) {
             var showAddPerson by remember { mutableStateOf(false) }
 
+            // Startup update check — runs once per session after auth.
+            val startupViewModel: StartupViewModel = hiltViewModel()
+            val updateState by startupViewModel.updateState.collectAsStateWithLifecycle()
+            val downloadState by startupViewModel.downloadState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(Unit) {
+                startupViewModel.checkOnStartup()
+            }
+
             DashboardScreen(
                 onPersonClick = { personId ->
                     navController.navigate(Routes.personDetail(personId))
@@ -140,6 +153,34 @@ fun BugListNavHost(
                 AddPersonSheet(
                     onDismiss = { showAddPerson = false },
                     onSaved = { _ -> showAddPerson = false }
+                )
+            }
+
+            // Update dialog — shown when a newer version is detected on startup
+            val currentUpdateState = updateState
+            if (currentUpdateState is UpdateState.UpdateAvailable) {
+                StartupUpdateDialog(
+                    updateState = currentUpdateState,
+                    downloadState = downloadState,
+                    onUpdate = {
+                        startupViewModel.startDownload(currentUpdateState.downloadUrl)
+                    },
+                    onInstall = {
+                        val intent = startupViewModel.buildInstallIntent()
+                        if (intent != null) {
+                            activity.startActivity(intent)
+                        }
+                        startupViewModel.dismissUpdate()
+                    },
+                    onRetry = {
+                        startupViewModel.resetDownload()
+                    },
+                    onSkip = {
+                        startupViewModel.skipUpdate(currentUpdateState.newVersion)
+                    },
+                    onDismiss = {
+                        startupViewModel.dismissUpdate()
+                    }
                 )
             }
         }

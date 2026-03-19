@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Internet – für GitHub Releases Update-Check -->
+    <!-- Internet – für GitHub Releases Update-Check und APK-Download -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- APK-Installation aus der App heraus (Update-Flow) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Biometric authentication -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />

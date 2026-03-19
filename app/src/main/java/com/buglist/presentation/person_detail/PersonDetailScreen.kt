@@ -1,5 +1,7 @@
 package com.buglist.presentation.person_detail
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -74,6 +78,7 @@ import com.buglist.presentation.components.DebtCard
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.settlement.SettlementSheet
 import com.buglist.presentation.theme.BugListColors
+import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import kotlinx.coroutines.launch
@@ -105,13 +110,14 @@ fun PersonDetailScreen(
     var editDebtEntry by remember { mutableStateOf<DebtEntry?>(null) }
     // Settlement sheet: null = closed, true = settling "owed to me", false = settling "I owe"
     var settlementDirection by remember { mutableStateOf<Boolean?>(null) }
+    // Easter egg: kiss emoji for person named "Nos"
+    var showKissEgg by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
     val undoLabel = stringResource(R.string.action_undo)
-    val settlementSuccessPrefix = stringResource(R.string.settlement_snackbar_success)
 
     when (val state = uiState) {
         is PersonDetailUiState.Loading -> {
@@ -298,7 +304,10 @@ fun PersonDetailScreen(
                 AddDebtSheet(
                     personId = viewModel.personId,
                     onDismiss = { showAddDebt = false },
-                    onSaved = { showAddDebt = false }
+                    onSaved = {
+                        showAddDebt = false
+                        if (state.person.name.lowercase() == "nos") showKissEgg = true
+                    }
                 )
             }
 
@@ -325,7 +334,10 @@ fun PersonDetailScreen(
                         isOwedToMe = debtWithPayments.entry.isOwedToMe,
                         currency = debtWithPayments.entry.currency,
                         onDismiss = { paymentDebtId = null },
-                        onSaved = { paymentDebtId = null }
+                        onSaved = {
+                            paymentDebtId = null
+                            if (state.person.name.lowercase() == "nos") showKissEgg = true
+                        }
                     )
                 }
             }
@@ -338,17 +350,52 @@ fun PersonDetailScreen(
                     personName = state.person.name,
                     isOwedToMe = currentSettlementDirection,
                     onDismiss = { settlementDirection = null },
-                    onSuccess = { settledAmountFormatted ->
+                    onSuccess = { _ ->
                         settlementDirection = null
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = String.format(settlementSuccessPrefix, settledAmountFormatted)
-                            )
-                        }
+                        if (state.person.name.lowercase() == "nos") showKissEgg = true
                     }
                 )
             }
+
+            // Easter egg overlay — kiss emoji for person named "Nos"
+            if (showKissEgg) {
+                KissEggOverlay(onFinished = { showKissEgg = false })
+            }
         }
+    }
+}
+
+/**
+ * Full-screen overlay that fades in the kiss emoji (💋), holds briefly, then fades out.
+ * Total duration: ~1500ms. Calls [onFinished] when the animation completes.
+ *
+ * Used as an Easter Egg when a debt action is performed for a person named "Nos".
+ */
+@Composable
+private fun KissEggOverlay(onFinished: () -> Unit) {
+    val alpha = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        // Fade in: 400ms
+        alpha.animateTo(1f, animationSpec = tween(durationMillis = 400))
+        // Hold: 700ms
+        kotlinx.coroutines.delay(700L)
+        // Fade out: 400ms
+        alpha.animateTo(0f, animationSpec = tween(durationMillis = 400))
+        onFinished()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha.value },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "\uD83D\uDC8B",
+            fontSize = 120.sp,
+            fontFamily = BebasNeueFontFamily
+        )
     }
 }
 
