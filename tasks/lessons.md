@@ -59,6 +59,26 @@ combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags()) { ... }
 combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags(), paymentRepo.observePaymentChanges()) { p, t, e, _, _ -> ... }
 ```
 
+### L-043 – SQLCipher InvalidationTracker für @Insert/@Update unzuverlässig → in-memory Version-Counter
+**Problem:** Nach `debtEntryDao.insert()` oder `debtEntryDao.update()` feuert Room's InvalidationTracker manchmal nicht — auch für einfache (nicht @Transaction) Queries wie `COUNT(*) FROM debt_entries`.
+**Ursache:** SQLCipher 4.9.0's `SupportSQLiteDatabase` notifiziert Room's InvalidationTracker nicht immer zuverlässig. Das betrifft sowohl @Transaction als auch simple @Insert/@Update.
+**Regel:** Kein Room-basierter Trigger (COUNT, MAX, etc.) ist mit SQLCipher zuverlässig. Stattdessen: In-Memory `MutableStateFlow<Long>` Version-Counter im `@Singleton` Repository. Nach jedem Schreibvorgang explizit `_changeVersion.update { it + 1 }` aufrufen. `observeXxxChanges()` gibt `_changeVersion.map { }` zurück.
+```kotlin
+// FALSCH — InvalidationTracker fired unreliably with SQLCipher
+@Query("SELECT COUNT(*) FROM debt_entries")
+fun getDebtEntryCount(): Flow<Int>
+override fun observeDebtEntryChanges() = debtEntryDao.getDebtEntryCount().mapLatest { }
+
+// RICHTIG — in-memory trigger, 100% zuverlässig
+private val _changeVersion = MutableStateFlow(0L)
+override fun observeDebtEntryChanges(): Flow<Unit> = _changeVersion.map { }
+override suspend fun addDebtEntry(entry: DebtEntry): Long {
+    val id = debtEntryDao.insert(entry.toEntity())
+    _changeVersion.update { it + 1 }  // explicit notification
+    return id
+}
+```
+
 ### L-042 – DownloadManager: „unsupported path" bei internem Cache-Pfad
 **Problem:** `DownloadManager.enqueue()` wirft `"Download starten fehlgeschlagen: unsupported path data/data/…/cache/buglist_update.apk"`.
 **Ursache:** Android's `DownloadManager` schreibt ausschließlich auf externen Storage. `Uri.fromFile(context.cacheDir/…)` erzeugt einen `file://`-URI auf internen Speicher → wird rejected.
