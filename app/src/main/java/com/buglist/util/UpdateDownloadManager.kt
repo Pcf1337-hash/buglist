@@ -26,7 +26,10 @@ sealed class DownloadState {
  * and can call [buildInstallIntent] to get an install [android.content.Intent].
  *
  * Rules enforced:
- * - APK is saved to [Context.cacheDir] — no external storage, no legacy storage flag needed.
+ * - APK is saved to the app's external files directory via [setDestinationInExternalFilesDir].
+ *   Android's DownloadManager rejects internal `file://` URIs (data/data/…/cache); it only
+ *   accepts external storage paths. [Context.getExternalFilesDir] is app-private, needs no
+ *   WRITE_EXTERNAL_STORAGE permission, and is cleaned up on uninstall. (L-042)
  * - FileProvider authority `${applicationId}.fileprovider` is used for the install Intent.
  * - Files < 100 KB after download are rejected ([DownloadState.Error]) to guard against
  *   truncated or error-page downloads.
@@ -44,8 +47,10 @@ class UpdateDownloadManager(private val context: Context) {
     private val systemDownloadManager =
         context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
+    // External app-private directory: /sdcard/Android/data/com.buglist/files/
+    // DownloadManager requires an external storage path — internal cacheDir is rejected. (L-042)
     private val apkFile: File
-        get() = File(context.cacheDir, APK_FILENAME)
+        get() = File(context.getExternalFilesDir(null), APK_FILENAME)
 
     /**
      * Starts the download of the APK at [url] and polls for progress until completion.
@@ -67,7 +72,9 @@ class UpdateDownloadManager(private val context: Context) {
             val request = DownloadManager.Request(Uri.parse(url)).apply {
                 setTitle("BugList Update")
                 setDescription("Downloading update…")
-                setDestinationUri(Uri.fromFile(apkFile))
+                // setDestinationInExternalFilesDir avoids the "unsupported path" crash:
+                // DownloadManager only writes to external storage, not internal cacheDir. (L-042)
+                setDestinationInExternalFilesDir(context, null, APK_FILENAME)
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 setMimeType("application/vnd.android.package-archive")
             }

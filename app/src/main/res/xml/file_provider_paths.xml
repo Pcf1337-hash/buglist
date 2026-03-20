@@ -2,4 +2,8 @@
 <paths>
     <!-- Cache directory for CSV exports shared via Share Intent -->
     <cache-path name="buglist_exports" path="." />
+    <!-- External app-private directory for APK update downloads.
+         DownloadManager writes here via setDestinationInExternalFilesDir().
+         Maps to: /sdcard/Android/data/com.buglist/files/ (L-042) -->
+    <external-files-path name="buglist_updates" path="." />
 </paths>
