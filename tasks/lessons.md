@@ -59,6 +59,20 @@ combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags()) { ... }
 combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags(), paymentRepo.observePaymentChanges()) { p, t, e, _, _ -> ... }
 ```
 
+### L-042 – DownloadManager: „unsupported path" bei internem Cache-Pfad
+**Problem:** `DownloadManager.enqueue()` wirft `"Download starten fehlgeschlagen: unsupported path data/data/…/cache/buglist_update.apk"`.
+**Ursache:** Android's `DownloadManager` schreibt ausschließlich auf externen Storage. `Uri.fromFile(context.cacheDir/…)` erzeugt einen `file://`-URI auf internen Speicher → wird rejected.
+**Regel:** Immer `setDestinationInExternalFilesDir(context, null, filename)` verwenden statt `setDestinationUri(Uri.fromFile(...))`. Zugehörigen `apkFile`-Getter auf `context.getExternalFilesDir(null)` zeigen lassen. FileProvider-Konfiguration um `<external-files-path name="…" path="." />` ergänzen damit der Install-Intent die APK ausliefern kann.
+```kotlin
+// FALSCH – interner Pfad → DownloadManager Exception
+setDestinationUri(Uri.fromFile(File(context.cacheDir, "update.apk")))
+
+// RICHTIG – app-privater externer Pfad, kein Storage-Permission nötig
+setDestinationInExternalFilesDir(context, null, "update.apk")
+// + apkFile = File(context.getExternalFilesDir(null), "update.apk")
+// + file_provider_paths.xml: <external-files-path name="updates" path="." />
+```
+
 ### L-041 – SQLCipher @Transaction + Room InvalidationTracker → Liste aktualisiert sich nicht nach Debt-Eintrag erstellen/bearbeiten
 **Problem:** Nach dem Erstellen oder Bearbeiten eines Schulden-Eintrags musste man zwischen Tabs wechseln damit der Eintrag in der Liste erscheint.
 **Ursache:** Gleiche SQLCipher-InvalidationTracker-Lücke wie L-039, aber diesmal für die `debt_entries`-Tabelle selbst. Room notifiziert `@Transaction @Query`-Flows mit `@Relation` nach direkten Inserts/Updates via SQLCipher nicht zuverlässig.
