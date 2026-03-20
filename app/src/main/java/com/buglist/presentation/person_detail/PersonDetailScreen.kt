@@ -70,6 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtEntry
 import com.buglist.domain.model.DebtEntryWithPayments
+import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
@@ -408,8 +409,17 @@ private fun PersonDetailHeader(
     onSettleOwedToMe: () -> Unit,
     onSettleIOwe: () -> Unit
 ) {
+    // Balance calculation per status:
+    // OPEN/PARTIAL → remaining (what's still outstanding)
+    // PAID         → entry.amount (original debt, totalPaid may be 0 for direct-mark-as-paid)
+    // CANCELLED    → 0 (irrelevant)
     val netBalance = debts.sumOf { dwp ->
-        if (dwp.entry.isOwedToMe) dwp.remaining else -dwp.remaining
+        val amount = when (dwp.entry.status) {
+            DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
+            DebtStatus.PAID -> dwp.entry.amount
+            DebtStatus.CANCELLED -> 0.0
+        }
+        if (dwp.entry.isOwedToMe) amount else -amount
     }
     val hasAnyOpenDebts = hasOpenDebtsOwedToMe || hasOpenDebtsIOwe
 

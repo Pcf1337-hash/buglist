@@ -12,8 +12,9 @@ import com.buglist.domain.repository.DebtRepository
 import com.buglist.domain.repository.StatisticsOpenTotals
 import com.buglist.domain.repository.StatisticsPaidTotals
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,8 +28,17 @@ class DebtRepositoryImpl @Inject constructor(
     private val debtEntryDao: DebtEntryDao
 ) : DebtRepository {
 
-    override fun observeDebtEntryChanges(): Flow<Unit> =
-        debtEntryDao.getDebtEntryCount().mapLatest { }
+    /**
+     * In-memory version counter incremented on every write.
+     *
+     * Room's InvalidationTracker is unreliable with SQLCipher 4.9.0 for simple
+     * @Insert/@Update calls — notifications sometimes don't fire. This counter
+     * bypasses the InvalidationTracker entirely and guarantees instant notification
+     * to all observers after any debt-entry write. (L-043)
+     */
+    private val _changeVersion = MutableStateFlow(0L)
+
+    override fun observeDebtEntryChanges(): Flow<Unit> = _changeVersion.map { }
 
     override fun getDebtEntriesWithPaymentsForPerson(personId: Long): Flow<List<DebtEntryWithPayments>> =
         debtEntryDao.getDebtEntriesWithPaymentsForPerson(personId).map { list ->
@@ -70,20 +80,31 @@ class DebtRepositoryImpl @Inject constructor(
             list.map { it.toDomain() }
         }
 
-    override suspend fun addDebtEntry(debtEntry: DebtEntry): Long =
-        debtEntryDao.insert(debtEntry.toEntity())
+    override suspend fun addDebtEntry(debtEntry: DebtEntry): Long {
+        val id = debtEntryDao.insert(debtEntry.toEntity())
+        _changeVersion.update { it + 1 }
+        return id
+    }
 
-    override suspend fun updateDebtEntry(debtEntry: DebtEntry) =
+    override suspend fun updateDebtEntry(debtEntry: DebtEntry) {
         debtEntryDao.update(debtEntry.toEntity())
+        _changeVersion.update { it + 1 }
+    }
 
-    override suspend fun deleteDebtEntry(debtEntry: DebtEntry) =
+    override suspend fun deleteDebtEntry(debtEntry: DebtEntry) {
         debtEntryDao.delete(debtEntry.toEntity())
+        _changeVersion.update { it + 1 }
+    }
 
-    override suspend fun deleteDebtEntryById(debtEntryId: Long) =
+    override suspend fun deleteDebtEntryById(debtEntryId: Long) {
         debtEntryDao.deleteById(debtEntryId)
+        _changeVersion.update { it + 1 }
+    }
 
-    override suspend fun updateDebtStatus(debtEntryId: Long, status: DebtStatus) =
+    override suspend fun updateDebtStatus(debtEntryId: Long, status: DebtStatus) {
         debtEntryDao.updateStatus(debtEntryId, status.name)
+        _changeVersion.update { it + 1 }
+    }
 
     override suspend fun getOpenDebtsForPerson(
         personId: Long,
