@@ -75,9 +75,16 @@ interface PersonDao {
             GROUP BY debtEntryId
         ) paid ON paid.debtEntryId = de.id
         GROUP BY p.id
-        ORDER BY p.name ASC
+        ORDER BY p.sortIndex ASC, p.name ASC
     """)
     fun getAllPersonsWithBalance(): Flow<List<PersonWithNetBalance>>
+
+    /**
+     * Updates the manual sort position for a single person.
+     * Used by [PersonRepository.updatePersonSortIndices] to persist drag-to-reorder results.
+     */
+    @Query("UPDATE persons SET sortIndex = :sortIndex WHERE id = :id")
+    suspend fun updateSortIndex(id: Long, sortIndex: Int)
 
     /** Returns the total count of persons. */
     @Query("SELECT COUNT(*) FROM persons")

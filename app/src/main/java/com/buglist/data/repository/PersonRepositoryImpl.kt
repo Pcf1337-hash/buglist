@@ -44,6 +44,12 @@ class PersonRepositoryImpl @Inject constructor(
 
     override suspend fun deletePersonById(personId: Long) =
         personDao.deleteById(personId)
+
+    override suspend fun updatePersonSortIndices(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id ->
+            personDao.updateSortIndex(id, index)
+        }
+    }
 }
 
 // --- Mapping extensions ---
@@ -54,7 +60,8 @@ internal fun PersonEntity.toDomain(): Person = Person(
     phone = phone,
     notes = notes,
     avatarColor = avatarColor,
-    createdAt = createdAt
+    createdAt = createdAt,
+    sortIndex = sortIndex
 )
 
 internal fun Person.toEntity(): PersonEntity = PersonEntity(
@@ -63,7 +70,8 @@ internal fun Person.toEntity(): PersonEntity = PersonEntity(
     phone = phone,
     notes = notes,
     avatarColor = avatarColor,
-    createdAt = createdAt
+    createdAt = createdAt,
+    sortIndex = sortIndex
 )
 
 internal fun PersonWithNetBalance.toDomain(): PersonWithBalance = PersonWithBalance(

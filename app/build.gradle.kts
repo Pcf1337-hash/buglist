@@ -15,8 +15,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.6.6"
+        versionCode = 24
+        versionName = "1.6.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -134,6 +134,9 @@ dependencies {
 
     // Charts
     implementation(libs.vico.compose)
+
+    // Drag-to-reorder for Crew list
+    implementation(libs.reorderable)
 
     // Ktor (Auto-Update via GitHub Releases)
     implementation(libs.ktor.client.android)

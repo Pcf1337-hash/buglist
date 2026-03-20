@@ -54,4 +54,16 @@ interface PersonRepository {
      * Deletes a person by ID (CASCADE DELETE).
      */
     suspend fun deletePersonById(personId: Long)
+
+    /**
+     * Persists the manual drag-to-reorder result for the crew list.
+     *
+     * Iterates through [orderedIds] in order and writes each person's new
+     * [Person.sortIndex] (= list position 0, 1, 2, …) to the database.
+     * After this call the DB query ORDER BY `sortIndex ASC, name ASC` will
+     * return persons in the user's chosen order.
+     *
+     * @param orderedIds Person IDs in the new desired order (top → bottom).
+     */
+    suspend fun updatePersonSortIndices(orderedIds: List<Long>)
 }

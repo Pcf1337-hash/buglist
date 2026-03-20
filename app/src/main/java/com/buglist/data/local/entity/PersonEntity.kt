@@ -24,5 +24,10 @@ data class PersonEntity(
     val phone: String? = null,
     val notes: String? = null,
     val avatarColor: Int = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /**
+     * Manual drag-and-drop sort position. Stored as `sort_index` column (added in schema v3).
+     * Default [Int.MAX_VALUE] = unsorted (falls back to name order for ties in the SQL query).
+     */
+    val sortIndex: Int = Int.MAX_VALUE
 )

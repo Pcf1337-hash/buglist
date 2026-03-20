@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.data.remote.UpdateState
 import com.buglist.domain.model.PersonWithBalance
+import com.buglist.domain.repository.PersonRepository
 import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.CalculateTotalBalanceUseCase
 import com.buglist.domain.usecase.CheckForUpdateUseCase
@@ -47,11 +48,11 @@ class DashboardViewModel @Inject constructor(
     getPersonsWithBalancesUseCase: GetPersonsWithBalancesUseCase,
     calculateTotalBalanceUseCase: CalculateTotalBalanceUseCase,
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val personRepository: PersonRepository
 ) : ViewModel() {
 
-    private val _sortOrder = MutableStateFlow(PersonSortOrder.NAME)
-    val sortOrder: StateFlow<PersonSortOrder> = _sortOrder.asStateFlow()
+    private val _sortOrder = MutableStateFlow(PersonSortOrder.MANUAL)
 
     val uiState: StateFlow<DashboardUiState> = _sortOrder.flatMapLatest { sortOrder ->
         combine(
@@ -110,7 +111,14 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun setSortOrder(order: PersonSortOrder) {
-        _sortOrder.value = order
+    /**
+     * Persists the manual drag-to-reorder result for the crew list.
+     *
+     * @param orderedIds Person IDs in the new desired order (top → bottom).
+     */
+    fun saveOrder(orderedIds: List<Long>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            personRepository.updatePersonSortIndices(orderedIds)
+        }
     }
 }

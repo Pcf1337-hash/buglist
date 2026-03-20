@@ -20,5 +20,13 @@ data class Person(
     val phone: String? = null,
     val notes: String? = null,
     val avatarColor: Int = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /**
+     * Manual sort position. Lower values appear higher in the list.
+     * Default [Int.MAX_VALUE] so new persons appear at the bottom before the user
+     * has manually reordered. After the first drag-to-reorder, all items get
+     * sequential values (0, 1, 2, …). Items with equal sortIndex fall back to
+     * name ordering (see PersonDao.getAllPersonsWithBalance ORDER BY clause).
+     */
+    val sortIndex: Int = Int.MAX_VALUE
 )

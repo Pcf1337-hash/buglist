@@ -31,6 +31,7 @@ import com.buglist.data.local.entity.TagEntity
  * Schema version history:
  *   v1 – Initial schema (persons, debt_entries, payments)
  *   v2 – Tag system: tags table + debt_entry_tags join table
+ *   v3 – Manual crew sort: sort_index column added to persons table
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -43,7 +44,7 @@ import com.buglist.data.local.entity.TagEntity
         TagEntity::class,
         DebtEntryTagCrossRef::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,6 +62,22 @@ abstract class AppDatabase : RoomDatabase() {
          * Creates the `tags` table and the `debt_entry_tags` join table with
          * foreign key constraints and indices required for efficient tag lookups.
          */
+        /**
+         * Migration from v2 to v3: adds the `sort_index` column to persons.
+         *
+         * DEFAULT 2147483647 = Int.MAX_VALUE — existing persons start as "unsorted"
+         * so they continue to appear in alphabetical order (name is the SQL tiebreaker
+         * when sort_index values are equal). On first drag-to-reorder by the user
+         * all items are renumbered 0, 1, 2, … and the manual order takes effect.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE persons ADD COLUMN sortIndex INTEGER NOT NULL DEFAULT 2147483647"
+                )
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(

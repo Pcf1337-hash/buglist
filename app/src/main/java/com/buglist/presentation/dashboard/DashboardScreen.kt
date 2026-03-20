@@ -2,6 +2,7 @@ package com.buglist.presentation.dashboard
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,15 +19,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -35,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -61,9 +64,14 @@ import com.buglist.presentation.components.UpdateDialog
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
  * Dashboard screen — shows all persons with their net balances and the global total.
+ *
+ * Supports manual drag-to-reorder via a pencil/edit icon next to the CREW header.
+ * In edit mode, drag handles appear on each row; exiting edit mode persists the new order.
  *
  * @param onPersonClick   Navigate to person detail screen.
  * @param onAddPerson     Open add-person bottom sheet.
@@ -81,10 +89,20 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
+
+    // Edit-mode state — local mutable copy of persons used during reorder
+    var editMode by remember { mutableStateOf(false) }
+    var editablePersons by remember { mutableStateOf<List<PersonWithBalance>>(emptyList()) }
+
+    // Reorderable LazyList state (always created to satisfy Compose key ordering rules)
+    val reorderLazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(reorderLazyListState) { from, to ->
+        editablePersons = editablePersons.toMutableList().apply {
+            add(to.index, removeAt(from.index))
+        }
+    }
 
     if (updateState is UpdateState.UpdateAvailable) {
         val update = updateState as UpdateState.UpdateAvailable
@@ -114,19 +132,21 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onStatistics) {
-                        Icon(
-                            imageVector = Icons.Default.BarChart,
-                            contentDescription = stringResource(R.string.nav_statistics),
-                            tint = BugListColors.Platinum
-                        )
-                    }
-                    IconButton(onClick = onSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.nav_settings),
-                            tint = BugListColors.Platinum
-                        )
+                    if (!editMode) {
+                        IconButton(onClick = onStatistics) {
+                            Icon(
+                                imageVector = Icons.Default.BarChart,
+                                contentDescription = stringResource(R.string.nav_statistics),
+                                tint = BugListColors.Platinum
+                            )
+                        }
+                        IconButton(onClick = onSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.nav_settings),
+                                tint = BugListColors.Platinum
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -135,38 +155,164 @@ fun DashboardScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddPerson,
-                containerColor = BugListColors.Gold,
-                contentColor = BugListColors.Background
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.dashboard_add_person)
-                )
+            if (!editMode) {
+                FloatingActionButton(
+                    onClick = onAddPerson,
+                    containerColor = BugListColors.Gold,
+                    contentColor = BugListColors.Background
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.dashboard_add_person)
+                    )
+                }
             }
         }
     ) { paddingValues ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { isRefreshing = false },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (val state = uiState) {
-                is DashboardUiState.Loading -> {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        CircularProgressIndicator(color = BugListColors.Gold)
-                    }
+
+        when (val state = uiState) {
+            is DashboardUiState.Loading -> {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    CircularProgressIndicator(color = BugListColors.Gold)
                 }
-                is DashboardUiState.Ready -> {
-                    if (state.persons.isEmpty()) {
+            }
+
+            is DashboardUiState.Ready -> {
+                if (state.persons.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
                         DashboardEmptyState(onAddPerson = onAddPerson)
-                    } else {
+                    }
+                } else if (editMode) {
+                    // ── EDIT MODE: fixed summary header + reorderable crew list ──────────
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        DashboardSummaryHeader(
+                            totalBalance = state.totalBalance,
+                            totalOwedToMe = state.totalOwedToMe,
+                            totalIOwe = state.totalIOwe
+                        )
+                        // CREW header row with DONE button
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dashboard_crew_header),
+                                fontFamily = OswaldFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = BugListColors.Gold,
+                                letterSpacing = 2.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = {
+                                    viewModel.saveOrder(editablePersons.map { it.person.id })
+                                    editMode = false
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Fertig",
+                                    tint = BugListColors.Gold,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "FERTIG",
+                                    fontFamily = OswaldFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = BugListColors.Gold
+                                )
+                            }
+                        }
+                        // Reorderable LazyColumn — only person items, no header items
+                        LazyColumn(
+                            state = reorderLazyListState,
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(editablePersons, key = { it.person.id }) { personWithBalance ->
+                                ReorderableItem(reorderableState, key = personWithBalance.person.id) { isDragging ->
+                                    val shadowElevation by animateDpAsState(
+                                        targetValue = if (isDragging) 8.dp else 0.dp,
+                                        label = "drag_elevation"
+                                    )
+                                    Surface(
+                                        shadowElevation = shadowElevation,
+                                        color = if (isDragging) BugListColors.SurfaceHigh else BugListColors.Background
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                                        ) {
+                                            PersonAvatar(
+                                                name = personWithBalance.person.name,
+                                                avatarColor = personWithBalance.person.avatarColor,
+                                                size = 44.dp
+                                            )
+                                            Spacer(Modifier.width(14.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = personWithBalance.person.name,
+                                                    fontFamily = OswaldFontFamily,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp,
+                                                    color = BugListColors.Platinum
+                                                )
+                                                if (personWithBalance.openCount > 0) {
+                                                    Text(
+                                                        text = "${personWithBalance.openCount} ${stringResource(R.string.dashboard_open_debts)}",
+                                                        fontFamily = RobotoCondensedFontFamily,
+                                                        fontSize = 12.sp,
+                                                        color = BugListColors.Muted
+                                                    )
+                                                }
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Default.DragHandle,
+                                                contentDescription = "Ziehen zum Sortieren",
+                                                tint = BugListColors.Muted,
+                                                modifier = Modifier
+                                                    .draggableHandle()
+                                                    .size(24.dp)
+                                            )
+                                        }
+                                        HorizontalDivider(
+                                            color = BugListColors.Divider,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // ── NORMAL MODE: summary + sortable crew list ────────────────────────
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { isRefreshing = false },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
                         LazyColumn(
                             contentPadding = PaddingValues(bottom = 80.dp),
                             modifier = Modifier.fillMaxSize()
@@ -194,48 +340,18 @@ fun DashboardScreen(
                                         letterSpacing = 2.sp,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    Box {
-                                        IconButton(onClick = { showSortMenu = true }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Sort,
-                                                contentDescription = "Sortierung",
-                                                tint = if (sortOrder == com.buglist.domain.usecase.PersonSortOrder.NAME)
-                                                    BugListColors.Muted
-                                                else
-                                                    BugListColors.Gold,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                    IconButton(
+                                        onClick = {
+                                            editablePersons = state.persons
+                                            editMode = true
                                         }
-                                        DropdownMenu(
-                                            expanded = showSortMenu,
-                                            onDismissRequest = { showSortMenu = false },
-                                            containerColor = BugListColors.SurfaceHigh
-                                        ) {
-                                            SortOption(
-                                                label = "Name A–Z",
-                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.NAME,
-                                                onClick = {
-                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.NAME)
-                                                    showSortMenu = false
-                                                }
-                                            )
-                                            SortOption(
-                                                label = "Betrag ↓",
-                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.BALANCE_DESC,
-                                                onClick = {
-                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.BALANCE_DESC)
-                                                    showSortMenu = false
-                                                }
-                                            )
-                                            SortOption(
-                                                label = "Zuletzt hinzugefügt",
-                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.CREATED_AT_DESC,
-                                                onClick = {
-                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.CREATED_AT_DESC)
-                                                    showSortMenu = false
-                                                }
-                                            )
-                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Reihenfolge anpassen",
+                                            tint = BugListColors.Muted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
                             }
@@ -374,22 +490,6 @@ private fun PersonCard(
             fontSize = 20.sp
         )
     }
-}
-
-@Composable
-private fun SortOption(label: String, selected: Boolean, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = {
-            Text(
-                text = label,
-                fontFamily = OswaldFontFamily,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 14.sp,
-                color = if (selected) BugListColors.Gold else BugListColors.Platinum
-            )
-        },
-        onClick = onClick
-    )
 }
 
 @Composable

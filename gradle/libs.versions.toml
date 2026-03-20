@@ -33,6 +33,7 @@ argon2kt = "1.6.0"
 material3 = "1.4.0-alpha07"
 googleFonts = "1.7.8"
 vico = "2.0.1"
+reorderable = "2.4.3"
 
 # Testing
 junit = "4.13.2"
@@ -95,6 +96,7 @@ androidx-compose-ui-google-fonts = { group = "androidx.compose.ui", name = "ui-t
 
 # Charts
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable-android", version.ref = "reorderable" }
 
 # Ktor (Auto-Update via GitHub Releases)
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
