@@ -37,6 +37,16 @@ interface DebtEntryDao {
     suspend fun deleteById(debtEntryId: Long)
 
     /**
+     * Reactive count of all debt entries.
+     *
+     * Used as an InvalidationTracker-compatible trigger: emits on every insert,
+     * update, or delete of [DebtEntryEntity] so that ViewModels using SQLCipher
+     * @Transaction queries can force pipeline re-evaluation. (L-040)
+     */
+    @Query("SELECT COUNT(*) FROM debt_entries")
+    fun getDebtEntryCount(): Flow<Int>
+
+    /**
      * Updates only the status column of a debt entry.
      * Used by the payment repository after inserting a payment to keep status consistent.
      */

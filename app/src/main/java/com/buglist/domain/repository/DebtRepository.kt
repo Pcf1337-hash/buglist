@@ -104,6 +104,15 @@ interface DebtRepository {
     ): List<DebtEntryWithPayments>
 
     /**
+     * Returns a reactive stream that emits whenever any debt entry is inserted, updated, or deleted.
+     *
+     * Used as a combine-trigger in ViewModels to force pipeline re-evaluation after creating
+     * or editing a debt entry — necessary because SQLCipher's @Transaction handling can miss
+     * Room's InvalidationTracker notifications for @Relation tables. (L-040)
+     */
+    fun observeDebtEntryChanges(): Flow<Unit>
+
+    /**
      * Returns open amount totals split by direction and the total open entry count.
      * Used by the statistics header cards.
      */

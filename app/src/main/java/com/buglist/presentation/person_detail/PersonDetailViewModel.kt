@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
@@ -81,11 +82,14 @@ class PersonDetailViewModel @Inject constructor(
         // React to tag-association changes (L-038): tag cross-ref writes don't change
         // debt_entries, so the inner flow never re-emits without this trigger.
         tagRepository.getAllTags(),
-        // React to payment changes (L-039): SQLCipher's @Transaction handling can miss
-        // Room's InvalidationTracker notifications for @Relation tables after
-        // insertPaymentAndUpdateStatus. Adding an explicit payment count trigger ensures
-        // that tilgen (settlement) immediately refreshes the debt list and header balance.
-        paymentRepository.observePaymentChanges()
+        // React to debt-entry and payment changes (L-039, L-040): SQLCipher's @Transaction
+        // handling can miss Room's InvalidationTracker notifications for @Relation tables.
+        // Merging both change streams into a single trigger ensures the list refreshes
+        // immediately after creating/editing a debt entry OR after settlement (Tilgen).
+        merge(
+            paymentRepository.observePaymentChanges(),
+            debtRepository.observeDebtEntryChanges()
+        )
     ) { person, tab, expandedId, _, _ ->
         Triple(person, tab, expandedId)
     }.flatMapLatest { (person, tab, expandedId) ->

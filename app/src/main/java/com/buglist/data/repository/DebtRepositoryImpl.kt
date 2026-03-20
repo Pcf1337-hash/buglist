@@ -13,6 +13,7 @@ import com.buglist.domain.repository.StatisticsOpenTotals
 import com.buglist.domain.repository.StatisticsPaidTotals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +26,9 @@ import javax.inject.Singleton
 class DebtRepositoryImpl @Inject constructor(
     private val debtEntryDao: DebtEntryDao
 ) : DebtRepository {
+
+    override fun observeDebtEntryChanges(): Flow<Unit> =
+        debtEntryDao.getDebtEntryCount().mapLatest { }
 
     override fun getDebtEntriesWithPaymentsForPerson(personId: Long): Flow<List<DebtEntryWithPayments>> =
         debtEntryDao.getDebtEntriesWithPaymentsForPerson(personId).map { list ->
