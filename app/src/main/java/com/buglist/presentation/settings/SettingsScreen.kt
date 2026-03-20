@@ -243,20 +243,15 @@ fun SettingsScreen(
                         selectedSeconds = uiData.autoLockTimeoutSeconds,
                         onSelect = viewModel::setAutoLockTimeout
                     )
-                    Spacer(Modifier.height(12.dp))
-                    SettingsToggleRow(
-                        label = "Kommentarfeld anzeigen",
-                        sublabel = "Zeigt ein Beschreibungsfeld beim Anlegen von Schulden",
-                        checked = uiData.showDescription,
-                        onCheckedChange = viewModel::setShowDescription
-                    )
                 }
             }
             item {
                 TagsSection(
                     allTags = allTags,
                     onAddTag = viewModel::addTag,
-                    onDeleteTag = viewModel::deleteTag
+                    onDeleteTag = viewModel::deleteTag,
+                    showDescription = uiData.showDescription,
+                    onShowDescriptionChange = viewModel::setShowDescription
                 )
             }
             item {
@@ -358,7 +353,9 @@ fun SettingsScreen(
 private fun TagsSection(
     allTags: List<com.buglist.domain.model.Tag>,
     onAddTag: (String) -> Unit,
-    onDeleteTag: (com.buglist.domain.model.Tag) -> Unit
+    onDeleteTag: (com.buglist.domain.model.Tag) -> Unit,
+    showDescription: Boolean,
+    onShowDescriptionChange: (Boolean) -> Unit
 ) {
     var newTagText by remember { mutableStateOf("") }
 
@@ -491,6 +488,19 @@ private fun TagsSection(
                         )
                     }
                 }
+
+                // Description field toggle — logically belongs with tags since both
+                // control what meta-data appears when creating a debt entry.
+                HorizontalDivider(
+                    color = BugListColors.Divider,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                SettingsToggleRow(
+                    label = "Kommentarfeld anzeigen",
+                    sublabel = "Zeigt ein Beschreibungsfeld beim Anlegen von Schulden",
+                    checked = showDescription,
+                    onCheckedChange = onShowDescriptionChange
+                )
             }
         }
     }
