@@ -19,12 +19,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +84,7 @@ fun AddDebtSheet(
     val uiState by viewModel.debtUiState.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val selectedTagIds by viewModel.selectedTagIds.collectAsStateWithLifecycle()
+    val showDescription by viewModel.showDescription.collectAsStateWithLifecycle()
 
     // 80% swipe-down threshold: track sheet height and current drag offset.
     // confirmValueChange blocks the hide transition unless the sheet has been
@@ -126,6 +131,9 @@ fun AddDebtSheet(
     }
     var amountInput by rememberSaveable { mutableStateOf(initialAmountInput) }
     var isOwedToMe by rememberSaveable { mutableStateOf(initialIsOwedToMeUiToggle) }
+    var descriptionInput by rememberSaveable {
+        mutableStateOf(existingDebt?.description ?: "")
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is AddDebtUiState.Success) {
@@ -197,6 +205,35 @@ fun AddDebtSheet(
                         checkedTrackColor = BugListColors.DebtRed,    // checked = "ICH SCHULDE" → ROT
                         uncheckedTrackColor = BugListColors.DebtGreen // unchecked = "SCHULDET MIR" → GRÜN
                     )
+                )
+            }
+
+            // Description / comment field — only shown when enabled in Settings
+            if (showDescription) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = descriptionInput,
+                    onValueChange = { if (it.length <= 100) descriptionInput = it },
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.add_debt_description_hint),
+                            fontFamily = RobotoCondensedFontFamily,
+                            color = BugListColors.Muted,
+                            fontSize = 14.sp
+                        )
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BugListColors.Gold,
+                        unfocusedBorderColor = BugListColors.Divider,
+                        focusedTextColor = BugListColors.Platinum,
+                        unfocusedTextColor = BugListColors.Platinum,
+                        cursorColor = BugListColors.Gold
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 )
             }
 
@@ -274,7 +311,7 @@ fun AddDebtSheet(
                             isOwedToMe = !isOwedToMe,
                             date = existingDebt.date,
                             dueDate = existingDebt.dueDate,
-                            description = existingDebt.description
+                            description = descriptionInput.ifBlank { existingDebt.description }
                         )
                     } else {
                         viewModel.saveDebt(
@@ -283,7 +320,7 @@ fun AddDebtSheet(
                             isOwedToMe = !isOwedToMe,
                             date = System.currentTimeMillis(),
                             dueDate = null,
-                            description = null
+                            description = descriptionInput.ifBlank { null }
                         )
                     }
                 },

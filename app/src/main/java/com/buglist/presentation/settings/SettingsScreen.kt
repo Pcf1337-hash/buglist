@@ -25,6 +25,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -240,6 +242,13 @@ fun SettingsScreen(
                     AutoLockDropdown(
                         selectedSeconds = uiData.autoLockTimeoutSeconds,
                         onSelect = viewModel::setAutoLockTimeout
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    SettingsToggleRow(
+                        label = "Kommentarfeld anzeigen",
+                        sublabel = "Zeigt ein Beschreibungsfeld beim Anlegen von Schulden",
+                        checked = uiData.showDescription,
+                        onCheckedChange = viewModel::setShowDescription
                     )
                 }
             }
@@ -608,5 +617,54 @@ private fun AutoLockDropdown(selectedSeconds: Int, onSelect: (Int) -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * A labelled on/off toggle row for boolean settings.
+ *
+ * @param label           Primary label shown on the left.
+ * @param sublabel        Optional smaller description below the label.
+ * @param checked         Current toggle state.
+ * @param onCheckedChange Callback when the user flips the switch.
+ */
+@Composable
+private fun SettingsToggleRow(
+    label: String,
+    sublabel: String? = null,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontFamily = RobotoCondensedFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = BugListColors.Platinum
+            )
+            if (sublabel != null) {
+                Text(
+                    text = sublabel,
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 11.sp,
+                    color = BugListColors.Muted
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = BugListColors.Gold,
+                checkedThumbColor = BugListColors.Background,
+                uncheckedTrackColor = BugListColors.Divider,
+                uncheckedThumbColor = BugListColors.Muted
+            )
+        )
     }
 }

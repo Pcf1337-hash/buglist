@@ -23,7 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -78,8 +81,10 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     if (updateState is UpdateState.UpdateAvailable) {
         val update = updateState as UpdateState.UpdateAvailable
@@ -174,15 +179,65 @@ fun DashboardScreen(
                                 )
                             }
                             item {
-                                Text(
-                                    text = stringResource(R.string.dashboard_crew_header),
-                                    fontFamily = OswaldFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = BugListColors.Muted,
-                                    letterSpacing = 2.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.dashboard_crew_header),
+                                        fontFamily = OswaldFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = BugListColors.Muted,
+                                        letterSpacing = 2.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Box {
+                                        IconButton(onClick = { showSortMenu = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sort,
+                                                contentDescription = "Sortierung",
+                                                tint = if (sortOrder == com.buglist.domain.usecase.PersonSortOrder.NAME)
+                                                    BugListColors.Muted
+                                                else
+                                                    BugListColors.Gold,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false },
+                                            containerColor = BugListColors.SurfaceHigh
+                                        ) {
+                                            SortOption(
+                                                label = "Name A–Z",
+                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.NAME,
+                                                onClick = {
+                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.NAME)
+                                                    showSortMenu = false
+                                                }
+                                            )
+                                            SortOption(
+                                                label = "Betrag ↓",
+                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.BALANCE_DESC,
+                                                onClick = {
+                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.BALANCE_DESC)
+                                                    showSortMenu = false
+                                                }
+                                            )
+                                            SortOption(
+                                                label = "Zuletzt hinzugefügt",
+                                                selected = sortOrder == com.buglist.domain.usecase.PersonSortOrder.CREATED_AT_DESC,
+                                                onClick = {
+                                                    viewModel.setSortOrder(com.buglist.domain.usecase.PersonSortOrder.CREATED_AT_DESC)
+                                                    showSortMenu = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             items(state.persons, key = { it.person.id }) { personWithBalance ->
                                 PersonCard(
@@ -319,6 +374,22 @@ private fun PersonCard(
             fontSize = 20.sp
         )
     }
+}
+
+@Composable
+private fun SortOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                fontFamily = OswaldFontFamily,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 14.sp,
+                color = if (selected) BugListColors.Gold else BugListColors.Platinum
+            )
+        },
+        onClick = onClick
+    )
 }
 
 @Composable

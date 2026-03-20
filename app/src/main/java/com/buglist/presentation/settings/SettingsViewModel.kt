@@ -1,12 +1,11 @@
 package com.buglist.presentation.settings
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import com.buglist.util.appDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.data.local.AppDatabase
@@ -39,12 +38,9 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.random.Random
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "buglist_settings"
-)
-
 private val KEY_CURRENCY = stringPreferencesKey("currency")
 private val KEY_AUTO_LOCK = intPreferencesKey("auto_lock_timeout_seconds")
+private val KEY_SHOW_DESCRIPTION = booleanPreferencesKey("show_description")
 
 data class SettingsUiData(
     val currency: String = "EUR",
@@ -52,7 +48,9 @@ data class SettingsUiData(
     val exportCsv: String? = null,
     val isExporting: Boolean = false,
     val showDeleteConfirm: Boolean = false,
-    val isSeedingData: Boolean = false
+    val isSeedingData: Boolean = false,
+    /** When true, the description/comment field is shown in AddDebtSheet. Default: false. */
+    val showDescription: Boolean = false
 )
 
 /**
@@ -143,12 +141,14 @@ class SettingsViewModel @Inject constructor(
     init {
         // Load persisted settings on startup
         viewModelScope.launch {
-            val prefs = context.settingsDataStore.data.first()
+            val prefs = context.appDataStore.data.first()
             val currency = prefs[KEY_CURRENCY] ?: "EUR"
             val autoLock = prefs[KEY_AUTO_LOCK] ?: 60
+            val showDesc = prefs[KEY_SHOW_DESCRIPTION] ?: false
             _uiData.value = _uiData.value.copy(
                 currency = currency,
-                autoLockTimeoutSeconds = autoLock
+                autoLockTimeoutSeconds = autoLock,
+                showDescription = showDesc
             )
             // Sync session manager with persisted timeout
             sessionManager.autoLockTimeoutMs = autoLock * 1000L
@@ -158,7 +158,19 @@ class SettingsViewModel @Inject constructor(
     fun setCurrency(currency: String) {
         _uiData.value = _uiData.value.copy(currency = currency)
         viewModelScope.launch {
-            context.settingsDataStore.edit { it[KEY_CURRENCY] = currency }
+            context.appDataStore.edit { it[KEY_CURRENCY] = currency }
+        }
+    }
+
+    /**
+     * Persists whether the description/comment field is visible in AddDebtSheet.
+     *
+     * @param show true = field visible, false = field hidden (default).
+     */
+    fun setShowDescription(show: Boolean) {
+        _uiData.value = _uiData.value.copy(showDescription = show)
+        viewModelScope.launch {
+            context.appDataStore.edit { it[KEY_SHOW_DESCRIPTION] = show }
         }
     }
 
@@ -166,7 +178,7 @@ class SettingsViewModel @Inject constructor(
         _uiData.value = _uiData.value.copy(autoLockTimeoutSeconds = seconds)
         sessionManager.autoLockTimeoutMs = seconds * 1000L
         viewModelScope.launch {
-            context.settingsDataStore.edit { it[KEY_AUTO_LOCK] = seconds }
+            context.appDataStore.edit { it[KEY_AUTO_LOCK] = seconds }
         }
     }
 

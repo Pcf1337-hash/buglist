@@ -2,13 +2,17 @@ package com.buglist.presentation.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buglist.data.remote.UpdateState
@@ -98,15 +101,34 @@ fun StartupUpdateDialog(
                 when (downloadState) {
                     is DownloadState.Idle -> {
                         if (!updateState.releaseNotes.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = updateState.releaseNotes,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = BugListColors.Muted,
-                                fontFamily = RobotoCondensedFontFamily,
-                                maxLines = 6,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // Scrollable changelog card — max 200dp, scrolls inside
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
+                                    .border(
+                                        width = 1.dp,
+                                        color = BugListColors.Divider,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                            ) {
+                                val scrollState = rememberScrollState()
+                                Text(
+                                    text = updateState.releaseNotes,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = RobotoCondensedFontFamily,
+                                        lineHeight = androidx.compose.ui.unit.TextUnit(
+                                            18f,
+                                            androidx.compose.ui.unit.TextUnitType.Sp
+                                        )
+                                    ),
+                                    color = BugListColors.Platinum,
+                                    modifier = Modifier
+                                        .verticalScroll(scrollState)
+                                        .padding(12.dp)
+                                )
+                            }
                         }
                     }
 

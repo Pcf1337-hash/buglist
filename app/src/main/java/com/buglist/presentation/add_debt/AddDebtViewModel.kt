@@ -1,5 +1,7 @@
 package com.buglist.presentation.add_debt
 
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.domain.model.DebtEntry
@@ -10,14 +12,19 @@ import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.AddDebtUseCase
 import com.buglist.domain.usecase.AddPartialPaymentUseCase
 import com.buglist.domain.usecase.UpdateDebtEntryUseCase
+import com.buglist.util.appDataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private val KEY_SHOW_DESCRIPTION = booleanPreferencesKey("show_description")
 
 sealed class AddDebtUiState {
     object Idle : AddDebtUiState()
@@ -47,11 +54,21 @@ sealed class AddPaymentUiState {
  */
 @HiltViewModel
 class AddDebtViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val addDebtUseCase: AddDebtUseCase,
     private val addPartialPaymentUseCase: AddPartialPaymentUseCase,
     private val updateDebtEntryUseCase: UpdateDebtEntryUseCase,
     private val tagRepository: TagRepository
 ) : ViewModel() {
+
+    /**
+     * Reflects the "Kommentarfeld anzeigen" setting from DataStore.
+     * When true, [AddDebtSheet] renders a description/comment text field.
+     * Defaults to false (off) until the preference is loaded.
+     */
+    val showDescription: StateFlow<Boolean> = context.appDataStore.data
+        .map { prefs -> prefs[KEY_SHOW_DESCRIPTION] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _debtUiState = MutableStateFlow<AddDebtUiState>(AddDebtUiState.Idle)
     val debtUiState: StateFlow<AddDebtUiState> = _debtUiState.asStateFlow()
