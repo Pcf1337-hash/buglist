@@ -27,6 +27,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -121,6 +126,7 @@ fun PersonDetailScreen(
     // Tracks which debt entry's context menu is open (null = closed)
     var contextMenuDebtId by remember { mutableStateOf<Long?>(null) }
 
+    val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -258,10 +264,31 @@ fun PersonDetailScreen(
                         PersonDetailHeader(
                             person = state.person,
                             debts = state.debts,
+                            activeTab = state.activeTab,
                             hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
                             hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
                             onSettleOwedToMe = { settlementDirection = true },
-                            onSettleIOwe = { settlementDirection = false }
+                            onSettleIOwe = { settlementDirection = false },
+                            onLongPressBalance = {
+                                // Copy just the net balance to clipboard
+                                val balance = buildBalanceText(state.debts)
+                                clipboardManager.setText(AnnotatedString(balance))
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Betrag kopiert ✓")
+                                }
+                            },
+                            onDoubleTapBalance = {
+                                // Copy full formatted tab history — ready to paste in any messenger
+                                val history = buildShareText(
+                                    personName = state.person.name,
+                                    activeTab = state.activeTab,
+                                    debts = state.debts
+                                )
+                                clipboardManager.setText(AnnotatedString(history))
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Historie kopiert – bereit zum Teilen ✓")
+                                }
+                            }
                         )
                     }
                     item {
@@ -458,14 +485,18 @@ private fun KissEggOverlay(onFinished: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PersonDetailHeader(
     person: Person,
     debts: List<DebtEntryWithPayments>,
+    activeTab: DebtTab,
     hasOpenDebtsOwedToMe: Boolean,
     hasOpenDebtsIOwe: Boolean,
     onSettleOwedToMe: () -> Unit,
-    onSettleIOwe: () -> Unit
+    onSettleIOwe: () -> Unit,
+    onLongPressBalance: () -> Unit,
+    onDoubleTapBalance: () -> Unit
 ) {
     // Balance calculation per status:
     // OPEN/PARTIAL → remaining (what's still outstanding)
@@ -498,7 +529,22 @@ private fun PersonDetailHeader(
             color = BugListColors.Platinum
         )
         Spacer(Modifier.height(8.dp))
-        AmountText(amount = netBalance, fontSize = 40.sp)
+        // Long press → copy balance | Double tap → copy full tab history
+        AmountText(
+            amount = netBalance,
+            fontSize = 40.sp,
+            modifier = Modifier.combinedClickable(
+                onClick = {},
+                onLongClick = onLongPressBalance,
+                onDoubleClick = onDoubleTapBalance
+            )
+        )
+        Text(
+            text = "gedrückt halten = kopieren  •  2× tippen = teilen",
+            fontFamily = RobotoCondensedFontFamily,
+            fontSize = 10.sp,
+            color = BugListColors.Muted.copy(alpha = 0.6f)
+        )
 
         // TILGEN button(s) — only shown when there are open/partial debts
         if (hasAnyOpenDebts) {
@@ -689,4 +735,87 @@ private fun SwipeableDebtCard(
             )
         )
     }
+}
+
+// ---------------------------------------------------------------------------
+// Clipboard / Share helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the net balance of [debts] as a plain-text string suitable for copying.
+ * Example: "+€ 150,00" or "-€ 42,50"
+ */
+private fun buildBalanceText(debts: List<DebtEntryWithPayments>): String {
+    val net = debts.sumOf { dwp ->
+        val amount = when (dwp.entry.status) {
+            DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
+            DebtStatus.PAID -> dwp.entry.amount
+            DebtStatus.CANCELLED -> 0.0
+        }
+        if (dwp.entry.isOwedToMe) amount else -amount
+    }
+    val currency = debts.firstOrNull()?.entry?.currency ?: "EUR"
+    val symbol = currencySymbol(currency)
+    val sign = if (net >= 0) "+" else ""
+    return "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(net))}"
+}
+
+/**
+ * Builds a messenger-ready formatted debt history for [personName] and the current [activeTab].
+ *
+ * Format example:
+ * ```
+ * Schulden mit MIKE – Offen
+ *
+ * 01.03.26  Poker Night       +€ 50,00
+ * 15.02.26  Drinks            -€ 20,00
+ * 10.02.26  —                +€ 100,00
+ *
+ * Gesamt: +€ 130,00
+ * ```
+ */
+private fun buildShareText(
+    personName: String,
+    activeTab: DebtTab,
+    debts: List<DebtEntryWithPayments>
+): String {
+    val tabLabel = when (activeTab) {
+        DebtTab.OPEN -> "Offen"
+        DebtTab.PAID -> "Bezahlt"
+        DebtTab.ALL  -> "Alle"
+    }
+    val currency = debts.firstOrNull()?.entry?.currency ?: "EUR"
+    val symbol = currencySymbol(currency)
+    val df = SimpleDateFormat("dd.MM.yy", Locale.GERMAN)
+
+    return buildString {
+        appendLine("Schulden mit ${personName.uppercase()} – $tabLabel")
+        appendLine()
+        debts.forEach { dwp ->
+            val date = df.format(Date(dwp.entry.date))
+            val desc = dwp.entry.description?.trim()?.takeIf { it.isNotBlank() } ?: "—"
+            val raw = when (dwp.entry.status) {
+                DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
+                DebtStatus.PAID                     -> dwp.entry.amount
+                DebtStatus.CANCELLED                -> 0.0
+            }
+            val signed = if (dwp.entry.isOwedToMe) raw else -raw
+            val sign = if (signed >= 0) "+" else "-"
+            val formatted = "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(signed))}"
+            // Align: date (8) + two spaces + description padded to 20 + amount
+            val descPadded = desc.take(20).padEnd(20)
+            appendLine("$date  $descPadded  $formatted")
+        }
+        appendLine()
+        append("Gesamt: ${buildBalanceText(debts)}")
+    }
+}
+
+/** Maps ISO currency code to display symbol. Falls back to the code itself. */
+private fun currencySymbol(code: String): String = when (code.uppercase()) {
+    "EUR" -> "€"
+    "USD" -> "$"
+    "GBP" -> "£"
+    "CHF" -> "CHF"
+    else  -> code
 }
