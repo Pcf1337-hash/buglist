@@ -8,6 +8,7 @@ import com.buglist.domain.model.Result
 import com.buglist.domain.model.SettlementResult
 import com.buglist.domain.usecase.SettleDebtsUseCase
 import com.buglist.domain.repository.DebtRepository
+import com.buglist.domain.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,7 +81,8 @@ sealed class SettlementUiState {
 @HiltViewModel
 class SettlementViewModel @Inject constructor(
     private val settleDebtsUseCase: SettleDebtsUseCase,
-    private val debtRepository: DebtRepository
+    private val debtRepository: DebtRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SettlementUiState>(
@@ -112,6 +114,11 @@ class SettlementViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 openDebtsCache = debtRepository.getOpenDebtsForPerson(personId, isOwedToMe)
+                    .map { dwp ->
+                        val tagNames = tagRepository.getTagsForDebtEntry(dwp.entry.id)
+                            .map { it.name }
+                        dwp.copy(entry = dwp.entry.copy(tags = tagNames))
+                    }
                 _openDebts.value = openDebtsCache
                 val totalOpen = openDebtsCache.sumOf { it.remaining }
                 _uiState.value = SettlementUiState.Idle(

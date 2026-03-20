@@ -554,7 +554,7 @@ private fun PersonDetailHeader(
             )
         )
         Text(
-            text = "gedrückt halten = kopieren  •  2× tippen = teilen",
+            text = "Gedrückt halten = Summe  •  2× tippen = Detaillierte Liste",
             fontFamily = RobotoCondensedFontFamily,
             fontSize = 10.sp,
             color = BugListColors.Muted.copy(alpha = 0.6f)
@@ -818,7 +818,8 @@ private fun buildShareText(
             val formatted = "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(signed))}"
             // Align: date (8) + two spaces + description padded to 20 + amount
             val descPadded = desc.take(20).padEnd(20)
-            appendLine("$date  $descPadded  $formatted")
+            val tagsStr = if (dwp.entry.tags.isNotEmpty()) " [${dwp.entry.tags.joinToString(", ")}]" else ""
+            appendLine("$date  $descPadded  $formatted$tagsStr")
         }
         appendLine()
         append("Gesamt: ${buildBalanceText(debts)}")

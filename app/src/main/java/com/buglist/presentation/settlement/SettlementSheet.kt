@@ -1,8 +1,11 @@
 package com.buglist.presentation.settlement
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -412,7 +415,7 @@ private fun SettlementInputContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -428,6 +431,10 @@ private fun SettlementInputContent(
                                         fontSize = 11.sp,
                                         color = BugListColors.Muted
                                     )
+                                }
+                                if (debtWithPayments.entry.tags.isNotEmpty()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    SettlementTagRow(tags = debtWithPayments.entry.tags)
                                 }
                             }
                             Text(
@@ -554,6 +561,10 @@ private fun SettlementPreviewRow(
                 fontSize = 11.sp,
                 color = BugListColors.Muted
             )
+            if (item.entry.tags.isNotEmpty()) {
+                Spacer(Modifier.height(3.dp))
+                SettlementTagRow(tags = item.entry.tags)
+            }
         }
 
         Spacer(Modifier.width(8.dp))
@@ -687,6 +698,34 @@ private fun SettlementSuccessContent(
         )
 
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * Renders a compact row of tag chips, wrapping to multiple lines if needed.
+ * Used in both the expandable open-debts list and the settlement preview rows.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SettlementTagRow(tags: List<String>) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        tags.forEach { tag ->
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = BugListColors.Gold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 5.dp, vertical = 1.dp)
+            ) {
+                Text(
+                    text = tag,
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 10.sp,
+                    color = BugListColors.Gold
+                )
+            }
+        }
     }
 }
 
