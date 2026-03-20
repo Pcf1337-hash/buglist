@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
+import com.buglist.domain.repository.PaymentRepository
 import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.CancelDebtUseCase
 import com.buglist.domain.usecase.DeletePersonUseCase
@@ -60,6 +61,7 @@ class PersonDetailViewModel @Inject constructor(
     private val personRepository: PersonRepository,
     private val debtRepository: DebtRepository,
     private val tagRepository: TagRepository,
+    private val paymentRepository: PaymentRepository,
     private val markDebtAsPaidUseCase: MarkDebtAsPaidUseCase,
     private val cancelDebtUseCase: CancelDebtUseCase,
     private val deletePersonUseCase: DeletePersonUseCase
@@ -75,8 +77,16 @@ class PersonDetailViewModel @Inject constructor(
     val uiState: StateFlow<PersonDetailUiState> = combine(
         personRepository.getPersonById(personId),
         _activeTab,
-        _expandedDebtId
-    ) { person, tab, expandedId ->
+        _expandedDebtId,
+        // React to tag-association changes (L-038): tag cross-ref writes don't change
+        // debt_entries, so the inner flow never re-emits without this trigger.
+        tagRepository.getAllTags(),
+        // React to payment changes (L-039): SQLCipher's @Transaction handling can miss
+        // Room's InvalidationTracker notifications for @Relation tables after
+        // insertPaymentAndUpdateStatus. Adding an explicit payment count trigger ensures
+        // that tilgen (settlement) immediately refreshes the debt list and header balance.
+        paymentRepository.observePaymentChanges()
+    ) { person, tab, expandedId, _, _ ->
         Triple(person, tab, expandedId)
     }.flatMapLatest { (person, tab, expandedId) ->
         if (person == null) {

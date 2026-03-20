@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -89,11 +91,32 @@ fun SettingsScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Navigate away once all data has been deleted.
     LaunchedEffect(Unit) {
         viewModel.deleteAllEvent.collect {
             onDeleteAll()
+        }
+    }
+
+    // Show snackbar feedback for update check results that don't have their own dialog.
+    // Without this the user sees no reaction at all after pressing "AUF UPDATES PRÜFEN".
+    LaunchedEffect(updateState) {
+        when (val state = updateState) {
+            is UpdateState.UpToDate -> {
+                snackbarHostState.showSnackbar("Du hast die neueste Version \u2713")
+                viewModel.onUpdateDismissed()
+            }
+            is UpdateState.NoConnection -> {
+                snackbarHostState.showSnackbar("Keine Verbindung \u2013 check dein Internet")
+                viewModel.onUpdateDismissed()
+            }
+            is UpdateState.Error -> {
+                snackbarHostState.showSnackbar("Update-Prüfung fehlgeschlagen: ${state.message}")
+                viewModel.onUpdateDismissed()
+            }
+            else -> Unit
         }
     }
 
@@ -169,6 +192,7 @@ fun SettingsScreen(
 
     Scaffold(
         containerColor = BugListColors.Background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

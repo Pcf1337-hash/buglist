@@ -37,6 +37,18 @@ interface PaymentDao {
     fun getPaymentsForDebtEntry(debtEntryId: Long): Flow<List<PaymentEntity>>
 
     /**
+     * Returns the total payment count across all debt entries.
+     *
+     * Used as a reactive trigger in ViewModels: any payment insert causes
+     * this Flow to re-emit, which in turn forces the enrichment pipeline
+     * (tags, remaining amounts) to re-run. This is necessary because
+     * SQLCipher's @Transaction handling can miss Room InvalidationTracker
+     * notifications for @Relation tables after insertPaymentAndUpdateStatus. (L-039)
+     */
+    @Query("SELECT COUNT(*) FROM payments")
+    fun getPaymentCount(): Flow<Int>
+
+    /**
      * Returns the sum of all payments for a debt entry.
      * Returns 0.0 if no payments exist.
      */

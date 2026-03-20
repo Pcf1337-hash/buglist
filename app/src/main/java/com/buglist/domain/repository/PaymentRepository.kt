@@ -22,6 +22,15 @@ interface PaymentRepository {
     fun getPaymentsForDebtEntry(debtEntryId: Long): Flow<List<Payment>>
 
     /**
+     * Returns a reactive stream that emits whenever any payment is inserted or deleted.
+     *
+     * Used as a combine-trigger in ViewModels to force pipeline re-evaluation after
+     * settlement — necessary because SQLCipher's @Transaction handling can miss Room's
+     * InvalidationTracker notifications for @Relation tables. (L-039)
+     */
+    fun observePaymentChanges(): Flow<Unit>
+
+    /**
      * Returns the total amount paid for a debt entry.
      * Returns 0.0 if no payments exist.
      */

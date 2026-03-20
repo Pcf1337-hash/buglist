@@ -28,6 +28,51 @@ BiometricPrompt.PromptInfo.Builder()
 
 ---
 
+## Compose & UI
+
+### L-037 – pointerInput(Unit) + stale Lambda → Backspace löscht nur einmal
+**Problem:** `BackspaceButton` nutzte `pointerInput(Unit)` — nach dem ersten Löschen passierte nichts mehr.
+**Ursache:** `pointerInput(Unit)` startet den Block NIE neu, weil der Key sich nie ändert. Die `onTap`-Lambda schloss über den `inputString` der ERSTEN Composition — alle folgenden Taps riefen dieselbe veraltete Lambda auf und produzierten denselben Output.
+**Regel:** Wenn `pointerInput` mit stabilem Key (z.B. `Unit`) kombiniert wird mit einer Lambda, die state aus dem Composable-Scope liest: IMMER `rememberUpdatedState` verwenden.
+```kotlin
+// FALSCH – onTap sieht immer den ersten inputString
+.pointerInput(Unit) {
+    detectTapGestures(onTap = { onTap() })
+}
+
+// RICHTIG – currentOnTap zeigt immer auf die neueste Lambda
+val currentOnTap by rememberUpdatedState(onTap)
+.pointerInput(Unit) {
+    detectTapGestures(onTap = { currentOnTap() })
+}
+```
+
+### L-039 – SQLCipher @Transaction + Room InvalidationTracker → Übersicht aktualisiert sich nicht nach Tilgen
+**Problem:** Nach Tilgen (Settlement) blieben Betrag und Status in PersonDetailHeader unverändert bis Expand/Collapse oder App-Neustart.
+**Ursache:** `insertPaymentAndUpdateStatus` ist eine `@Transaction suspend fun` in `PaymentDao`. SQLCipher's eigenes Transaction-Handling notifiziert Room's `InvalidationTracker` nicht zuverlässig für alle beteiligten Tabellen. Obwohl `debt_entries` und `payments` beide geschrieben werden, triggert die invalidation nicht immer. In normaler Room+SQLite-Kombination funktioniert es; mit SQLCipher 4.9.0 + SupportOpenHelperFactory gibt es edge cases.
+**Regel:** Wenn Writes über `@Transaction suspend fun` in DAOs mit SQLCipher gemacht werden, füge immer einen expliziten Flow-Trigger als `combine`-Parameter hinzu – analog zum Tag-Fix (L-038). Nutze `PaymentRepository.observePaymentChanges()` (basiert auf `getPaymentCount(): Flow<Int>`).
+```kotlin
+// FALSCH – Room InvalidationTracker kann nach SQLCipher-Transaction den Flow nicht neu triggern
+combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags()) { ... }
+
+// RICHTIG – payment change als expliziter 5. Trigger
+combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags(), paymentRepo.observePaymentChanges()) { p, t, e, _, _ -> ... }
+```
+
+### L-038 – suspend fun statt Flow für Tags → UI aktualisiert sich nicht live
+**Problem:** Tags, die einem Debt-Eintrag zugewiesen wurden, erschienen erst nach Collapse/Expand oder App-Neustart in der Übersicht.
+**Ursache:** `tagRepository.getTagsForDebtEntry()` ist eine `suspend fun` — kein Flow. Sie wird nur aufgerufen, wenn `debtRepository.getDebtEntriesWithPaymentsForPerson()` ein neues Item emittiert. Da Tag-Zuordnungen in einer Cross-Ref-Tabelle gespeichert sind (nicht in `debt_entries`), triggert eine neue Tag-Zuordnung kein Re-Emit des Debt-Flows.
+**Regel:** Immer `tagRepository.getAllTags()` als zusätzlichen `combine`-Parameter in ViewModels verwenden, die Tags anzeigen. Das sorgt dafür, dass jede Tag-Änderung die gesamte Enrichment-Pipeline neu auslöst.
+```kotlin
+// FALSCH – tags werden nur beim debt-emit geladen
+combine(personRepo.get(), _tab, _expandedId) { ... }
+
+// RICHTIG – tags lösen ebenfalls ein Re-Emit aus
+combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags()) { p, t, e, _ -> ... }
+```
+
+---
+
 ## Workflow & MCP
 
 ### L-000 – MCP nach jedem Task nutzen, nicht nur bei Fehlern

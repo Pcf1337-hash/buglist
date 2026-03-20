@@ -7,6 +7,7 @@ import com.buglist.domain.model.Payment
 import com.buglist.domain.repository.PaymentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +28,9 @@ class PaymentRepositoryImpl @Inject constructor(
         paymentDao.getPaymentsForDebtEntry(debtEntryId).map { list ->
             list.map { it.toDomainPayment() }
         }
+
+    override fun observePaymentChanges(): Flow<Unit> =
+        paymentDao.getPaymentCount().mapLatest { }
 
     override suspend fun getTotalPaidForDebtEntry(debtEntryId: Long): Double =
         paymentDao.getTotalPaidForDebtEntry(debtEntryId)

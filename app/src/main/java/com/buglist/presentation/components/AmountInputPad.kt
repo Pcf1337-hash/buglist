@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -252,6 +253,13 @@ private fun BackspaceButton(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // rememberUpdatedState ensures the pointerInput block (which never restarts because
+    // its key is Unit) always calls the LATEST lambda — not the one captured at first
+    // composition. Without this, every tap after the first re-uses the stale inputString
+    // closure and the delete appears to stop working after one character. (L-037)
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = BugListColors.SurfaceHigh,
@@ -259,8 +267,8 @@ private fun BackspaceButton(
             .height(56.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onTap() },
-                    onLongPress = { onLongPress() }
+                    onTap = { currentOnTap() },
+                    onLongPress = { currentOnLongPress() }
                 )
             }
     ) {
