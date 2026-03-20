@@ -815,6 +815,15 @@ private fun buildBalanceText(debts: List<DebtEntryWithPayments>): String {
  * Gesamt: +€ 130,00
  * ```
  */
+/**
+ * Builds a WhatsApp-friendly share text for the current tab's debt list.
+ *
+ * Design rules:
+ *  - No space-based column alignment (proportional font in messengers breaks it).
+ *  - Each entry on its own line: `• DD.MM.YY | [sign][symbol] [amount]`
+ *  - Description and tags appended inline after ` · ` when present.
+ *  - Short enough per line that even a narrow phone won't wrap mid-entry.
+ */
 private fun buildShareText(
     personName: String,
     activeTab: DebtTab,
@@ -834,7 +843,6 @@ private fun buildShareText(
         appendLine()
         debts.forEach { dwp ->
             val date = df.format(Date(dwp.entry.date))
-            val desc = dwp.entry.description?.trim()?.takeIf { it.isNotBlank() } ?: "—"
             val raw = when (dwp.entry.status) {
                 DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
                 DebtStatus.PAID                     -> dwp.entry.amount
@@ -842,11 +850,18 @@ private fun buildShareText(
             }
             val signed = if (dwp.entry.isOwedToMe) raw else -raw
             val sign = if (signed >= 0) "+" else "-"
-            val formatted = "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(signed))}"
-            // Align: date (8) + two spaces + description padded to 20 + amount
-            val descPadded = desc.take(20).padEnd(20)
-            val tagsStr = if (dwp.entry.tags.isNotEmpty()) " [${dwp.entry.tags.joinToString(", ")}]" else ""
-            appendLine("$date  $descPadded  $formatted$tagsStr")
+            val amount = "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(signed))}"
+
+            // Optional description and tags — appended after a middle-dot separator
+            val desc = dwp.entry.description?.trim()?.takeIf { it.isNotBlank() }
+            val tags = dwp.entry.tags.takeIf { it.isNotEmpty() }?.joinToString(", ")
+
+            val meta = buildString {
+                if (desc != null) append(" · $desc")
+                if (tags != null) append(" [$tags]")
+            }
+
+            appendLine("• $date | $amount$meta")
         }
         appendLine()
         append("Gesamt: ${buildBalanceText(debts)}")
