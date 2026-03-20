@@ -192,6 +192,18 @@ class PersonDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Permanently deletes a debt entry from the database (CASCADE deletes payments).
+     * Different from [cancelDebt] which only sets status to CANCELLED.
+     *
+     * @param debtId The ID of the debt entry to delete.
+     */
+    fun deleteDebtEntry(debtId: Long) {
+        viewModelScope.launch {
+            debtRepository.deleteDebtEntryById(debtId)
+        }
+    }
+
     fun deletePerson() {
         viewModelScope.launch {
             val state = uiState.value

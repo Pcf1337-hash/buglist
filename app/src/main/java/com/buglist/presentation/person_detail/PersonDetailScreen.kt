@@ -373,6 +373,20 @@ fun PersonDetailScreen(
                                             }
                                         }
                                     )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.context_menu_delete),
+                                                fontFamily = OswaldFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BugListColors.Muted
+                                            )
+                                        },
+                                        onClick = {
+                                            contextMenuDebtId = null
+                                            viewModel.deleteDebtEntry(debtWithPayments.entry.id)
+                                        }
+                                    )
                                 }
                             }
                         }
