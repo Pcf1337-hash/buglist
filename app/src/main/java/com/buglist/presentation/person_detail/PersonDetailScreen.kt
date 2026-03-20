@@ -696,7 +696,10 @@ private fun SwipeableDebtCard(
                 SwipeToDismissBoxValue.EndToStart -> { onSwipeLeft(); false }
                 SwipeToDismissBoxValue.Settled -> false
             }
-        }
+        },
+        // Require 60% of the item width to be swiped before triggering —
+        // prevents accidental activation from casual scrolling touches.
+        positionalThreshold = { totalDistance -> totalDistance * 0.60f }
     )
 
     SwipeToDismissBox(
