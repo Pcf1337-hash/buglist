@@ -39,6 +39,9 @@
     <string name="person_detail_add_debt">Schuld hinzufügen</string>
     <string name="person_detail_swipe_partial_payment">TEILZAHLUNG</string>
     <string name="person_detail_swipe_delete">STORNIEREN</string>
+    <string name="person_detail_swipe_edit">BEARBEITEN</string>
+    <string name="context_menu_edit">BEARBEITEN</string>
+    <string name="context_menu_cancel">STORNIEREN</string>
     <string name="person_detail_empty">KEINE SCHULDEN</string>
     <string name="person_detail_delete_title">Person löschen?</string>
     <string name="person_detail_delete_message">%1$s und alle zugehörigen Schulden werden permanent gelöscht.</string>

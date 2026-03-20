@@ -25,6 +25,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -114,6 +118,8 @@ fun PersonDetailScreen(
     var settlementDirection by remember { mutableStateOf<Boolean?>(null) }
     // Easter egg: kiss emoji for person named "Nos"
     var showKissEgg by remember { mutableStateOf(false) }
+    // Tracks which debt entry's context menu is open (null = closed)
+    var contextMenuDebtId by remember { mutableStateOf<Long?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -283,28 +289,65 @@ fun PersonDetailScreen(
                         }
                     } else {
                         items(state.debts, key = { it.entry.id }) { debtWithPayments ->
-                            SwipeableDebtCard(
-                                debtWithPayments = debtWithPayments,
-                                expanded = state.expandedDebtId == debtWithPayments.entry.id,
-                                onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
-                                onLongPress = { editDebtEntry = debtWithPayments.entry },
-                                onSwipeLeft = { paymentDebtId = debtWithPayments.entry.id },
-                                onSwipeRight = {
-                                    val debtId = debtWithPayments.entry.id
-                                    viewModel.cancelDebt(debtId)
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = cancelledLabel,
-                                            actionLabel = undoLabel,
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.undoCancelDebt(debtId)
+                            Box {
+                                SwipeableDebtCard(
+                                    debtWithPayments = debtWithPayments,
+                                    expanded = state.expandedDebtId == debtWithPayments.entry.id,
+                                    onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
+                                    // Long press → context menu (Bearbeiten / Stornieren)
+                                    onContextMenu = { contextMenuDebtId = debtWithPayments.entry.id },
+                                    onSwipeLeft = { paymentDebtId = debtWithPayments.entry.id },
+                                    // Swipe right → open edit sheet directly
+                                    onSwipeRight = { editDebtEntry = debtWithPayments.entry },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                )
+                                // Context menu — anchored to this card, opens on long press
+                                DropdownMenu(
+                                    expanded = contextMenuDebtId == debtWithPayments.entry.id,
+                                    onDismissRequest = { contextMenuDebtId = null },
+                                    containerColor = BugListColors.Surface
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.context_menu_edit),
+                                                fontFamily = OswaldFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BugListColors.Gold
+                                            )
+                                        },
+                                        onClick = {
+                                            contextMenuDebtId = null
+                                            editDebtEntry = debtWithPayments.entry
                                         }
-                                    }
-                                },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                            )
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.context_menu_cancel),
+                                                fontFamily = OswaldFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BugListColors.DebtRed
+                                            )
+                                        },
+                                        onClick = {
+                                            contextMenuDebtId = null
+                                            val debtId = debtWithPayments.entry.id
+                                            viewModel.cancelDebt(debtId)
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = cancelledLabel,
+                                                    actionLabel = undoLabel,
+                                                    duration = SnackbarDuration.Short
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    viewModel.undoCancelDebt(debtId)
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -565,13 +608,22 @@ private fun DebtTabRow(activeTab: DebtTab, onTabChange: (DebtTab) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Debt card with swipe gestures and a standard long-press context menu.
+ *
+ * Gestures:
+ * - Tap           → expand/collapse ([onTap])
+ * - Swipe right   → open edit sheet ([onSwipeRight])
+ * - Swipe left    → open partial payment sheet ([onSwipeLeft])
+ * - Long press    → system-standard duration (~500 ms), triggers [onContextMenu]
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableDebtCard(
     debtWithPayments: DebtEntryWithPayments,
     expanded: Boolean,
     onTap: () -> Unit,
-    onLongPress: () -> Unit,
+    onContextMenu: () -> Unit,
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier
@@ -597,16 +649,18 @@ private fun SwipeableDebtCard(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Swipe right → edit (Gold)
                 if (direction == SwipeToDismissBoxValue.StartToEnd) {
                     Text(
-                        stringResource(R.string.person_detail_swipe_delete),
+                        stringResource(R.string.person_detail_swipe_edit),
                         fontFamily = OswaldFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = BugListColors.DebtRed
+                        color = BugListColors.Gold
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                // Swipe left → partial payment (Orange)
                 if (direction == SwipeToDismissBoxValue.EndToStart) {
                     Text(
                         stringResource(R.string.person_detail_swipe_partial_payment),
@@ -620,37 +674,19 @@ private fun SwipeableDebtCard(
         },
         modifier = modifier
     ) {
-        // 2-second long press opens edit mode.
-        // pointerInput coroutine scope is NOT restricted, so we can use launch{} freely.
-        // For each finger-down: start a 2000ms delay job. Monitor pointer events in
-        // a loop; if the finger lifts before 2000ms, cancel the delay. When the delay
-        // fires while the finger is still down: haptic + open edit sheet.
+        // Pass onClick = null so DebtCard doesn't add its own clickable.
+        // combinedClickable handles both tap and long-press with system-standard timing.
         DebtCard(
             debtWithPayments = debtWithPayments,
             expanded = expanded,
-            onClick = onTap,
-            modifier = Modifier.pointerInput(debtWithPayments.entry.id) {
-                while (true) {
-                    awaitPointerEventScope {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        var delayJob: kotlinx.coroutines.Job? = null
-                        delayJob = kotlinx.coroutines.MainScope().launch {
-                            kotlinx.coroutines.delay(2_000L)
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onLongPress()
-                        }
-                        // Monitor until finger lifts
-                        while (true) {
-                            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                            val change = event.changes.firstOrNull { it.id == down.id }
-                            if (change == null || change.changedToUp()) {
-                                delayJob?.cancel()
-                                break
-                            }
-                        }
-                    }
+            onClick = null,
+            modifier = Modifier.combinedClickable(
+                onClick = onTap,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onContextMenu()
                 }
-            }
+            )
         )
     }
 }
