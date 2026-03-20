@@ -59,6 +59,33 @@ combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags()) { ... }
 combine(personRepo.get(), _tab, _expandedId, tagRepo.getAllTags(), paymentRepo.observePaymentChanges()) { p, t, e, _, _ -> ... }
 ```
 
+### L-041 – SQLCipher @Transaction + Room InvalidationTracker → Liste aktualisiert sich nicht nach Debt-Eintrag erstellen/bearbeiten
+**Problem:** Nach dem Erstellen oder Bearbeiten eines Schulden-Eintrags musste man zwischen Tabs wechseln damit der Eintrag in der Liste erscheint.
+**Ursache:** Gleiche SQLCipher-InvalidationTracker-Lücke wie L-039, aber diesmal für die `debt_entries`-Tabelle selbst. Room notifiziert `@Transaction @Query`-Flows mit `@Relation` nach direkten Inserts/Updates via SQLCipher nicht zuverlässig.
+**Regel:** Füge `observeDebtEntryChanges()` (basiert auf `getDebtEntryCount(): Flow<Int>` im DAO) als expliziten Trigger hinzu. Da `combine()` auf 5 Flows begrenzt ist, Payment- und Debt-Trigger via `merge()` zusammenfassen.
+```kotlin
+// DebtEntryDao
+@Query("SELECT COUNT(*) FROM debt_entries")
+fun getDebtEntryCount(): Flow<Int>
+
+// DebtRepositoryImpl
+override fun observeDebtEntryChanges(): Flow<Unit> =
+    debtEntryDao.getDebtEntryCount().mapLatest { }
+
+// PersonDetailViewModel — 5 Flows in combine(), zwei Trigger via merge()
+val uiState = combine(
+    personRepository.getPersonById(personId),
+    _activeTab,
+    _expandedDebtId,
+    tagRepository.getAllTags(),
+    merge(
+        paymentRepository.observePaymentChanges(),  // L-039
+        debtRepository.observeDebtEntryChanges()    // L-041
+    )
+) { person, tab, expandedId, _, _ -> Triple(person, tab, expandedId) }
+    .flatMapLatest { ... }
+```
+
 ### L-038 – suspend fun statt Flow für Tags → UI aktualisiert sich nicht live
 **Problem:** Tags, die einem Debt-Eintrag zugewiesen wurden, erschienen erst nach Collapse/Expand oder App-Neustart in der Übersicht.
 **Ursache:** `tagRepository.getTagsForDebtEntry()` ist eine `suspend fun` — kein Flow. Sie wird nur aufgerufen, wenn `debtRepository.getDebtEntriesWithPaymentsForPerson()` ein neues Item emittiert. Da Tag-Zuordnungen in einer Cross-Ref-Tabelle gespeichert sind (nicht in `debt_entries`), triggert eine neue Tag-Zuordnung kein Re-Emit des Debt-Flows.
