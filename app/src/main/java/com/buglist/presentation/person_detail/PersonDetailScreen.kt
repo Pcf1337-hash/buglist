@@ -27,6 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -116,6 +117,7 @@ fun PersonDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
     val undoLabel = stringResource(R.string.action_undo)
@@ -232,11 +234,19 @@ fun PersonDetailScreen(
                     }
                 }
             ) { paddingValues ->
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = false
+                        viewModel.refresh()
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
+                ) {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     item {
                         PersonDetailHeader(
@@ -298,6 +308,7 @@ fun PersonDetailScreen(
                         }
                     }
                 }
+                } // end PullToRefreshBox
             }
 
             // AddDebt sheet
@@ -307,6 +318,7 @@ fun PersonDetailScreen(
                     onDismiss = { showAddDebt = false },
                     onSaved = {
                         showAddDebt = false
+                        viewModel.refresh()
                         if (state.person.name.lowercase() == "nos") showKissEgg = true
                     }
                 )
@@ -319,7 +331,10 @@ fun PersonDetailScreen(
                     personId = currentEditDebt.personId,
                     existingDebt = currentEditDebt,
                     onDismiss = { editDebtEntry = null },
-                    onSaved = { editDebtEntry = null }
+                    onSaved = {
+                        editDebtEntry = null
+                        viewModel.refresh()
+                    }
                 )
             }
 

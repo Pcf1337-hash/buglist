@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -75,18 +76,30 @@ class PersonDetailViewModel @Inject constructor(
 
     private val _expandedDebtId = MutableStateFlow<Long?>(null)
 
+    /**
+     * Manual refresh trigger — incremented by [refresh].
+     * Included in the combine so any call to [refresh] restarts the inner flow
+     * with a fresh DB query, completely independent of SQLCipher's InvalidationTracker.
+     */
+    private val _refreshTrigger = MutableStateFlow(0L)
+
+    /**
+     * Forces an immediate re-query of all debt data for this person.
+     * Call this after adding/editing a debt entry, or from pull-to-refresh.
+     */
+    fun refresh() {
+        _refreshTrigger.update { it + 1 }
+    }
+
     val uiState: StateFlow<PersonDetailUiState> = combine(
         personRepository.getPersonById(personId),
         _activeTab,
         _expandedDebtId,
-        // React to tag-association changes (L-038): tag cross-ref writes don't change
-        // debt_entries, so the inner flow never re-emits without this trigger.
         tagRepository.getAllTags(),
-        // React to debt-entry and payment changes (L-039, L-040): SQLCipher's @Transaction
-        // handling can miss Room's InvalidationTracker notifications for @Relation tables.
-        // Merging both change streams into a single trigger ensures the list refreshes
-        // immediately after creating/editing a debt entry OR after settlement (Tilgen).
+        // Manual refresh + payment + debt-entry changes all merged into one trigger.
+        // _refreshTrigger is the most reliable path: fully in-memory, no SQLCipher involved.
         merge(
+            _refreshTrigger.map { },
             paymentRepository.observePaymentChanges(),
             debtRepository.observeDebtEntryChanges()
         )
