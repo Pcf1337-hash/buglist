@@ -1,7 +1,5 @@
 package com.buglist.presentation.settings
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -60,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,7 +66,7 @@ import com.buglist.BuildConfig
 import com.buglist.R
 import com.buglist.data.remote.UpdateState
 import com.buglist.presentation.components.GoldButton
-import com.buglist.presentation.components.UpdateDialog
+import com.buglist.presentation.components.StartupUpdateDialog
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
@@ -89,6 +88,7 @@ fun SettingsScreen(
 ) {
     val uiData by viewModel.uiData.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -120,16 +120,21 @@ fun SettingsScreen(
         }
     }
 
-    if (updateState is UpdateState.UpdateAvailable) {
-        val update = updateState as UpdateState.UpdateAvailable
-        UpdateDialog(
-            updateState = update,
+    val currentUpdate = updateState
+    if (currentUpdate is UpdateState.UpdateAvailable) {
+        StartupUpdateDialog(
+            updateState = currentUpdate,
+            downloadState = downloadState,
             onUpdate = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
-                context.startActivity(intent)
+                viewModel.startDownload(currentUpdate.downloadUrl)
+            },
+            onInstall = {
+                val intent = viewModel.buildInstallIntent()
+                if (intent != null) context.startActivity(intent)
                 viewModel.onUpdateDismissed()
             },
-            onSkip = { viewModel.onUpdateSkipped(update.newVersion) },
+            onRetry = { viewModel.resetDownload() },
+            onSkip = { viewModel.onUpdateSkipped(currentUpdate.newVersion) },
             onDismiss = { viewModel.onUpdateDismissed() }
         )
     }

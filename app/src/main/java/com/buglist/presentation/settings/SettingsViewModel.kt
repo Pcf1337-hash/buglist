@@ -14,6 +14,8 @@ import com.buglist.domain.model.DebtEntry
 import com.buglist.domain.model.Person
 import com.buglist.domain.model.Tag
 import com.buglist.data.remote.UpdateState
+import com.buglist.util.DownloadState
+import com.buglist.util.UpdateDownloadManager
 import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.AddDebtUseCase
 import com.buglist.domain.usecase.AddPersonUseCase
@@ -81,6 +83,9 @@ class SettingsViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
 
+    private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
+    val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
+
     /**
      * Emitted once after [deleteAllData] completes successfully.
      * The UI collects this to navigate away before the ViewModel is destroyed.
@@ -97,13 +102,42 @@ class SettingsViewModel @Inject constructor(
 
     fun onUpdateDismissed() {
         _updateState.value = UpdateState.Idle
+        _downloadState.value = DownloadState.Idle
     }
 
     fun onUpdateSkipped(version: String) {
         viewModelScope.launch {
             checkForUpdateUseCase.skipVersion(version)
             _updateState.value = UpdateState.Idle
+            _downloadState.value = DownloadState.Idle
         }
+    }
+
+    /**
+     * Starts the in-app APK download via [UpdateDownloadManager] and tracks progress
+     * in [downloadState]. Mirrors [StartupViewModel.startDownload].
+     *
+     * @param downloadUrl Direct URL of the APK asset from the GitHub release.
+     */
+    fun startDownload(downloadUrl: String) {
+        viewModelScope.launch {
+            val manager = UpdateDownloadManager(context)
+            manager.downloadApk(downloadUrl) { state ->
+                _downloadState.value = state
+            }
+        }
+    }
+
+    /**
+     * Returns an install [android.content.Intent] for the downloaded APK, or null
+     * if no APK file is present.
+     */
+    fun buildInstallIntent(): android.content.Intent? =
+        UpdateDownloadManager(context).buildInstallIntent()
+
+    /** Resets [downloadState] to [DownloadState.Idle] after a failed download. */
+    fun resetDownload() {
+        _downloadState.value = DownloadState.Idle
     }
 
     init {
