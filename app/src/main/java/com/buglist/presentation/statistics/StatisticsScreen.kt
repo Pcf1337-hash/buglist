@@ -397,7 +397,8 @@ private fun TopPersonRow(
         PersonAvatar(
             name = item.person.name,
             avatarColor = item.person.avatarColor,
-            size = 36.dp
+            size = 36.dp,
+            avatarImagePath = item.person.avatarImagePath
         )
         Spacer(Modifier.width(10.dp))
         Text(

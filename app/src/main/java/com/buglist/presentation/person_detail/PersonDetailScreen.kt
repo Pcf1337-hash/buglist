@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -85,6 +86,7 @@ import com.buglist.domain.model.Person
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
 import com.buglist.presentation.components.AmountText
+import com.buglist.presentation.edit_person.EditPersonSheet
 import com.buglist.presentation.components.DebtCard
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.settlement.SettlementSheet
@@ -115,6 +117,7 @@ fun PersonDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showEditPerson by remember { mutableStateOf(false) }
     var showAddDebt by remember { mutableStateOf(false) }
     var paymentDebtId by remember { mutableStateOf<Long?>(null) }
     // Edit sheet: non-null when editing an existing debt entry via long-press
@@ -220,6 +223,13 @@ fun PersonDetailScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { showEditPerson = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Person bearbeiten",
+                                    tint = BugListColors.Platinum
+                                )
+                            }
                             IconButton(onClick = { showDeleteConfirm = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
@@ -457,6 +467,15 @@ fun PersonDetailScreen(
                 )
             }
 
+            // Edit person sheet — opened via the pencil icon in the TopAppBar
+            if (showEditPerson) {
+                EditPersonSheet(
+                    person = state.person,
+                    onDismiss = { showEditPerson = false },
+                    onSaved = { showEditPerson = false }
+                )
+            }
+
             // Easter egg overlay — kiss emoji for person named "Nos"
             if (showKissEgg) {
                 KissEggOverlay(onFinished = { showKissEgg = false })
@@ -533,7 +552,12 @@ private fun PersonDetailHeader(
             .background(BugListColors.Surface)
             .padding(24.dp)
     ) {
-        PersonAvatar(name = person.name, avatarColor = person.avatarColor, size = 72.dp)
+        PersonAvatar(
+            name = person.name,
+            avatarColor = person.avatarColor,
+            size = 72.dp,
+            avatarImagePath = person.avatarImagePath
+        )
         Spacer(Modifier.height(12.dp))
         Text(
             text = person.name.uppercase(),

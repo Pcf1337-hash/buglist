@@ -32,6 +32,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v1 – Initial schema (persons, debt_entries, payments)
  *   v2 – Tag system: tags table + debt_entry_tags join table
  *   v3 – Manual crew sort: sort_index column added to persons table
+ *   v4 – Custom avatar photo: avatarImagePath column (nullable TEXT) added to persons
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -44,7 +45,7 @@ import com.buglist.data.local.entity.TagEntity
         TagEntity::class,
         DebtEntryTagCrossRef::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -74,6 +75,18 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE persons ADD COLUMN sortIndex INTEGER NOT NULL DEFAULT 2147483647"
+                )
+            }
+        }
+
+        /**
+         * Migration from v3 to v4: adds nullable `avatarImagePath` column to persons.
+         * NULL = no custom photo (existing persons keep initials avatar).
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE persons ADD COLUMN avatarImagePath TEXT"
                 )
             }
         }

@@ -266,7 +266,8 @@ fun DashboardScreen(
                                             PersonAvatar(
                                                 name = personWithBalance.person.name,
                                                 avatarColor = personWithBalance.person.avatarColor,
-                                                size = 44.dp
+                                                size = 44.dp,
+                                                avatarImagePath = personWithBalance.person.avatarImagePath
                                             )
                                             Spacer(Modifier.width(14.dp))
                                             Column(modifier = Modifier.weight(1f)) {
@@ -465,7 +466,8 @@ private fun PersonCard(
         PersonAvatar(
             name = personWithBalance.person.name,
             avatarColor = personWithBalance.person.avatarColor,
-            size = 44.dp
+            size = 44.dp,
+            avatarImagePath = personWithBalance.person.avatarImagePath
         )
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {

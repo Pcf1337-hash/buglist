@@ -115,7 +115,7 @@ class DatabaseProvider @Inject constructor(
 
                 val db = Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
                     .openHelperFactory(factory)
-                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onOpen(db: SupportSQLiteDatabase) {
                             super.onOpen(db)

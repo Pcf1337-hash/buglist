@@ -28,5 +28,11 @@ data class Person(
      * sequential values (0, 1, 2, …). Items with equal sortIndex fall back to
      * name ordering (see PersonDao.getAllPersonsWithBalance ORDER BY clause).
      */
-    val sortIndex: Int = Int.MAX_VALUE
+    val sortIndex: Int = Int.MAX_VALUE,
+    /**
+     * Absolute path to a custom avatar image stored in the app's internal files directory.
+     * `null` = no custom photo → fall back to initials circle with [avatarColor].
+     * Only settable via the EditPersonSheet (AddPersonSheet does not expose this field).
+     */
+    val avatarImagePath: String? = null
 )

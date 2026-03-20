@@ -61,7 +61,8 @@ internal fun PersonEntity.toDomain(): Person = Person(
     notes = notes,
     avatarColor = avatarColor,
     createdAt = createdAt,
-    sortIndex = sortIndex
+    sortIndex = sortIndex,
+    avatarImagePath = avatarImagePath
 )
 
 internal fun Person.toEntity(): PersonEntity = PersonEntity(
@@ -71,7 +72,8 @@ internal fun Person.toEntity(): PersonEntity = PersonEntity(
     notes = notes,
     avatarColor = avatarColor,
     createdAt = createdAt,
-    sortIndex = sortIndex
+    sortIndex = sortIndex,
+    avatarImagePath = avatarImagePath
 )
 
 internal fun PersonWithNetBalance.toDomain(): PersonWithBalance = PersonWithBalance(

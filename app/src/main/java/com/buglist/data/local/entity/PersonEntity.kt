@@ -29,5 +29,10 @@ data class PersonEntity(
      * Manual drag-and-drop sort position. Stored as `sort_index` column (added in schema v3).
      * Default [Int.MAX_VALUE] = unsorted (falls back to name order for ties in the SQL query).
      */
-    val sortIndex: Int = Int.MAX_VALUE
+    val sortIndex: Int = Int.MAX_VALUE,
+    /**
+     * Absolute path to a custom avatar image in the app's internal files dir.
+     * Null = no custom photo, show initials avatar. Added in schema v4.
+     */
+    val avatarImagePath: String? = null
 )
