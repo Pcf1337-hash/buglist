@@ -221,9 +221,9 @@ fun DebtCard(
 @Composable
 private fun PaymentHistoryRow(payment: Payment, currency: String, isOwedToMe: Boolean) {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-    // isOwedToMe=true  → person pays back → money comes in  → positive (green)
-    // isOwedToMe=false → I pay back       → money goes out  → negative (red)
-    val signedAmount = if (isOwedToMe) payment.amount else -payment.amount
+    // isOwedToMe=true  → green debt  → payment reduces what they owe me  → negative (red)
+    // isOwedToMe=false → red debt   → payment reduces what I owe        → positive (green)
+    val signedAmount = if (isOwedToMe) -payment.amount else payment.amount
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
