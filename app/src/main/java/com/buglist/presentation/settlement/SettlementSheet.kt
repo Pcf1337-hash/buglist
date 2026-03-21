@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -33,6 +34,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,6 +109,23 @@ fun SettlementSheet(
 
     var amountInput by rememberSaveable { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showOverpayDialog by remember { mutableStateOf(false) }
+
+    // Decides whether to show the regular confirm dialog or the overpayment dialog.
+    // Called from both the header quick-confirm button and the bottom TILGEN button.
+    val handleConfirm: () -> Unit = {
+        val inputAmount = parseAmountInput(amountInput)
+        val totalOpen = when (val s = uiState) {
+            is SettlementUiState.Preview -> s.totalOpen
+            is SettlementUiState.Idle -> s.totalOpen
+            else -> 0.0
+        }
+        if (totalOpen > 0.001 && inputAmount > totalOpen + 0.005) {
+            showOverpayDialog = true
+        } else {
+            showConfirmDialog = true
+        }
+    }
 
     // Load open debts when sheet opens
     LaunchedEffect(personId, isOwedToMe) {
@@ -125,6 +145,33 @@ fun SettlementSheet(
             val message = formatAmount(state.result.totalSettled, currency)
             onSuccess(message)
         }
+    }
+
+    if (showOverpayDialog) {
+        val inputAmount = (uiState as? SettlementUiState.Preview)?.inputAmount
+            ?: parseAmountInput(amountInput)
+        val totalOpen = when (val s = uiState) {
+            is SettlementUiState.Preview -> s.totalOpen
+            is SettlementUiState.Idle -> s.totalOpen
+            else -> openDebts.sumOf { it.remaining }
+        }
+        val overpayAmount = inputAmount - totalOpen
+        OverpaymentDialog(
+            inputAmount = inputAmount,
+            totalOpen = totalOpen,
+            overpayAmount = overpayAmount,
+            isOwedToMe = isOwedToMe,
+            currency = currency,
+            onDismiss = { showOverpayDialog = false },
+            onTip = {
+                showOverpayDialog = false
+                viewModel.settleDebts(personId, inputAmount, isOwedToMe)
+            },
+            onCounterDebt = {
+                showOverpayDialog = false
+                viewModel.settleDebtsWithCounterDebt(personId, inputAmount, isOwedToMe, currency)
+            }
+        )
     }
 
     if (showConfirmDialog) {
@@ -232,7 +279,7 @@ fun SettlementSheet(
                     amountInput = amountInput,
                     onAmountInputChange = { newInput -> amountInput = newInput },
                     previewItems = emptyList(),
-                    onConfirm = { showConfirmDialog = true },
+                    onConfirm = handleConfirm,
                     openDebts = openDebts
                 )
             }
@@ -246,7 +293,7 @@ fun SettlementSheet(
                     amountInput = amountInput,
                     onAmountInputChange = { newInput -> amountInput = newInput },
                     previewItems = state.preview,
-                    onConfirm = { showConfirmDialog = true },
+                    onConfirm = handleConfirm,
                     totalOpen = state.totalOpen,
                     openCount = state.openCount,
                     openDebts = openDebts
@@ -724,6 +771,170 @@ private fun SettlementTagRow(tags: List<String>) {
                     fontSize = 10.sp,
                     color = BugListColors.Gold
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Dialog shown when the user enters a settlement amount that exceeds the total open debt.
+ *
+ * Offers two choices:
+ * - **GEGENSCHULD** (primary): settle all open debts, then create a reverse debt entry for
+ *   the [overpayAmount] in the opposite direction.
+ * - **TRINKGELD** (secondary): settle with the full [inputAmount] — the use case caps at
+ *   the open total, so the excess simply disappears (treated as a tip).
+ *
+ * @param inputAmount   The amount the user entered.
+ * @param totalOpen     The total of all currently open debts.
+ * @param overpayAmount The difference [inputAmount] − [totalOpen].
+ * @param isOwedToMe    Direction of the settled debts (determines counter-debt direction label).
+ * @param currency      Currency code for display.
+ * @param onDismiss     Called when the dialog is closed without action.
+ * @param onTip         Called when the user chooses "TRINKGELD" (ignore excess).
+ * @param onCounterDebt Called when the user chooses "GEGENSCHULD" (create reverse debt).
+ */
+@Composable
+private fun OverpaymentDialog(
+    inputAmount: Double,
+    totalOpen: Double,
+    overpayAmount: Double,
+    isOwedToMe: Boolean,
+    currency: String,
+    onDismiss: () -> Unit,
+    onTip: () -> Unit,
+    onCounterDebt: () -> Unit
+) {
+    // Direction label for the counter-debt entry
+    val counterDebtDesc = if (isOwedToMe) {
+        // person overpaid me → I now owe them
+        stringResource(
+            R.string.settlement_overpay_counter_debt_desc_owed_to_me,
+            formatAmount(overpayAmount, currency)
+        )
+    } else {
+        // I overpaid person → they now owe me
+        stringResource(
+            R.string.settlement_overpay_counter_debt_desc_i_owe,
+            formatAmount(overpayAmount, currency)
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = BugListColors.Surface
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                // Title
+                Text(
+                    text = stringResource(R.string.settlement_overpay_dialog_title),
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = BugListColors.Gold
+                )
+                Spacer(Modifier.height(10.dp))
+
+                // Info: how much over
+                Text(
+                    text = stringResource(
+                        R.string.settlement_overpay_dialog_info,
+                        formatAmount(inputAmount, currency),
+                        formatAmount(overpayAmount, currency),
+                        formatAmount(totalOpen, currency)
+                    ),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 14.sp,
+                    color = BugListColors.Muted
+                )
+                Spacer(Modifier.height(6.dp))
+
+                // Question
+                Text(
+                    text = stringResource(R.string.settlement_overpay_question),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 14.sp,
+                    color = BugListColors.Platinum
+                )
+                Spacer(Modifier.height(20.dp))
+
+                // ── GEGENSCHULD (primary action) ───────────────────────────────
+                Button(
+                    onClick = onCounterDebt,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BugListColors.Gold,
+                        contentColor = androidx.compose.ui.graphics.Color.Black
+                    )
+                ) {
+                    Text(
+                        text = stringResource(R.string.settlement_overpay_counter_debt),
+                        fontFamily = OswaldFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+                Text(
+                    text = counterDebtDesc,
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 11.sp,
+                    color = BugListColors.Muted,
+                    modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 12.dp)
+                )
+
+                // ── TRINKGELD (secondary action) ───────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = BugListColors.Gold.copy(alpha = 0.45f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                ) {
+                    TextButton(
+                        onClick = onTip,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settlement_overpay_tip),
+                            fontFamily = OswaldFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = BugListColors.Platinum
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.settlement_overpay_tip_desc),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 11.sp,
+                    color = BugListColors.Muted,
+                    modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 8.dp)
+                )
+
+                // ── Abbrechen ──────────────────────────────────────────────────
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        fontFamily = RobotoCondensedFontFamily,
+                        color = BugListColors.Muted
+                    )
+                }
             }
         }
     }

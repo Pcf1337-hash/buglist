@@ -170,6 +170,16 @@
     <string name="settlement_open_list_title">OFFENE SCHULDEN</string>
     <string name="settlement_last_toast_prefix">Letzte Tilgung:</string>
 
+    <!-- Settlement – Overpayment Dialog -->
+    <string name="settlement_overpay_dialog_title">ÜBERZAHLUNG</string>
+    <string name="settlement_overpay_dialog_info">Du zahlst %1$s — das sind %2$s mehr als die gesamte offene Schuld (%3$s).</string>
+    <string name="settlement_overpay_question">Was soll mit dem Überschuss passieren?</string>
+    <string name="settlement_overpay_tip">TRINKGELD</string>
+    <string name="settlement_overpay_tip_desc">Überschuss ignorieren</string>
+    <string name="settlement_overpay_counter_debt">GEGENSCHULD</string>
+    <string name="settlement_overpay_counter_debt_desc_owed_to_me">%1$s werden als deine neue Schuld angelegt</string>
+    <string name="settlement_overpay_counter_debt_desc_i_owe">%1$s werden als neue Forderung an dich angelegt</string>
+
     <!-- Tags -->
     <string name="settings_tags_section">TAGS</string>
     <string name="settings_tags_add_hint">Neues Tag…</string>

@@ -6,6 +6,7 @@ import com.buglist.domain.model.DebtEntry
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Result
 import com.buglist.domain.model.SettlementResult
+import com.buglist.domain.usecase.AddDebtUseCase
 import com.buglist.domain.usecase.SettleDebtsUseCase
 import com.buglist.domain.repository.DebtRepository
 import com.buglist.domain.repository.TagRepository
@@ -81,6 +82,7 @@ sealed class SettlementUiState {
 @HiltViewModel
 class SettlementViewModel @Inject constructor(
     private val settleDebtsUseCase: SettleDebtsUseCase,
+    private val addDebtUseCase: AddDebtUseCase,
     private val debtRepository: DebtRepository,
     private val tagRepository: TagRepository
 ) : ViewModel() {
@@ -179,6 +181,60 @@ class SettlementViewModel @Inject constructor(
                     _uiState.value = SettlementUiState.Success(result.data)
                 }
                 is Result.Error -> _uiState.value = SettlementUiState.Error(result.message)
+            }
+        }
+    }
+
+    /**
+     * Settles all open debts up to [totalOpen] and creates a counter-debt entry for
+     * the overpayment amount (totalAmount − totalOpen) in the opposite direction.
+     *
+     * Flow:
+     * 1. Runs [SettleDebtsUseCase] with [totalOpen] (caps at exactly what is owed).
+     * 2. On success: inserts a new [DebtEntry] via [AddDebtUseCase] for [overpayAmount]
+     *    in the opposite direction (`!isOwedToMe`), with description "Tilgungsüberschuss".
+     * 3. Emits [toastEvent] and transitions to [SettlementUiState.Success].
+     *
+     * @param personId    Person to settle debts for.
+     * @param totalAmount Full amount the user entered (> totalOpen).
+     * @param isOwedToMe  Direction of the settled debts.
+     * @param currency    Currency code for the counter-debt entry (e.g. "EUR").
+     */
+    fun settleDebtsWithCounterDebt(
+        personId: Long,
+        totalAmount: Double,
+        isOwedToMe: Boolean,
+        currency: String
+    ) {
+        viewModelScope.launch {
+            _uiState.value = SettlementUiState.Processing
+            val totalOpen = openDebtsCache.sumOf { it.remaining }
+            val overpayAmount = totalAmount - totalOpen
+
+            when (val settlementResult = settleDebtsUseCase(personId, totalOpen, isOwedToMe)) {
+                is Result.Success -> {
+                    val counterDebt = DebtEntry(
+                        personId = personId,
+                        amount = overpayAmount,
+                        currency = currency,
+                        isOwedToMe = !isOwedToMe,
+                        description = "Tilgungsüberschuss",
+                        date = System.currentTimeMillis(),
+                        status = DebtStatus.OPEN
+                    )
+                    when (val counterResult = addDebtUseCase(counterDebt)) {
+                        is Result.Success -> {
+                            _toastEvent.emit(Pair(totalAmount, System.currentTimeMillis()))
+                            _uiState.value = SettlementUiState.Success(settlementResult.data)
+                        }
+                        is Result.Error -> {
+                            _uiState.value = SettlementUiState.Error(
+                                "Gegenschuld konnte nicht angelegt werden: ${counterResult.message}"
+                            )
+                        }
+                    }
+                }
+                is Result.Error -> _uiState.value = SettlementUiState.Error(settlementResult.message)
             }
         }
     }
