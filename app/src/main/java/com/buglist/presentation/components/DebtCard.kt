@@ -206,7 +206,11 @@ fun DebtCard(
                     )
                 } else {
                     debtWithPayments.payments.forEach { payment ->
-                        PaymentHistoryRow(payment = payment, currency = entry.currency)
+                        PaymentHistoryRow(
+                            payment = payment,
+                            currency = entry.currency,
+                            isOwedToMe = entry.isOwedToMe
+                        )
                     }
                 }
             }
@@ -215,8 +219,11 @@ fun DebtCard(
 }
 
 @Composable
-private fun PaymentHistoryRow(payment: Payment, currency: String) {
+private fun PaymentHistoryRow(payment: Payment, currency: String, isOwedToMe: Boolean) {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
+    // isOwedToMe=true  → person pays back → money comes in  → positive (green)
+    // isOwedToMe=false → I pay back       → money goes out  → negative (red)
+    val signedAmount = if (isOwedToMe) payment.amount else -payment.amount
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
@@ -239,10 +246,9 @@ private fun PaymentHistoryRow(payment: Payment, currency: String) {
             )
         }
         AmountText(
-            amount = payment.amount,
+            amount = signedAmount,
             currency = currency,
-            fontSize = 13.sp,
-            forceColor = BugListColors.DebtGreen
+            fontSize = 13.sp
         )
     }
 }
