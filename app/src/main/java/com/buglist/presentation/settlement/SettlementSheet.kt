@@ -924,17 +924,6 @@ private fun OverpaymentDialog(
                     modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 8.dp)
                 )
 
-                // ── Abbrechen ──────────────────────────────────────────────────
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_cancel),
-                        fontFamily = RobotoCondensedFontFamily,
-                        color = BugListColors.Muted
-                    )
-                }
             }
         }
     }
