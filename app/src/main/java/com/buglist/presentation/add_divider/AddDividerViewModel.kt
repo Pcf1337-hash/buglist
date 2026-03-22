@@ -62,6 +62,41 @@ class AddDividerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing divider in place.
+     *
+     * @param id        Primary key of the [Divider] to update.
+     * @param label     New label text.
+     * @param color     New ARGB color int.
+     * @param lineStyle New visual line style.
+     * @param sortIndex Preserved sort position (unchanged by edit).
+     */
+    fun updateDivider(
+        id: Long,
+        label: String,
+        color: Int,
+        lineStyle: DividerLineStyle,
+        sortIndex: Int
+    ) {
+        _uiState.value = AddDividerUiState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                dividerRepository.updateDivider(
+                    Divider(
+                        id = id,
+                        label = label.trim(),
+                        color = color,
+                        lineStyle = lineStyle,
+                        sortIndex = sortIndex
+                    )
+                )
+                _uiState.value = AddDividerUiState.Success(id)
+            } catch (e: Exception) {
+                _uiState.value = AddDividerUiState.Error(e.message ?: "Fehler beim Speichern")
+            }
+        }
+    }
+
     /** Resets state back to [AddDividerUiState.Idle] after the sheet has been handled. */
     fun reset() {
         _uiState.value = AddDividerUiState.Idle

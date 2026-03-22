@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -54,7 +53,7 @@ import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 
-/** Preset color palette for divider lines and labels. */
+/** Preset color palette offered in the divider color picker. */
 private val PRESET_COLORS = listOf(
     0xFFFFD700.toInt(), // Gold
     0xFFE5E4E2.toInt(), // Platinum
@@ -69,31 +68,43 @@ private val PRESET_COLORS = listOf(
 )
 
 /**
- * Bottom sheet for creating a new divider separator in the crew list.
+ * Bottom sheet for creating or editing a divider separator in the crew list.
  *
- * Lets the user choose:
- * - An optional label text
- * - A color from a preset palette
- * - A line style (SOLID / DASHED / THICK)
+ * ## Modes
+ * - **Create** (`existingDivider = null`): saves a new divider via [AddDividerViewModel.saveDivider].
+ * - **Edit** (`existingDivider != null`): pre-populates fields and calls [AddDividerViewModel.updateDivider].
  *
- * A live preview updates in real time as the user changes settings.
+ * ## Controls
+ * - Label text field (max 40 chars, optional)
+ * - 10-color preset swatch row
+ * - 7 style chips (SOLID · DASHED · THICK · DIAMOND_STAR · BRACKET · ARROW · DIAMOND_FLANKED)
+ * - Live preview updates on every change
  *
- * @param onDismiss Called when the sheet is closed without saving.
- * @param onSaved   Called after a successful save with the new divider's ID.
+ * @param existingDivider  If non-null, the sheet opens in edit mode pre-filled with this divider.
+ * @param onDismiss        Called when the sheet is closed without saving.
+ * @param onSaved          Called after a successful save/update with the divider's ID.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDividerSheet(
+    existingDivider: Divider? = null,
     onDismiss: () -> Unit,
     onSaved: (Long) -> Unit,
     viewModel: AddDividerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isEditMode = existingDivider != null
 
-    var label     by rememberSaveable { mutableStateOf("") }
-    var color     by rememberSaveable { mutableIntStateOf(PRESET_COLORS[0]) }
-    var lineStyle by rememberSaveable { mutableStateOf(DividerLineStyle.SOLID) }
+    // Initialise form state — overwrite with existingDivider values in edit mode.
+    var label     by rememberSaveable { mutableStateOf(existingDivider?.label ?: "") }
+    var color     by rememberSaveable { mutableIntStateOf(existingDivider?.color ?: PRESET_COLORS[0]) }
+    var lineStyle by rememberSaveable { mutableStateOf(existingDivider?.lineStyle ?: DividerLineStyle.SOLID) }
+
+    // Reset stale VM state whenever the sheet opens for a new divider.
+    LaunchedEffect(existingDivider?.id) {
+        viewModel.reset()
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is AddDividerUiState.Success) {
@@ -111,7 +122,10 @@ fun AddDividerSheet(
 
             // ── Title ────────────────────────────────────────────────────────
             Text(
-                text = stringResource(R.string.add_divider_title),
+                text = if (isEditMode)
+                    stringResource(R.string.edit_divider_title)
+                else
+                    stringResource(R.string.add_divider_title),
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -120,14 +134,7 @@ fun AddDividerSheet(
             Spacer(Modifier.height(20.dp))
 
             // ── Live Preview ─────────────────────────────────────────────────
-            Text(
-                text = stringResource(R.string.add_divider_preview_label),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = BugListColors.Muted,
-                letterSpacing = 2.sp
-            )
+            SectionLabel(stringResource(R.string.add_divider_preview_label))
             Spacer(Modifier.height(8.dp))
             Box(
                 modifier = Modifier
@@ -174,14 +181,7 @@ fun AddDividerSheet(
             Spacer(Modifier.height(20.dp))
 
             // ── Color picker ─────────────────────────────────────────────────
-            Text(
-                text = stringResource(R.string.add_divider_color_label),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = BugListColors.Muted,
-                letterSpacing = 2.sp
-            )
+            SectionLabel(stringResource(R.string.add_divider_color_label))
             Spacer(Modifier.height(10.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(PRESET_COLORS) { presetColor ->
@@ -195,45 +195,42 @@ fun AddDividerSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Line style picker ────────────────────────────────────────────
-            Text(
-                text = stringResource(R.string.add_divider_style_label),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = BugListColors.Muted,
-                letterSpacing = 2.sp
-            )
+            // ── Line style picker (7 styles) ─────────────────────────────────
+            SectionLabel(stringResource(R.string.add_divider_style_label))
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DividerLineStyle.entries.forEach { style ->
-                    val label = when (style) {
-                        DividerLineStyle.SOLID  -> stringResource(R.string.divider_style_solid)
-                        DividerLineStyle.DASHED -> stringResource(R.string.divider_style_dashed)
-                        DividerLineStyle.THICK  -> stringResource(R.string.divider_style_thick)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(DividerLineStyle.entries) { style ->
+                    val chipLabel = when (style) {
+                        DividerLineStyle.SOLID           -> stringResource(R.string.divider_style_solid)
+                        DividerLineStyle.DASHED          -> stringResource(R.string.divider_style_dashed)
+                        DividerLineStyle.THICK           -> stringResource(R.string.divider_style_thick)
+                        DividerLineStyle.DIAMOND_STAR    -> stringResource(R.string.divider_style_diamond_star)
+                        DividerLineStyle.BRACKET         -> stringResource(R.string.divider_style_bracket)
+                        DividerLineStyle.ARROW           -> stringResource(R.string.divider_style_arrow)
+                        DividerLineStyle.DIAMOND_FLANKED -> stringResource(R.string.divider_style_diamond_flanked)
                     }
                     FilterChip(
                         selected = lineStyle == style,
                         onClick = { lineStyle = style },
                         label = {
                             Text(
-                                text = label,
+                                text = chipLabel,
                                 fontFamily = OswaldFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 11.sp
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor      = BugListColors.Gold,
-                            selectedLabelColor          = BugListColors.Background,
-                            containerColor              = BugListColors.SurfaceHigh,
-                            labelColor                  = BugListColors.Platinum
+                            selectedContainerColor = BugListColors.Gold,
+                            selectedLabelColor     = BugListColors.Background,
+                            containerColor         = BugListColors.SurfaceHigh,
+                            labelColor             = BugListColors.Platinum
                         ),
                         border = FilterChipDefaults.filterChipBorder(
-                            enabled                    = true,
-                            selected                   = lineStyle == style,
-                            selectedBorderColor        = BugListColors.Gold,
-                            borderColor                = BugListColors.Divider
+                            enabled             = true,
+                            selected            = lineStyle == style,
+                            selectedBorderColor = BugListColors.Gold,
+                            borderColor         = BugListColors.Divider
                         )
                     )
                 }
@@ -241,7 +238,7 @@ fun AddDividerSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Error message ────────────────────────────────────────────────
+            // ── Error ────────────────────────────────────────────────────────
             if (uiState is AddDividerUiState.Error) {
                 Text(
                     text = (uiState as AddDividerUiState.Error).message,
@@ -255,7 +252,19 @@ fun AddDividerSheet(
             // ── Save button ──────────────────────────────────────────────────
             GoldButton(
                 text = stringResource(R.string.action_save),
-                onClick = { viewModel.saveDivider(label, color, lineStyle) },
+                onClick = {
+                    if (isEditMode) {
+                        viewModel.updateDivider(
+                            id        = existingDivider!!.id,
+                            label     = label,
+                            color     = color,
+                            lineStyle = lineStyle,
+                            sortIndex = existingDivider.sortIndex
+                        )
+                    } else {
+                        viewModel.saveDivider(label, color, lineStyle)
+                    }
+                },
                 enabled = uiState !is AddDividerUiState.Loading,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -264,8 +273,22 @@ fun AddDividerSheet(
     }
 }
 
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        fontFamily = OswaldFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        color = BugListColors.Muted,
+        letterSpacing = 2.sp
+    )
+}
+
 /**
- * Circular color swatch button with a check-mark overlay when [selected].
+ * Circular color swatch with a check-mark when [selected].
  */
 @Composable
 private fun ColorSwatch(
@@ -296,6 +319,6 @@ private fun ColorSwatch(
     }
 }
 
-/** Returns the perceived luminance (0.0 = black, 1.0 = white). */
+/** Perceived luminance (0 = black, 1 = white). */
 private fun Color.luminance(): Float =
     0.2126f * red + 0.7152f * green + 0.0722f * blue

@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,6 +69,7 @@ import com.buglist.domain.model.DashboardListItem
 import com.buglist.domain.model.Divider
 import com.buglist.domain.model.DividerLineStyle
 import com.buglist.domain.model.PersonWithBalance
+import com.buglist.presentation.add_divider.AddDividerSheet
 import com.buglist.presentation.components.AmountText
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
@@ -79,14 +80,16 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
- * Dashboard screen — shows all persons with their net balances and the global total.
+ * Dashboard screen — shows all persons with net balances and the global total.
  *
  * The crew list renders both [DashboardListItem.PersonItem] rows and
  * [DashboardListItem.DividerItem] separator rows interleaved by sort index.
  *
- * Supports manual drag-to-reorder via a pencil/edit icon next to the CREW header.
- * In edit mode, drag handles appear on each row; dividers additionally show a delete
- * button. Exiting edit mode persists the new order for both persons and dividers.
+ * Standard [HorizontalDivider] separators are suppressed when a custom divider
+ * row is adjacent, so the two types of separators never overlap visually.
+ *
+ * Supports manual drag-to-reorder. In edit mode, each divider row shows a
+ * delete button (trash) and an edit button (pencil) in addition to the drag handle.
  *
  * @param onPersonClick Navigate to person detail screen.
  * @param onAddItem     Open the add-item choice sheet (person or divider).
@@ -102,16 +105,19 @@ fun DashboardScreen(
     onSettings: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState    by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val context    = LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
 
-    // Edit-mode state — local mutable copy used during reorder
-    var editMode by remember { mutableStateOf(false) }
+    // Edit-mode mutable list copy
+    var editMode      by remember { mutableStateOf(false) }
     var editableItems by remember { mutableStateOf<List<DashboardListItem>>(emptyList()) }
 
-    // Reorderable LazyList state (always created to satisfy Compose key ordering rules)
+    // Divider being edited — non-null opens the AddDividerSheet in edit mode
+    var dividerToEdit by remember { mutableStateOf<Divider?>(null) }
+
+    // Reorderable state
     val reorderLazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(reorderLazyListState) { from, to ->
         editableItems = editableItems.toMutableList().apply {
@@ -128,8 +134,17 @@ fun DashboardScreen(
                 context.startActivity(intent)
                 viewModel.onUpdateDismissed()
             },
-            onSkip = { viewModel.onUpdateSkipped(update.newVersion) },
+            onSkip   = { viewModel.onUpdateSkipped(update.newVersion) },
             onDismiss = { viewModel.onUpdateDismissed() }
+        )
+    }
+
+    // Edit divider sheet (shown on top of dashboard)
+    if (dividerToEdit != null) {
+        AddDividerSheet(
+            existingDivider = dividerToEdit,
+            onDismiss = { dividerToEdit = null },
+            onSaved   = { _ -> dividerToEdit = null }
         )
     }
 
@@ -164,9 +179,7 @@ fun DashboardScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BugListColors.Background
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.Background)
             )
         },
         floatingActionButton = {
@@ -189,38 +202,25 @@ fun DashboardScreen(
             is DashboardUiState.Loading -> {
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    modifier = Modifier.fillMaxSize().padding(paddingValues)
                 ) {
                     CircularProgressIndicator(color = BugListColors.Gold)
                 }
             }
 
             is DashboardUiState.Ready -> {
-                val hasPersons = state.persons.isNotEmpty()
-
-                if (!hasPersons && state.items.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    ) {
+                if (state.persons.isEmpty() && state.items.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         DashboardEmptyState(onAddItem = onAddItem)
                     }
                 } else if (editMode) {
-                    // ── EDIT MODE ────────────────────────────────────────────────────
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    ) {
+                    // ── EDIT MODE ────────────────────────────────────────────
+                    Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         DashboardSummaryHeader(
-                            totalBalance = state.totalBalance,
+                            totalBalance  = state.totalBalance,
                             totalOwedToMe = state.totalOwedToMe,
-                            totalIOwe = state.totalIOwe
+                            totalIOwe     = state.totalIOwe
                         )
-                        // CREW header with DONE button
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -258,22 +258,21 @@ fun DashboardScreen(
                                 )
                             }
                         }
-                        // Reorderable LazyColumn
                         LazyColumn(
                             state = reorderLazyListState,
                             contentPadding = PaddingValues(bottom = 80.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(editableItems, key = { it.listKey }) { item ->
+                            itemsIndexed(editableItems, key = { _, item -> item.listKey }) { _, item ->
                                 ReorderableItem(reorderableState, key = item.listKey) { isDragging ->
-                                    val shadowElevation by animateDpAsState(
+                                    val elevation by animateDpAsState(
                                         targetValue = if (isDragging) 8.dp else 0.dp,
                                         label = "drag_elevation"
                                     )
                                     Surface(
-                                        shadowElevation = shadowElevation,
+                                        shadowElevation = elevation,
                                         color = if (isDragging) BugListColors.SurfaceHigh
-                                        else BugListColors.Background
+                                                else BugListColors.Background
                                     ) {
                                         when (item) {
                                             is DashboardListItem.PersonItem ->
@@ -285,8 +284,8 @@ fun DashboardScreen(
                                                 EditableDividerRow(
                                                     divider = item.data,
                                                     dragHandleModifier = Modifier.draggableHandle(),
+                                                    onEdit   = { dividerToEdit = item.data },
                                                     onDelete = {
-                                                        // Remove from local list + delete from DB
                                                         editableItems = editableItems.filter {
                                                             it !is DashboardListItem.DividerItem ||
                                                                     it.data.id != item.data.id
@@ -305,13 +304,11 @@ fun DashboardScreen(
                         }
                     }
                 } else {
-                    // ── NORMAL MODE ──────────────────────────────────────────────────
+                    // ── NORMAL MODE ──────────────────────────────────────────
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
-                        onRefresh = { isRefreshing = false },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
+                        onRefresh    = { isRefreshing = false },
+                        modifier = Modifier.fillMaxSize().padding(paddingValues)
                     ) {
                         LazyColumn(
                             contentPadding = PaddingValues(bottom = 80.dp),
@@ -319,9 +316,9 @@ fun DashboardScreen(
                         ) {
                             item {
                                 DashboardSummaryHeader(
-                                    totalBalance = state.totalBalance,
+                                    totalBalance  = state.totalBalance,
                                     totalOwedToMe = state.totalOwedToMe,
-                                    totalIOwe = state.totalIOwe
+                                    totalIOwe     = state.totalIOwe
                                 )
                             }
                             item {
@@ -329,10 +326,7 @@ fun DashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(
-                                            start = 16.dp, end = 4.dp,
-                                            top = 8.dp, bottom = 8.dp
-                                        )
+                                        .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.dashboard_crew_header),
@@ -358,17 +352,24 @@ fun DashboardScreen(
                                     }
                                 }
                             }
-                            items(state.items, key = { it.listKey }) { item ->
+                            itemsIndexed(
+                                items = state.items,
+                                key   = { _, item -> item.listKey }
+                            ) { index, item ->
                                 when (item) {
                                     is DashboardListItem.PersonItem -> {
                                         PersonCard(
                                             personWithBalance = item.data,
                                             onClick = { onPersonClick(item.data.person.id) }
                                         )
-                                        HorizontalDivider(
-                                            color = BugListColors.Divider,
-                                            modifier = Modifier.padding(horizontal = 16.dp)
-                                        )
+                                        // Suppress thin separator if next item is a custom DividerItem
+                                        val nextItem = state.items.getOrNull(index + 1)
+                                        if (nextItem !is DashboardListItem.DividerItem) {
+                                            HorizontalDivider(
+                                                color = BugListColors.Divider,
+                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                            )
+                                        }
                                     }
                                     is DashboardListItem.DividerItem -> {
                                         DividerRow(divider = item.data)
@@ -383,7 +384,7 @@ fun DashboardScreen(
     }
 }
 
-// ── Crew-list row composables ─────────────────────────────────────────────────
+// ── Editable row composables ──────────────────────────────────────────────────
 
 @Composable
 private fun EditablePersonRow(
@@ -397,9 +398,9 @@ private fun EditablePersonRow(
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         PersonAvatar(
-            name = personWithBalance.person.name,
-            avatarColor = personWithBalance.person.avatarColor,
-            size = 44.dp,
+            name            = personWithBalance.person.name,
+            avatarColor     = personWithBalance.person.avatarColor,
+            size            = 44.dp,
             avatarImagePath = personWithBalance.person.avatarImagePath
         )
         Spacer(Modifier.width(14.dp))
@@ -433,54 +434,142 @@ private fun EditablePersonRow(
 private fun EditableDividerRow(
     divider: Divider,
     dragHandleModifier: Modifier,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+            .padding(start = 0.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
     ) {
+        // Edit button
+        IconButton(onClick = onEdit) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.divider_edit_content_description),
+                tint = BugListColors.Gold,
+                modifier = Modifier.size(18.dp)
+            )
+        }
         // Delete button
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = stringResource(R.string.divider_delete_content_description),
                 tint = BugListColors.DebtRed,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
-        // Divider preview fills available space
+        // Divider preview
         Box(modifier = Modifier.weight(1f)) {
             DividerRow(divider = divider)
         }
-        // Drag handle — modifier carries ReorderableItemScope.draggableHandle()
+        // Drag handle
         Icon(
             imageVector = Icons.Default.DragHandle,
             contentDescription = "Ziehen zum Sortieren",
             tint = BugListColors.Muted,
-            modifier = dragHandleModifier
-                .size(24.dp)
-                .padding(end = 4.dp)
+            modifier = dragHandleModifier.size(24.dp)
+        )
+    }
+}
+
+// ── DividerRow — all 7 styles ─────────────────────────────────────────────────
+
+/**
+ * Renders a [Divider] separator row as it appears in the crew list and in the
+ * AddDividerSheet live preview.
+ *
+ * Supported styles:
+ * - SOLID           → `──── LABEL ────`
+ * - DASHED          → `- - - LABEL - - -`
+ * - THICK           → `━━━━ LABEL ━━━━`
+ * - DIAMOND_STAR    → `──── ✦ LABEL ✦ ────`
+ * - BRACKET         → `──── [ LABEL ] ────`
+ * - ARROW           → `<<< LABEL >>>`
+ * - DIAMOND_FLANKED → `❖──── LABEL ────❖`
+ *
+ * Public so [com.buglist.presentation.add_divider.AddDividerSheet] can render the live preview.
+ */
+@Composable
+fun DividerRow(divider: Divider) {
+    val lineColor = Color(divider.color)
+
+    if (divider.lineStyle == DividerLineStyle.ARROW) {
+        ArrowDividerRow(label = divider.label, color = lineColor)
+    } else {
+        LineDividerRow(divider = divider, lineColor = lineColor)
+    }
+}
+
+/** `<<< LABEL >>>` — no lines, purely text-based. */
+@Composable
+private fun ArrowDividerRow(label: String, color: Color) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = "<<<",
+            fontFamily = OswaldFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = color,
+            letterSpacing = 2.sp
+        )
+        if (label.isNotBlank()) {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = label.uppercase(),
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = color,
+                letterSpacing = 2.sp
+            )
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(
+            text = ">>>",
+            fontFamily = OswaldFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = color,
+            letterSpacing = 2.sp
         )
     }
 }
 
 /**
- * Renders a [Divider] separator row as it appears in the crew list (and in the preview).
+ * Line-based divider row for all non-ARROW styles.
  *
- * Layout: [left line] – [LABEL TEXT] – [right line]
- * Line style follows [Divider.lineStyle]; color follows [Divider.color].
- *
- * Public so [com.buglist.presentation.add_divider.AddDividerSheet] can use it for preview.
+ * Layout:
+ * - DIAMOND_FLANKED: `❖` | [line] | [label] | [line] | `❖`
+ * - DIAMOND_STAR:    [line] | `✦` | [label] | `✦` | [line]
+ * - BRACKET:         [line] | `[` | [label] | `]` | [line]
+ * - SOLID/DASHED/THICK: [line] | [label] | [line]
  */
 @Composable
-fun DividerRow(divider: Divider) {
-    val lineColor  = Color(divider.color)
-    val strokeDp: Dp = when (divider.lineStyle) {
-        DividerLineStyle.THICK -> 3.dp
-        else                   -> 1.dp
+private fun LineDividerRow(divider: Divider, lineColor: Color) {
+    val strokeDp: Dp = if (divider.lineStyle == DividerLineStyle.THICK) 3.dp else 1.dp
+    val dashed = divider.lineStyle == DividerLineStyle.DASHED
+
+    // Outer flanking characters (outside the lines)
+    val outerLeft  = if (divider.lineStyle == DividerLineStyle.DIAMOND_FLANKED) "❖" else ""
+    val outerRight = if (divider.lineStyle == DividerLineStyle.DIAMOND_FLANKED) "❖" else ""
+
+    // Inner decorators (between line and label)
+    val (innerLeft, innerRight) = when (divider.lineStyle) {
+        DividerLineStyle.DIAMOND_STAR -> "✦" to "✦"
+        DividerLineStyle.BRACKET      -> "[" to "]"
+        else                          -> "" to ""
     }
+
+    val hasCenter = divider.label.isNotBlank() || innerLeft.isNotEmpty()
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -488,61 +577,101 @@ fun DividerRow(divider: Divider) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        DividerLine(
-            color = lineColor,
-            lineStyle = divider.lineStyle,
-            strokeDp = strokeDp,
-            modifier = Modifier.weight(1f)
-        )
-        if (divider.label.isNotBlank()) {
+        if (outerLeft.isNotEmpty()) {
             Text(
-                text = divider.label.uppercase(),
+                text = outerLeft,
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = lineColor,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(horizontal = 10.dp)
+                fontSize = 14.sp,
+                color = lineColor
             )
         }
+
         DividerLine(
-            color = lineColor,
-            lineStyle = divider.lineStyle,
+            color    = lineColor,
+            dashed   = dashed,
             strokeDp = strokeDp,
             modifier = Modifier.weight(1f)
         )
+
+        if (hasCenter) {
+            Spacer(Modifier.width(6.dp))
+            if (innerLeft.isNotEmpty()) {
+                Text(
+                    text = innerLeft,
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = lineColor
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            if (divider.label.isNotBlank()) {
+                Text(
+                    text = divider.label.uppercase(),
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = lineColor,
+                    letterSpacing = 2.sp
+                )
+            }
+            if (innerRight.isNotEmpty()) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = innerRight,
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = lineColor
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+        }
+
+        DividerLine(
+            color    = lineColor,
+            dashed   = dashed,
+            strokeDp = strokeDp,
+            modifier = Modifier.weight(1f)
+        )
+
+        if (outerRight.isNotEmpty()) {
+            Text(
+                text = outerRight,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = lineColor
+            )
+        }
     }
 }
 
-/**
- * Single horizontal line for a [DividerRow], drawn on a Canvas.
- * Supports SOLID, DASHED, and THICK styles.
- */
+/** Single horizontal line drawn on a Canvas — supports solid and dashed styles. */
 @Composable
 private fun DividerLine(
     color: Color,
-    lineStyle: DividerLineStyle,
+    dashed: Boolean,
     strokeDp: Dp,
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
+    val density  = LocalDensity.current
     val strokePx = with(density) { strokeDp.toPx() }
 
     Canvas(modifier = modifier.height((strokeDp + 8.dp).coerceAtLeast(8.dp))) {
         val y = size.height / 2f
-        val pathEffect = if (lineStyle == DividerLineStyle.DASHED)
-            PathEffect.dashPathEffect(floatArrayOf(12f, 7f), 0f)
-        else
-            null
         drawLine(
-            color = color,
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
+            color       = color,
+            start       = Offset(0f, y),
+            end         = Offset(size.width, y),
             strokeWidth = strokePx,
-            pathEffect = pathEffect
+            pathEffect  = if (dashed) PathEffect.dashPathEffect(floatArrayOf(12f, 7f), 0f) else null
         )
     }
 }
+
+// ── Person card ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun PersonCard(
@@ -557,9 +686,9 @@ private fun PersonCard(
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         PersonAvatar(
-            name = personWithBalance.person.name,
-            avatarColor = personWithBalance.person.avatarColor,
-            size = 44.dp,
+            name            = personWithBalance.person.name,
+            avatarColor     = personWithBalance.person.avatarColor,
+            size            = 44.dp,
             avatarImagePath = personWithBalance.person.avatarImagePath
         )
         Spacer(Modifier.width(14.dp))
@@ -610,25 +739,21 @@ private fun DashboardSummaryHeader(
             letterSpacing = 2.sp
         )
         Spacer(Modifier.height(4.dp))
-        AmountText(
-            amount = totalBalance,
-            fontSize = 48.sp,
-            modifier = Modifier.fillMaxWidth()
-        )
+        AmountText(amount = totalBalance, fontSize = 48.sp, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             BalanceTile(
-                label = stringResource(R.string.dashboard_owed_to_me),
-                amount = totalOwedToMe,
+                label    = stringResource(R.string.dashboard_owed_to_me),
+                amount   = totalOwedToMe,
                 positive = true,
                 modifier = Modifier.weight(1f)
             )
             BalanceTile(
-                label = stringResource(R.string.dashboard_i_owe),
-                amount = totalIOwe,
+                label    = stringResource(R.string.dashboard_i_owe),
+                amount   = totalIOwe,
                 positive = false,
                 modifier = Modifier.weight(1f)
             )
@@ -644,8 +769,8 @@ private fun BalanceTile(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = BugListColors.SurfaceHigh,
+        shape    = RoundedCornerShape(8.dp),
+        color    = BugListColors.SurfaceHigh,
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -659,7 +784,7 @@ private fun BalanceTile(
             )
             Spacer(Modifier.height(4.dp))
             AmountText(
-                amount = if (positive) amount else -amount,
+                amount   = if (positive) amount else -amount,
                 fontSize = 22.sp
             )
         }

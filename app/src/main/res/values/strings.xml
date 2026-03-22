@@ -187,6 +187,7 @@
 
     <!-- Add Divider Sheet -->
     <string name="add_divider_title">TRENNSTRICH</string>
+    <string name="edit_divider_title">TRENNSTRICH BEARBEITEN</string>
     <string name="add_divider_preview_label">VORSCHAU</string>
     <string name="add_divider_label_hint">Beschriftung (optional)</string>
     <string name="add_divider_color_label">FARBE</string>
@@ -194,6 +195,11 @@
     <string name="divider_style_solid">LINIE</string>
     <string name="divider_style_dashed">GESTRICHELT</string>
     <string name="divider_style_thick">DICK</string>
+    <string name="divider_style_diamond_star">✦ STERN ✦</string>
+    <string name="divider_style_bracket">[ BLOCK ]</string>
+    <string name="divider_style_arrow">&lt;&lt;&lt; PFEIL &gt;&gt;&gt;</string>
+    <string name="divider_style_diamond_flanked">❖ FLANKE ❖</string>
+    <string name="divider_edit_content_description">Trennstrich bearbeiten</string>
     <string name="divider_delete_content_description">Trennstrich löschen</string>
 
     <!-- Tags -->

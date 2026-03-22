@@ -1,13 +1,25 @@
 package com.buglist.domain.model
 
 /**
- * Visual line style for a [Divider] separator row in the crew list.
+ * Visual rendering style for a [Divider] separator row in the crew list.
  *
- * - [SOLID]  – single solid line (1 dp stroke)
- * - [DASHED] – dashed line (dash 10 px, gap 6 px)
- * - [THICK]  – solid line with 3 dp stroke
+ * - [SOLID]           – `──── LABEL ────`            single solid line
+ * - [DASHED]          – `- - - LABEL - - -`          dashed line
+ * - [THICK]           – `━━━━ LABEL ━━━━`            thick (3 dp) solid line
+ * - [DIAMOND_STAR]    – `──── ✦ LABEL ✦ ────`       star-diamond flanked label
+ * - [BRACKET]         – `──── [ LABEL ] ────`        bracket flanked label
+ * - [ARROW]           – `<<< LABEL >>>`              no lines, arrow text only
+ * - [DIAMOND_FLANKED] – `❖──── LABEL ────❖`         outer diamond flanking
  */
-enum class DividerLineStyle { SOLID, DASHED, THICK }
+enum class DividerLineStyle {
+    SOLID,
+    DASHED,
+    THICK,
+    DIAMOND_STAR,
+    BRACKET,
+    ARROW,
+    DIAMOND_FLANKED
+}
 
 /**
  * Domain model for a decorative separator item in the crew list.

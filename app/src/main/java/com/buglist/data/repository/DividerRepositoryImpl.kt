@@ -44,9 +44,13 @@ private fun DividerEntity.toDomain(): Divider = Divider(
     label = label,
     color = color,
     lineStyle = when (lineStyle) {
-        "DASHED" -> DividerLineStyle.DASHED
-        "THICK"  -> DividerLineStyle.THICK
-        else     -> DividerLineStyle.SOLID
+        "DASHED"          -> DividerLineStyle.DASHED
+        "THICK"           -> DividerLineStyle.THICK
+        "DIAMOND_STAR"    -> DividerLineStyle.DIAMOND_STAR
+        "BRACKET"         -> DividerLineStyle.BRACKET
+        "ARROW"           -> DividerLineStyle.ARROW
+        "DIAMOND_FLANKED" -> DividerLineStyle.DIAMOND_FLANKED
+        else              -> DividerLineStyle.SOLID
     },
     sortIndex = sortIndex
 )
