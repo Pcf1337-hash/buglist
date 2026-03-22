@@ -66,4 +66,15 @@ interface PersonRepository {
      * @param orderedIds Person IDs in the new desired order (top → bottom).
      */
     suspend fun updatePersonSortIndices(orderedIds: List<Long>)
+
+    /**
+     * Updates the [Person.sortIndex] of a single person.
+     *
+     * Used when persisting the combined person+divider drag-to-reorder result,
+     * where each item receives a sortIndex equal to its position in the merged list.
+     *
+     * @param id        The person's primary key.
+     * @param sortIndex The new sort position.
+     */
+    suspend fun updatePersonSortIndex(id: Long, sortIndex: Int)
 }

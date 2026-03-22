@@ -180,6 +180,22 @@
     <string name="settlement_overpay_counter_debt_desc_owed_to_me">%1$s werden als deine neue Schuld angelegt</string>
     <string name="settlement_overpay_counter_debt_desc_i_owe">%1$s werden als neue Forderung an dich angelegt</string>
 
+    <!-- Add Item Choice Sheet -->
+    <string name="add_item_choice_title">HINZUFÜGEN</string>
+    <string name="add_item_choice_person">+ PERSON</string>
+    <string name="add_item_choice_divider">+ TRENNSTRICH</string>
+
+    <!-- Add Divider Sheet -->
+    <string name="add_divider_title">TRENNSTRICH</string>
+    <string name="add_divider_preview_label">VORSCHAU</string>
+    <string name="add_divider_label_hint">Beschriftung (optional)</string>
+    <string name="add_divider_color_label">FARBE</string>
+    <string name="add_divider_style_label">STIL</string>
+    <string name="divider_style_solid">LINIE</string>
+    <string name="divider_style_dashed">GESTRICHELT</string>
+    <string name="divider_style_thick">DICK</string>
+    <string name="divider_delete_content_description">Trennstrich löschen</string>
+
     <!-- Tags -->
     <string name="settings_tags_section">TAGS</string>
     <string name="settings_tags_add_hint">Neues Tag…</string>

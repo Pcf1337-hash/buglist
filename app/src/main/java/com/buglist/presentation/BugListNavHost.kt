@@ -17,8 +17,10 @@ import androidx.navigation.navArgument
 import com.buglist.BugListApplication
 import com.buglist.data.remote.UpdateState
 import com.buglist.di.DatabaseProvider
+import com.buglist.presentation.add_divider.AddDividerSheet
 import com.buglist.presentation.add_person.AddPersonSheet
 import com.buglist.presentation.auth.AuthScreen
+import com.buglist.presentation.dashboard.AddItemChoiceSheet
 import com.buglist.presentation.auth.AuthUiState
 import com.buglist.presentation.auth.AuthViewModel
 import com.buglist.presentation.components.StartupUpdateDialog
@@ -129,7 +131,9 @@ fun BugListNavHost(
 
         // ── Dashboard ────────────────────────────────────────────────────────
         composable(Routes.DASHBOARD) {
-            var showAddPerson by remember { mutableStateOf(false) }
+            var showAddItemChoice by remember { mutableStateOf(false) }
+            var showAddPerson    by remember { mutableStateOf(false) }
+            var showAddDivider   by remember { mutableStateOf(false) }
 
             // Startup update check — runs once per session after auth.
             val startupViewModel: StartupViewModel = hiltViewModel()
@@ -144,15 +148,33 @@ fun BugListNavHost(
                 onPersonClick = { personId ->
                     navController.navigate(Routes.personDetail(personId))
                 },
-                onAddPerson = { showAddPerson = true },
+                onAddItem  = { showAddItemChoice = true },
                 onStatistics = { navController.navigate(Routes.STATISTICS) },
                 onSettings = { navController.navigate(Routes.SETTINGS) }
             )
 
+            // ── Item-type choice sheet ────────────────────────────────────────
+            if (showAddItemChoice) {
+                AddItemChoiceSheet(
+                    onAddPerson  = { showAddPerson = true },
+                    onAddDivider = { showAddDivider = true },
+                    onDismiss    = { showAddItemChoice = false }
+                )
+            }
+
+            // ── Add person sheet ─────────────────────────────────────────────
             if (showAddPerson) {
                 AddPersonSheet(
                     onDismiss = { showAddPerson = false },
                     onSaved = { _ -> showAddPerson = false }
+                )
+            }
+
+            // ── Add divider sheet ────────────────────────────────────────────
+            if (showAddDivider) {
+                AddDividerSheet(
+                    onDismiss = { showAddDivider = false },
+                    onSaved = { _ -> showAddDivider = false }
                 )
             }
 

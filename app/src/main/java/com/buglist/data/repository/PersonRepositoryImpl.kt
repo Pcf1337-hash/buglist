@@ -50,6 +50,9 @@ class PersonRepositoryImpl @Inject constructor(
             personDao.updateSortIndex(id, index)
         }
     }
+
+    override suspend fun updatePersonSortIndex(id: Long, sortIndex: Int) =
+        personDao.updateSortIndex(id, sortIndex)
 }
 
 // --- Mapping extensions ---

@@ -5,11 +5,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.buglist.data.local.dao.DebtEntryDao
+import com.buglist.data.local.dao.DividerDao
 import com.buglist.data.local.dao.PaymentDao
 import com.buglist.data.local.dao.PersonDao
 import com.buglist.data.local.dao.TagDao
 import com.buglist.data.local.entity.DebtEntryEntity
 import com.buglist.data.local.entity.DebtEntryTagCrossRef
+import com.buglist.data.local.entity.DividerEntity
 import com.buglist.data.local.entity.PaymentEntity
 import com.buglist.data.local.entity.PersonEntity
 import com.buglist.data.local.entity.TagEntity
@@ -33,6 +35,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v2 – Tag system: tags table + debt_entry_tags join table
  *   v3 – Manual crew sort: sort_index column added to persons table
  *   v4 – Custom avatar photo: avatarImagePath column (nullable TEXT) added to persons
+ *   v5 – Divider separators: new `dividers` table for crew-list section headers
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -43,9 +46,10 @@ import com.buglist.data.local.entity.TagEntity
         DebtEntryEntity::class,
         PaymentEntity::class,
         TagEntity::class,
-        DebtEntryTagCrossRef::class
+        DebtEntryTagCrossRef::class,
+        DividerEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -54,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun debtEntryDao(): DebtEntryDao
     abstract fun paymentDao(): PaymentDao
     abstract fun tagDao(): TagDao
+    abstract fun dividerDao(): DividerDao
 
     companion object {
 
@@ -87,6 +92,30 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE persons ADD COLUMN avatarImagePath TEXT"
+                )
+            }
+        }
+
+        /**
+         * Migration from v4 to v5: creates the `dividers` table.
+         *
+         * Dividers are decorative separator rows in the crew list. They share the
+         * `sortIndex` value space with persons so drag-to-reorder works uniformly.
+         * Default sortIndex = 2147483647 (Int.MAX_VALUE) → new dividers appear at
+         * the bottom before the user places them via reorder.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `dividers` (
+                        `id`        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `label`     TEXT NOT NULL,
+                        `color`     INTEGER NOT NULL DEFAULT -2240,
+                        `lineStyle` TEXT NOT NULL DEFAULT 'SOLID',
+                        `sortIndex` INTEGER NOT NULL DEFAULT 2147483647
+                    )
+                    """.trimIndent()
                 )
             }
         }
