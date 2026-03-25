@@ -8,6 +8,25 @@
 
 ## Sicherheit & Biometrie
 
+### L-097 – BiometricPrompt hängt nach langem Hintergrund-Aufenthalt (onStart vs onResume)
+**Problem:** Nach langem App-Hintergrund (> Auto-Lock-Timeout) zeigt `AuthScreen` keinen Fingerabdruck-Dialog. Screen hängt mit pulsierendem Icon. Einziger Fix war App schließen + neu öffnen.
+**Ursache:** `LaunchedEffect(Unit)` in `AuthScreen` feuert sobald das Composable in die Composition eintritt – das kann während `Activity.onStart()` passieren, **bevor** `onResume()` erreicht wird. `BiometricPrompt.authenticate()` braucht Window-Focus (RESUMED-State). Auf MIUI/Samsung OneUI/ColorOS cancelt das System den Prompt intern **ohne** `onAuthenticationError` aufzurufen. `AuthViewModel` bleibt dauerhaft in `Authenticating`-State.
+**Regel:** BiometricPrompt-Aufruf IMMER mit `lifecycle.withResumed { }` wrappen, nie direkt in `LaunchedEffect(Unit)` (= fires on STARTED, not RESUMED).
+```kotlin
+// FALSCH – kann während onStart feuern bevor Window-Focus existiert
+LaunchedEffect(Unit) {
+    viewModel.requestAuthentication()
+}
+
+// RICHTIG – wartet auf RESUMED (Window hat Focus, BiometricPrompt funktioniert sicher)
+val lifecycle = LocalLifecycleOwner.current.lifecycle
+LaunchedEffect(Unit) {
+    lifecycle.withResumed {
+        viewModel.requestAuthentication()
+    }
+}
+```
+
 ### L-088 – Samsung Galaxy A Series: BIOMETRIC_STRONG schlägt fehl (Class 2 Sensor)
 **Problem:** Galaxy A-Geräte zeigen "Biometric Hardware unavailable: NONE_ENROLLED" obwohl Fingerabdruck eingerichtet ist.
 **Ursache:** Samsung Galaxy A Fingerprint-Sensoren sind Class 2 (BIOMETRIC_WEAK), nicht Class 3 (BIOMETRIC_STRONG). `canAuthenticate(BIOMETRIC_STRONG)` gibt `BIOMETRIC_ERROR_NONE_ENROLLED` zurück, weil keine Class-3-Biometrie existiert – auch wenn Fingerabdrücke registriert sind.
