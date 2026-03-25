@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.withResumed
 import com.buglist.R
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTypography
@@ -91,9 +93,24 @@ fun AuthScreen(
         }
     }
 
-    // Auto-trigger auth on first composition
+    // Auto-trigger auth after Activity is fully RESUMED.
+    //
+    // BUG FIX (v1.9.1): Previously used LaunchedEffect(Unit) which fires as soon as the
+    // composable enters the composition — this can happen during Activity.onStart(), BEFORE
+    // onResume(). BiometricPrompt.authenticate() requires the Activity window to have focus
+    // (i.e. be RESUMED). On several OEM ROMs (MIUI, Samsung OneUI, ColorOS), calling it
+    // during onStart → onResume transition causes the system to cancel the prompt internally
+    // WITHOUT invoking onAuthenticationError. The AuthViewModel stays stuck in Authenticating
+    // state forever, leaving the screen hanging with a pulsing icon and no visible prompt.
+    //
+    // lifecycle.withResumed { } is a suspend function from lifecycle-runtime-ktx that
+    // suspends the coroutine until the lifecycle reaches RESUMED state, then executes the
+    // block. This guarantees the window is focused and the BiometricPrompt can be shown.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) {
-        viewModel.requestAuthentication()
+        lifecycle.withResumed {
+            viewModel.requestAuthentication()
+        }
     }
 
     AuthScreenContent(
