@@ -140,4 +140,18 @@ class AuthViewModel @Inject constructor(
             requestAuthentication()
         }
     }
+
+    /**
+     * Called by [LifecycleResumeEffect.onPauseOrDispose] when the screen is paused or leaves
+     * composition. Resets the prompt signal so the next [requestAuthentication] call on resume
+     * triggers a fresh BiometricPrompt.
+     */
+    fun cancelAuthentication() {
+        _shouldShowPrompt.value = false
+        // Only reset to Idle if not already authenticated — avoids flickering if auth succeeded
+        // just before the pause (e.g., app put to background immediately after unlock).
+        if (_uiState.value !is AuthUiState.Authenticated) {
+            _uiState.value = AuthUiState.Idle
+        }
+    }
 }

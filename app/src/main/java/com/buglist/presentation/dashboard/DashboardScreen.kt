@@ -776,12 +776,6 @@ private fun PersonCard(
     personWithBalance: PersonWithBalance,
     onClick: () -> Unit
 ) {
-    // Left accent line color: green = they owe me, red = I owe, gold = balanced
-    val accentColor = when {
-        personWithBalance.netBalance > 0 -> BugListColors.DebtGreen
-        personWithBalance.netBalance < 0 -> BugListColors.DebtRed
-        else -> BugListColors.Gold
-    }
     val showGoldRing = kotlin.math.abs(personWithBalance.netBalance) > 100.0
 
     Row(
@@ -791,13 +785,6 @@ private fun PersonCard(
             .clickable(onClick = onClick)
             .background(BugListColors.SurfaceCard)
     ) {
-        // Left accent line
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .height(72.dp)
-                .background(accentColor)
-        )
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

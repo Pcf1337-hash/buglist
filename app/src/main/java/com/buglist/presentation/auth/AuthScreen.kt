@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -42,7 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.withResumed
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.buglist.R
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTypography
@@ -95,23 +94,25 @@ fun AuthScreen(
         }
     }
 
-    // Auto-trigger auth after Activity is fully RESUMED.
+    // Auto-trigger BiometricPrompt on EVERY ON_RESUME event.
     //
-    // BUG FIX (v1.9.1): Previously used LaunchedEffect(Unit) which fires as soon as the
-    // composable enters the composition — this can happen during Activity.onStart(), BEFORE
-    // onResume(). BiometricPrompt.authenticate() requires the Activity window to have focus
-    // (i.e. be RESUMED). On several OEM ROMs (MIUI, Samsung OneUI, ColorOS), calling it
-    // during onStart → onResume transition causes the system to cancel the prompt internally
-    // WITHOUT invoking onAuthenticationError. The AuthViewModel stays stuck in Authenticating
-    // state forever, leaving the screen hanging with a pulsing icon and no visible prompt.
+    // BUG FIX (v2.0.1): The v1.9.1 fix used LaunchedEffect(Unit) + lifecycle.withResumed{}.
+    // That only fired ONCE when the composable first entered composition. If the user was
+    // already on the auth screen (e.g., they minimized before authenticating) and came back,
+    // the LaunchedEffect did NOT re-trigger — the pulsing icon stayed visible, but no
+    // BiometricPrompt appeared.
     //
-    // lifecycle.withResumed { } is a suspend function from lifecycle-runtime-ktx that
-    // suspends the coroutine until the lifecycle reaches RESUMED state, then executes the
-    // block. This guarantees the window is focused and the BiometricPrompt can be shown.
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(Unit) {
-        lifecycle.withResumed {
+    // LifecycleResumeEffect fires on EVERY ON_RESUME lifecycle event, including when the
+    // Activity returns from background. The 250ms postDelayed avoids the
+    // "authenticate() called after onSaveInstanceState()" crash on some OEM ROMs.
+    // onPauseOrDispose cancels any pending prompt cleanly when the app is backgrounded.
+    LifecycleResumeEffect(Unit) {
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             viewModel.requestAuthentication()
+        }, 250L)
+
+        onPauseOrDispose {
+            viewModel.cancelAuthentication()
         }
     }
 
