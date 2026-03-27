@@ -5,42 +5,42 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 /**
- * BugList Material 3 Dark Color Scheme.
+ * BugList v2.0.0 Material 3 Dark Color Scheme.
  *
  * Maps the street-style design palette to Material 3 color roles.
  * There is NO light theme – this app is always dark.
  */
 private val BugListDarkColorScheme = darkColorScheme(
-    primary          = BugListColors.Gold,
-    onPrimary        = BugListColors.Background,
-    primaryContainer = BugListColors.GoldDim,
-    onPrimaryContainer = BugListColors.Background,
+    primary            = BugListColors.Gold,
+    onPrimary          = BugListColors.SurfaceDark,
+    primaryContainer   = BugListColors.GoldDim,
+    onPrimaryContainer = BugListColors.SurfaceDark,
 
-    secondary        = BugListColors.Platinum,
-    onSecondary      = BugListColors.Background,
-    secondaryContainer = BugListColors.SurfaceHigh,
-    onSecondaryContainer = BugListColors.Platinum,
+    secondary            = BugListColors.TextPrimary,
+    onSecondary          = BugListColors.SurfaceDark,
+    secondaryContainer   = BugListColors.SurfaceElevated,
+    onSecondaryContainer = BugListColors.TextPrimary,
 
-    tertiary         = BugListColors.DebtGreen,
-    onTertiary       = BugListColors.Background,
+    tertiary   = BugListColors.DebtGreen,
+    onTertiary = BugListColors.SurfaceDark,
 
-    error            = BugListColors.DebtRed,
-    onError          = BugListColors.Background,
+    error   = BugListColors.DebtRed,
+    onError = BugListColors.SurfaceDark,
 
-    background       = BugListColors.Background,
-    onBackground     = BugListColors.Platinum,
+    background   = BugListColors.SurfaceDark,
+    onBackground = BugListColors.TextPrimary,
 
-    surface          = BugListColors.Surface,
-    onSurface        = BugListColors.Platinum,
-    surfaceVariant   = BugListColors.SurfaceHigh,
-    onSurfaceVariant = BugListColors.Muted,
+    surface          = BugListColors.SurfaceCard,
+    onSurface        = BugListColors.TextPrimary,
+    surfaceVariant   = BugListColors.SurfaceElevated,
+    onSurfaceVariant = BugListColors.TextSecondary,
 
-    outline          = BugListColors.Divider,
-    outlineVariant   = BugListColors.Muted,
+    outline        = BugListColors.BorderSubtle,
+    outlineVariant = BugListColors.TextMuted,
 
-    scrim            = BugListColors.Background,
-    inverseSurface   = BugListColors.Platinum,
-    inverseOnSurface = BugListColors.Background,
+    scrim            = BugListColors.SurfaceDark,
+    inverseSurface   = BugListColors.TextPrimary,
+    inverseOnSurface = BugListColors.SurfaceDark,
     inversePrimary   = BugListColors.GoldDim,
 )
 

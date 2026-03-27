@@ -1,9 +1,11 @@
 package com.buglist.presentation.components
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -68,10 +70,14 @@ fun DebtCard(
     }
 
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
+    // Feature A: overdue detection
+    val isOverdue = entry.dueDate != null &&
+        entry.dueDate < System.currentTimeMillis() &&
+        entry.status in listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
 
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = BugListColors.Surface,
+        color = BugListColors.SurfaceCard,
         modifier = modifier
             .fillMaxWidth()
             .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
@@ -105,7 +111,7 @@ fun DebtCard(
                     text = entry.description,
                     fontFamily = RobotoCondensedFontFamily,
                     fontSize = 14.sp,
-                    color = BugListColors.Platinum,
+                    color = BugListColors.TextPrimary,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -119,7 +125,7 @@ fun DebtCard(
                 ) {
                     entry.tags.forEach { tagName ->
                         Surface(
-                            color = BugListColors.SurfaceHigh,
+                            color = BugListColors.SurfaceElevated,
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
@@ -134,9 +140,10 @@ fun DebtCard(
                 }
             }
 
-            // Date row
+            // Date row with optional overdue badge (Feature A)
             Spacer(Modifier.height(4.dp))
             Row(
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -144,14 +151,32 @@ fun DebtCard(
                     text = dateFormat.format(Date(entry.date)),
                     fontFamily = RobotoCondensedFontFamily,
                     fontSize = 12.sp,
-                    color = BugListColors.Muted
+                    color = BugListColors.TextSecondary
                 )
-                if (entry.dueDate != null) {
+                if (isOverdue) {
+                    // Feature A: ÜBERFÄLLIG badge — red background, white text
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                BugListColors.DebtRed,
+                                RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.debt_card_overdue),
+                            fontFamily = RobotoCondensedFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            color = BugListColors.TextPrimary
+                        )
+                    }
+                } else if (entry.dueDate != null) {
                     Text(
-                        text = "Due: ${dateFormat.format(Date(entry.dueDate))}",
+                        text = "Fällig: ${dateFormat.format(Date(entry.dueDate))}",
                         fontFamily = RobotoCondensedFontFamily,
                         fontSize = 12.sp,
-                        color = BugListColors.Muted
+                        color = BugListColors.TextSecondary
                     )
                 }
             }

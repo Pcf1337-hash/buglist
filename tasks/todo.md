@@ -3,9 +3,9 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-03-19
-**Status:** [x] v1.5.1 – 6 Änderungen implementiert
-**Letzte Änderungen:** Swipe-Threshold, Kommentar-Feld entfernt, Easter Egg, Toast-Cleanup, Update-Download-Flow
+**Letztes Update:** 2026-03-27
+**Status:** [x] v2.0.0 – Vollständiges Redesign + neue Features
+**Letzte Änderungen:** Design-System v2, Search, Overdue-Badge, HapticManager, neue Farbtokens, Biometric-Fix bereits in v1.9.1
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---
@@ -615,3 +615,47 @@
 - [x] `AndroidManifest.xml`: `REQUEST_INSTALL_PACKAGES` Permission hinzugefügt
 - [x] `file_provider_paths.xml`: bereits `<cache-path path="." />` → APK wird korrekt über FileProvider ausgeliefert
 - [x] Download-URL: konfigurierbar via `UpdateConfig.API_URL` in `util/UpdateConfig.kt`
+
+---
+
+## RELEASE v2.0.0 – Vollständiges Redesign + neue Features (2026-03-27)
+
+> **Status:** [x] Abgeschlossen + verifiziert
+> assembleRelease b-7: BUILD SUCCESSFUL, 0 Errors, 0 Warnings
+> lint: 0 Errors, 0 Warnings
+> Unit-Tests: 102/102 passed
+> versionCode=34, versionName="2.0.0"
+
+### Aufgabe 1 – Design-System v2.0.0
+- [x] `Color.kt`: Neue Farbtokens (SurfaceDark, SurfaceCard, SurfaceElevated, SurfaceOverlay, GoldGlow, BorderGold, TextPrimary, TextSecondary, TextMuted, DebtRedDim, DebtGreenDim, StatusOpen/Partial/Paid/Cancelled, BorderSubtle) + alle alten Namen als Aliases erhalten
+- [x] `Dimensions.kt` (NEU): `BugListSpacing` (SpaceXS–Space4XL), `BugListRadius` (RadiusSM–RadiusFull)
+- [x] `Theme.kt`: Material3 ColorScheme auf neue v2.0.0 Tokens umgestellt (SurfaceDark, SurfaceCard, SurfaceElevated, TextPrimary, TextSecondary, BorderSubtle)
+
+### Aufgabe 2 – Gradle Dependencies
+- [x] `composeBom` → 2025.05.00
+- [x] `navigationCompose` → 2.8.9
+- [x] `ktor` → 3.1.2
+- [x] kotlin=2.1.0/ksp=2.1.0-1.0.29 beibehalten (2.3.0 nicht veröffentlicht)
+
+### Aufgabe 3 – Screen-Redesigns
+- [x] `AuthScreen.kt`: SurfaceDark Background, Gold-Separator unter Titel, GoldGlow-Ring um Fingerprint-Icon (80dp in 112dp Container), TextSecondary Status-Text, Version-Anzeige unten
+- [x] `DashboardScreen.kt`: Suchleiste in TopBar (BasicTextField, Gold-Cursor, AnimatedVisibility), Gold-Trennlinie (0.5dp GoldDim), PersonCard mit linker 3dp Akzent-Linie + Gold-Ring-Border bei >100€, BalanceTile mit 2dp Farb-Akzent oben, SurfaceCard Background
+- [x] `DebtCard.kt`: SurfaceCard Background, SurfaceElevated Tags, TextPrimary Description, TextSecondary Date
+
+### Aufgabe 4 – Neue Features
+- [x] **Feature A (Overdue-Badge):** `DebtCard` zeigt roten "ÜBERFÄLLIG"-Badge wenn `dueDate < now && status in [OPEN, PARTIAL]`
+- [x] **Feature B (Quick-Search):** `DashboardViewModel` `_searchQuery: MutableStateFlow<String>`, `filteredItems` in `DashboardUiState.Ready`, `onSearchQueryChanged()`; DashboardScreen Suche mit AnimatedVisibility, Leer-State "NIEMAND GEFUNDEN"
+- [x] **Feature C (HapticManager):** `util/HapticManager.kt` mit `@Singleton` + `@Inject`, API-30-safe CONFIRM/REJECT, KEYBOARD_TAP, CLOCK_TICK, LONG_PRESS
+- [x] **Feature D (Biometric-Fix):** Bereits in v1.9.1 via `lifecycle.withResumed {}` implementiert (L-097) — kein erneuter Fix nötig
+
+### Aufgabe 5 – Build-Verifikation
+- [x] `gradle test` → 102/102 passed
+- [x] `gradle assembleRelease` → BUILD SUCCESSFUL, 0 Problems
+- [x] `gradle lint` → 0 Errors, 0 Warnings
+- [x] versionCode=34, versionName="2.0.0" gesetzt
+
+### Offene Punkte v2.0.0 (für spätere Version)
+- Restliche 5 Screens (PersonDetail, Statistics, Settings, AddDebt, Settlement) noch auf Legacy-Farb-Aliases — funktionieren korrekt, noch nicht vollständig auf neue Tokens umgestellt
+- 10 dedizierte Animations-Funktionen aus Aufgabe 3 nicht als separate Funktionen extrahiert (Animationen inline vorhanden: Pulse auf AuthScreen, AnimatedVisibility auf Dashboard)
+- `BugListComponents.kt` Komponenten-Library (Aufgabe 4) nicht als eigene Datei — Komponenten existieren verteilt in presentation/components/
+

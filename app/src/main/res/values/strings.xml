@@ -23,13 +23,17 @@
     <string name="dashboard_title">DASHBOARD</string>
     <string name="dashboard_owed_to_me">SCHULDET MIR</string>
     <string name="dashboard_i_owe">ICH SCHULDE</string>
-    <string name="dashboard_total_balance">GESAMTSALDO</string>
+    <string name="dashboard_total_balance">NETTO-BILANZ</string>
     <string name="dashboard_empty_title">NO CREW YET</string>
     <string name="dashboard_empty_subtitle">Add someone to track debts with</string>
     <string name="dashboard_fab_add_person">+ PERSON</string>
     <string name="dashboard_add_person">Person hinzufügen</string>
     <string name="dashboard_crew_header">CREW</string>
     <string name="dashboard_open_debts">offen</string>
+    <string name="dashboard_search_hint">Suchen…</string>
+    <string name="dashboard_search_close">Suche schließen</string>
+    <string name="dashboard_search_empty">NIEMAND GEFUNDEN</string>
+    <string name="dashboard_total_balance_label">NETTO-BILANZ</string>
 
     <!-- Person Detail -->
     <string name="person_detail_tab_open">OFFEN</string>
@@ -129,6 +133,7 @@
     <string name="debt_card_payment_history">ZAHLUNGSHISTORIE</string>
     <string name="debt_card_paid_info">%1$s von %2$s bezahlt – noch %3$s offen</string>
     <string name="debt_card_no_payments">Noch keine Zahlungen</string>
+    <string name="debt_card_overdue">ÜBERFÄLLIG</string>
 
     <!-- PersonDetail -->
     <string name="person_not_found">Person nicht gefunden</string>

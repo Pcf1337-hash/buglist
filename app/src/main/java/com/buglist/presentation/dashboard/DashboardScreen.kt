@@ -2,9 +2,13 @@ package com.buglist.presentation.dashboard
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,14 +25,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,12 +58,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -148,46 +159,105 @@ fun DashboardScreen(
         )
     }
 
+    // Feature B: search visibility toggle
+    var searchActive by remember { mutableStateOf(false) }
+    var localSearchQuery by remember { mutableStateOf("") }
+
     Scaffold(
-        containerColor = BugListColors.Background,
+        containerColor = BugListColors.SurfaceDark,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        fontFamily = OswaldFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = BugListColors.Gold
-                    )
-                },
-                actions = {
-                    if (!editMode) {
-                        IconButton(onClick = onStatistics) {
-                            Icon(
-                                imageVector = Icons.Default.BarChart,
-                                contentDescription = stringResource(R.string.nav_statistics),
-                                tint = BugListColors.Platinum
+            Column {
+                TopAppBar(
+                    title = {
+                        if (searchActive) {
+                            // Search text field replaces title when active
+                            BasicTextField(
+                                value = localSearchQuery,
+                                onValueChange = { q ->
+                                    localSearchQuery = q
+                                    viewModel.onSearchQueryChanged(q)
+                                },
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    fontFamily = RobotoCondensedFontFamily,
+                                    fontSize = 16.sp,
+                                    color = BugListColors.TextPrimary
+                                ),
+                                cursorBrush = SolidColor(BugListColors.Gold),
+                                decorationBox = { inner ->
+                                    if (localSearchQuery.isEmpty()) {
+                                        Text(
+                                            text = stringResource(R.string.dashboard_search_hint),
+                                            fontFamily = RobotoCondensedFontFamily,
+                                            fontSize = 16.sp,
+                                            color = BugListColors.TextMuted
+                                        )
+                                    }
+                                    inner()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.app_name),
+                                fontFamily = OswaldFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                color = BugListColors.Gold
                             )
                         }
-                        IconButton(onClick = onSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = stringResource(R.string.nav_settings),
-                                tint = BugListColors.Platinum
-                            )
+                    },
+                    actions = {
+                        if (!editMode) {
+                            if (searchActive) {
+                                IconButton(onClick = {
+                                    searchActive = false
+                                    localSearchQuery = ""
+                                    viewModel.onSearchQueryChanged("")
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.dashboard_search_close),
+                                        tint = BugListColors.Gold
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { searchActive = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = stringResource(R.string.dashboard_search_hint),
+                                        tint = BugListColors.TextPrimary
+                                    )
+                                }
+                                IconButton(onClick = onStatistics) {
+                                    Icon(
+                                        imageVector = Icons.Default.BarChart,
+                                        contentDescription = stringResource(R.string.nav_statistics),
+                                        tint = BugListColors.TextPrimary
+                                    )
+                                }
+                                IconButton(onClick = onSettings) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = stringResource(R.string.nav_settings),
+                                        tint = BugListColors.TextPrimary
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.Background)
-            )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.SurfaceDark)
+                )
+                // Gold accent line under top bar
+                HorizontalDivider(color = BugListColors.GoldDim, thickness = 0.5.dp)
+            }
         },
         floatingActionButton = {
             if (!editMode) {
                 FloatingActionButton(
                     onClick = onAddItem,
                     containerColor = BugListColors.Gold,
-                    contentColor = BugListColors.Background
+                    contentColor = BugListColors.SurfaceDark
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -231,9 +301,9 @@ fun DashboardScreen(
                                 text = stringResource(R.string.dashboard_crew_header),
                                 fontFamily = OswaldFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 color = BugListColors.Gold,
-                                letterSpacing = 2.sp,
+                                letterSpacing = 3.sp,
                                 modifier = Modifier.weight(1f)
                             )
                             TextButton(
@@ -271,8 +341,8 @@ fun DashboardScreen(
                                     )
                                     Surface(
                                         shadowElevation = elevation,
-                                        color = if (isDragging) BugListColors.SurfaceHigh
-                                                else BugListColors.Background
+                                        color = if (isDragging) BugListColors.SurfaceOverlay
+                                                else BugListColors.SurfaceDark
                                     ) {
                                         when (item) {
                                             is DashboardListItem.PersonItem ->
@@ -314,12 +384,15 @@ fun DashboardScreen(
                             contentPadding = PaddingValues(bottom = 80.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            item {
-                                DashboardSummaryHeader(
-                                    totalBalance  = state.totalBalance,
-                                    totalOwedToMe = state.totalOwedToMe,
-                                    totalIOwe     = state.totalIOwe
-                                )
+                            // Hide summary header when search is active
+                            if (!searchActive) {
+                                item {
+                                    DashboardSummaryHeader(
+                                        totalBalance  = state.totalBalance,
+                                        totalOwedToMe = state.totalOwedToMe,
+                                        totalIOwe     = state.totalIOwe
+                                    )
+                                }
                             }
                             item {
                                 Row(
@@ -332,28 +405,53 @@ fun DashboardScreen(
                                         text = stringResource(R.string.dashboard_crew_header),
                                         fontFamily = OswaldFontFamily,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = BugListColors.Muted,
-                                        letterSpacing = 2.sp,
+                                        fontSize = 13.sp,
+                                        color = BugListColors.TextSecondary,
+                                        letterSpacing = 3.sp,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            editableItems = state.items
-                                            editMode = true
+                                    if (!searchActive) {
+                                        IconButton(
+                                            onClick = {
+                                                editableItems = state.items
+                                                editMode = true
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Reihenfolge anpassen",
+                                                tint = BugListColors.TextMuted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
+                                    }
+                                }
+                            }
+
+                            // Feature B: empty search state
+                            if (searchActive && state.filteredItems.isEmpty()) {
+                                item {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 48.dp, horizontal = 32.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Reihenfolge anpassen",
-                                            tint = BugListColors.Muted,
-                                            modifier = Modifier.size(18.dp)
+                                        Text(
+                                            text = stringResource(R.string.dashboard_search_empty),
+                                            fontFamily = OswaldFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            color = BugListColors.TextMuted,
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
                             }
+
+                            val displayItems = state.filteredItems
                             itemsIndexed(
-                                items = state.items,
+                                items = displayItems,
                                 key   = { _, item -> item.listKey }
                             ) { index, item ->
                                 when (item) {
@@ -363,10 +461,10 @@ fun DashboardScreen(
                                             onClick = { onPersonClick(item.data.person.id) }
                                         )
                                         // Suppress thin separator if next item is a custom DividerItem
-                                        val nextItem = state.items.getOrNull(index + 1)
+                                        val nextItem = displayItems.getOrNull(index + 1)
                                         if (nextItem !is DashboardListItem.DividerItem) {
                                             HorizontalDivider(
-                                                color = BugListColors.Divider,
+                                                color = BugListColors.BorderSubtle,
                                                 modifier = Modifier.padding(horizontal = 16.dp)
                                             )
                                         }
@@ -410,21 +508,21 @@ private fun EditablePersonRow(
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = BugListColors.Platinum
+                color = BugListColors.TextPrimary
             )
             if (personWithBalance.openCount > 0) {
                 Text(
                     text = "${personWithBalance.openCount} ${stringResource(R.string.dashboard_open_debts)}",
                     fontFamily = RobotoCondensedFontFamily,
                     fontSize = 12.sp,
-                    color = BugListColors.Muted
+                    color = BugListColors.TextSecondary
                 )
             }
         }
         Icon(
             imageVector = Icons.Default.DragHandle,
             contentDescription = "Ziehen zum Sortieren",
-            tint = BugListColors.Muted,
+            tint = BugListColors.TextMuted,
             modifier = dragHandleModifier.size(24.dp)
         )
     }
@@ -678,41 +776,76 @@ private fun PersonCard(
     personWithBalance: PersonWithBalance,
     onClick: () -> Unit
 ) {
+    // Left accent line color: green = they owe me, red = I owe, gold = balanced
+    val accentColor = when {
+        personWithBalance.netBalance > 0 -> BugListColors.DebtGreen
+        personWithBalance.netBalance < 0 -> BugListColors.DebtRed
+        else -> BugListColors.Gold
+    }
+    val showGoldRing = kotlin.math.abs(personWithBalance.netBalance) > 100.0
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .background(BugListColors.SurfaceCard)
     ) {
-        PersonAvatar(
-            name            = personWithBalance.person.name,
-            avatarColor     = personWithBalance.person.avatarColor,
-            size            = 44.dp,
-            avatarImagePath = personWithBalance.person.avatarImagePath
+        // Left accent line
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(72.dp)
+                .background(accentColor)
         )
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = personWithBalance.person.name,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = BugListColors.Platinum
-            )
-            if (personWithBalance.openCount > 0) {
-                Text(
-                    text = "${personWithBalance.openCount} ${stringResource(R.string.dashboard_open_debts)}",
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 12.sp,
-                    color = BugListColors.Muted
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+        ) {
+            // Avatar with optional gold ring for balance > 100€
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = if (showGoldRing) {
+                    Modifier
+                        .size(52.dp)
+                        .border(2.dp, BugListColors.Gold, CircleShape)
+                        .padding(3.dp)
+                } else {
+                    Modifier.size(44.dp)
+                }
+            ) {
+                PersonAvatar(
+                    name            = personWithBalance.person.name,
+                    avatarColor     = personWithBalance.person.avatarColor,
+                    size            = if (showGoldRing) 44.dp else 44.dp,
+                    avatarImagePath = personWithBalance.person.avatarImagePath
                 )
             }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = personWithBalance.person.name,
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = BugListColors.TextPrimary
+                )
+                if (personWithBalance.openCount > 0) {
+                    Text(
+                        text = "${personWithBalance.openCount} ${stringResource(R.string.dashboard_open_debts)}",
+                        fontFamily = RobotoCondensedFontFamily,
+                        fontSize = 12.sp,
+                        color = BugListColors.TextSecondary
+                    )
+                }
+            }
+            AmountText(
+                amount = personWithBalance.netBalance,
+                fontSize = 22.sp
+            )
         }
-        AmountText(
-            amount = personWithBalance.netBalance,
-            fontSize = 20.sp
-        )
     }
 }
 
@@ -727,19 +860,25 @@ private fun DashboardSummaryHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(BugListColors.Surface)
+            .background(BugListColors.SurfaceCard)
+            // Gold gradient border on top
+            .border(
+                width = 1.dp,
+                color = BugListColors.BorderGold,
+                shape = RoundedCornerShape(0.dp)
+            )
             .padding(16.dp)
     ) {
         Text(
             text = stringResource(R.string.dashboard_total_balance),
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            color = BugListColors.Muted,
+            fontFamily = RobotoCondensedFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.sp,
+            color = BugListColors.TextMuted,
             letterSpacing = 2.sp
         )
         Spacer(Modifier.height(4.dp))
-        AmountText(amount = totalBalance, fontSize = 48.sp, modifier = Modifier.fillMaxWidth())
+        AmountText(amount = totalBalance, fontSize = 42.sp, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -768,18 +907,27 @@ private fun BalanceTile(
     positive: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val accentColor = if (positive) BugListColors.DebtGreen else BugListColors.DebtRed
     Surface(
-        shape    = RoundedCornerShape(8.dp),
-        color    = BugListColors.SurfaceHigh,
+        shape    = RoundedCornerShape(10.dp),
+        color    = BugListColors.SurfaceElevated,
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // Color accent line at top
+            Box(
+                modifier = Modifier
+                    .width(24.dp)
+                    .height(2.dp)
+                    .background(accentColor, RoundedCornerShape(1.dp))
+            )
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = label,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = BugListColors.Muted,
+                fontFamily = RobotoCondensedFontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 10.sp,
+                color = BugListColors.TextMuted,
                 letterSpacing = 1.sp
             )
             Spacer(Modifier.height(4.dp))
@@ -803,11 +951,19 @@ private fun DashboardEmptyState(onAddItem: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
+            // Large gold group icon
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = BugListColors.Gold,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(Modifier.height(20.dp))
             Text(
                 text = stringResource(R.string.dashboard_empty_title),
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
+                fontSize = 20.sp,
                 color = BugListColors.Gold,
                 textAlign = TextAlign.Center
             )
@@ -816,7 +972,7 @@ private fun DashboardEmptyState(onAddItem: () -> Unit) {
                 text = stringResource(R.string.dashboard_empty_subtitle),
                 fontFamily = RobotoCondensedFontFamily,
                 fontSize = 14.sp,
-                color = BugListColors.Muted,
+                color = BugListColors.TextSecondary,
                 textAlign = TextAlign.Center
             )
         }

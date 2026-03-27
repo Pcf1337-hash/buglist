@@ -5,16 +5,16 @@ kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 splashscreen = "1.0.1"
 # Hilt must be >= 2.56 for Kotlin 2.1 metadata support (see L-065 in lessons.md)
-ktor = "2.3.12"
+ktor = "3.1.2"
 kotlinx-serialization = "1.6.3"
 
 # Compose
-composeBom = "2025.01.01"
+composeBom = "2025.05.00"
 activityCompose = "1.10.0"
 
 # Architecture
 lifecycleRuntimeKtx = "2.8.7"
-navigationCompose = "2.8.5"
+navigationCompose = "2.8.9"
 hilt = "2.56.2"
 hiltNavigationCompose = "1.2.0"
 

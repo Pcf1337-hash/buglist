@@ -33,11 +33,15 @@ sealed class DashboardUiState {
     data class Ready(
         /** Combined, sorted list of persons and dividers for the crew list. */
         val items: List<DashboardListItem>,
+        /** Filtered items — result of search query (same as [items] when query empty). */
+        val filteredItems: List<DashboardListItem>,
         /** Persons only — used for financial summary totals. */
         val persons: List<PersonWithBalance>,
         val totalBalance: Double,
         val totalOwedToMe: Double,
-        val totalIOwe: Double
+        val totalIOwe: Double,
+        /** Current search query. Empty string = no filter active. */
+        val searchQuery: String = ""
     ) : DashboardUiState()
 }
 
@@ -60,12 +64,17 @@ class DashboardViewModel @Inject constructor(
 
     private val _sortOrder = MutableStateFlow(PersonSortOrder.MANUAL)
 
+    /** Feature B: Schnell-Suche — live filter for the crew list. */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     val uiState: StateFlow<DashboardUiState> = _sortOrder.flatMapLatest { sortOrder ->
         combine(
             getPersonsWithBalancesUseCase(sortOrder),
             calculateTotalBalanceUseCase(),
-            dividerRepository.getAllDividers()
-        ) { persons, totalBalance, dividers ->
+            dividerRepository.getAllDividers(),
+            _searchQuery
+        ) { persons, totalBalance, dividers, query ->
             // Merge persons and dividers into one sorted list by sortIndex.
             // Persons come from the DB already sorted (sortIndex ASC, name ASC).
             // We re-sort the combined list so dividers are interleaved correctly.
@@ -81,14 +90,30 @@ class DashboardViewModel @Inject constructor(
                     }
                 })
             )
+
+            // Feature B: filter by search query (case-insensitive, persons only)
+            val filteredItems: List<DashboardListItem> = if (query.isBlank()) {
+                items
+            } else {
+                items.filter { item ->
+                    when (item) {
+                        is DashboardListItem.PersonItem ->
+                            item.data.person.name.contains(query, ignoreCase = true)
+                        is DashboardListItem.DividerItem -> false
+                    }
+                }
+            }
+
             val owedToMe = persons.filter { it.netBalance > 0 }.sumOf { it.netBalance }
             val iOwe = persons.filter { it.netBalance < 0 }.sumOf { -it.netBalance }
             DashboardUiState.Ready(
                 items = items,
+                filteredItems = filteredItems,
                 persons = persons,
                 totalBalance = totalBalance,
                 totalOwedToMe = owedToMe,
-                totalIOwe = iOwe
+                totalIOwe = iOwe,
+                searchQuery = query
             )
         }
     }.stateIn(
@@ -132,6 +157,15 @@ class DashboardViewModel @Inject constructor(
             _updateState.value = UpdateState.Checking
             _updateState.value = checkForUpdateUseCase(forceCheck = true)
         }
+    }
+
+    /**
+     * Feature B: Updates the live search query that filters the crew list.
+     *
+     * @param query Search text. Empty string clears the filter.
+     */
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
     }
 
     /**

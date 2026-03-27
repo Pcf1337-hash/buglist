@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +46,7 @@ import androidx.lifecycle.withResumed
 import com.buglist.R
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTypography
+import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import com.buglist.security.BiometricAuthManager
 
 /**
@@ -144,7 +146,7 @@ fun AuthScreenContent(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(BugListColors.Background)
+            .background(BugListColors.SurfaceDark)
     ) {
         val screenHeight = maxHeight
 
@@ -153,7 +155,7 @@ fun AuthScreenContent(
             painter = painterResource(R.drawable.auth_background),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            alpha = 0.35f,
+            alpha = 0.30f,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -161,26 +163,36 @@ fun AuthScreenContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BugListColors.Background.copy(alpha = 0.55f))
+                .background(BugListColors.SurfaceDark.copy(alpha = 0.60f))
         )
 
-        // App name — anchored at ~35% from top, Oswald Bold Gold UPPERCASE
-        Box(
+        // App name — anchored at ~33% from top, Oswald ExtraBold Gold UPPERCASE
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = screenHeight * 0.33f),
-            contentAlignment = Alignment.Center
+                .offset(y = screenHeight * 0.30f)
+                .padding(horizontal = 32.dp)
         ) {
             Text(
                 text = stringResource(R.string.auth_title),
-                style = BugListTypography.displayLarge,
+                style = BugListTypography.displayLarge.copy(
+                    letterSpacing = 2.sp
+                ),
                 color = BugListColors.Gold,
                 textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            // Gold separator line under title
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(1.dp)
+                    .background(BugListColors.Gold.copy(alpha = 0.7f))
             )
         }
 
         // Fingerprint icon + status text — anchored so icon centre sits at ~68% of screen height
-        // (matches the fingerprint watermark in the background image)
         val isTappable = uiState !is AuthUiState.Authenticating && uiState !is AuthUiState.LockedOut
         val cancelErrorCode = androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON
         val statusText = when (uiState) {
@@ -201,43 +213,51 @@ fun AuthScreenContent(
                 stringResource(R.string.auth_error_too_many_attempts)
         }
 
+        val isError = uiState is AuthUiState.Error || uiState is AuthUiState.LockedOut
+        val iconTint = if (isError) BugListColors.DebtRed else BugListColors.Gold
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top,
-            // Top of this column sits at ~57% → icon (100dp) centre lands at ~68%
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = screenHeight * 0.57f)
+                .offset(y = screenHeight * 0.54f)
                 .padding(horizontal = 32.dp)
         ) {
-            // Status text sits just above the fingerprint icon
-            Text(
-                text = statusText,
-                style = BugListTypography.bodyMedium,
-                color = when (uiState) {
-                    is AuthUiState.Error, AuthUiState.LockedOut -> BugListColors.DebtRed
-                    else -> BugListColors.Muted
-                },
-                textAlign = TextAlign.Center
-            )
+            // Gold glow ring around fingerprint icon
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(112.dp)
+                    .then(
+                        if (!isError) Modifier.background(
+                            BugListColors.GoldGlow,
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ) else Modifier
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Fingerprint,
+                    contentDescription = stringResource(R.string.auth_subtitle),
+                    tint = iconTint,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .scale(if (uiState is AuthUiState.Authenticating) scale else 1f)
+                        .then(
+                            if (isTappable) Modifier.clickable(onClick = onTapFingerprint)
+                            else Modifier
+                        )
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Animated fingerprint icon — centre aligns with background watermark
-            Icon(
-                imageVector = Icons.Default.Fingerprint,
-                contentDescription = stringResource(R.string.auth_subtitle),
-                tint = when (uiState) {
-                    is AuthUiState.Error, AuthUiState.LockedOut -> BugListColors.DebtRed
-                    else -> BugListColors.Gold
-                },
-                modifier = Modifier
-                    .size(100.dp)
-                    .scale(if (uiState is AuthUiState.Authenticating) scale else 1f)
-                    .then(
-                        if (isTappable) Modifier.clickable(onClick = onTapFingerprint)
-                        else Modifier
-                    )
+            // Status text below icon
+            Text(
+                text = statusText,
+                style = BugListTypography.bodyMedium,
+                color = if (isError) BugListColors.DebtRed else BugListColors.TextSecondary,
+                textAlign = TextAlign.Center
             )
 
             // Retry button — shown on error (except simple cancel) and KeyInvalidated
@@ -245,12 +265,12 @@ fun AuthScreenContent(
                 (uiState is AuthUiState.Error &&
                     uiState.errorCode != cancelErrorCode)
             if (showRetry) {
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(28.dp))
                 Button(
                     onClick = onRetry,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BugListColors.Gold,
-                        contentColor = BugListColors.Background
+                        contentColor = BugListColors.SurfaceDark
                     )
                 ) {
                     Text(
@@ -259,6 +279,21 @@ fun AuthScreenContent(
                     )
                 }
             }
+        }
+
+        // App version at bottom
+        Box(
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = "v${com.buglist.BuildConfig.VERSION_NAME}",
+                fontFamily = RobotoCondensedFontFamily,
+                fontSize = 11.sp,
+                color = BugListColors.TextMuted
+            )
         }
     }
 }
