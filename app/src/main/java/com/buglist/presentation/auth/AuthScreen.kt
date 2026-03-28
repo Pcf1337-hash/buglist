@@ -29,6 +29,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.eventFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
@@ -94,24 +99,47 @@ fun AuthScreen(
         }
     }
 
-    // Auto-trigger BiometricPrompt on EVERY ON_RESUME event.
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // ── CASE A: AuthScreen enters composition AFTER Activity.onResume has already fired ──
     //
-    // BUG FIX (v2.0.1): The v1.9.1 fix used LaunchedEffect(Unit) + lifecycle.withResumed{}.
-    // That only fired ONCE when the composable first entered composition. If the user was
-    // already on the auth screen (e.g., they minimized before authenticating) and came back,
-    // the LaunchedEffect did NOT re-trigger — the pulsing icon stayed visible, but no
-    // BiometricPrompt appeared.
+    // This is the background-return scenario:
+    //   1. User is on Dashboard, app goes to background
+    //   2. SessionManager.onStart() fires via ProcessLifecycleOwner → lock() → isAuthenticated=false
+    //   3. LaunchedEffect(isAuthenticated) in BugListNavHost fires → navigates to Routes.AUTH
+    //   4. AuthScreen enters composition — but Activity is ALREADY in RESUMED state
+    //   5. LifecycleResumeEffect (Case B) won't fire because ON_RESUME event already happened
+    //      before this composable existed in the composition tree
     //
-    // LifecycleResumeEffect fires on EVERY ON_RESUME lifecycle event, including when the
-    // Activity returns from background. The 250ms postDelayed avoids the
-    // "authenticate() called after onSaveInstanceState()" crash on some OEM ROMs.
-    // onPauseOrDispose cancels any pending prompt cleanly when the app is backgrounded.
+    // Fix: lifecycle.withResumed{} completes IMMEDIATELY when lifecycle >= RESUMED,
+    // or suspends until the next ON_RESUME if not yet resumed (handles cold-start too).
+    // The idempotency guard in AuthViewModel.requestAuthentication() prevents double-firing
+    // if both Case A and Case B trigger at the same time (e.g. on cold-start).
+    LaunchedEffect(Unit) {
+        // If the Activity is not yet RESUMED (cold start — composable runs during onStart),
+        // wait for the next ON_RESUME event. If already RESUMED (background-return via
+        // navigation — LaunchedEffect in NavHost fires after Activity.onResume), skip straight
+        // to the delay. Either way, requestAuthentication() is called exactly once per entry.
+        if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            lifecycleOwner.lifecycle.eventFlow.first { it == Lifecycle.Event.ON_RESUME }
+        }
+        delay(250L) // avoid "authenticate() called after onSaveInstanceState()" on OEM ROMs
+        viewModel.requestAuthentication()
+    }
+
+    // ── CASE B: AuthScreen is ALREADY in composition, user backgrounds + returns ──
+    //
+    // Example: user cancels biometrics, then backgrounds the app, then returns.
+    // LifecycleResumeEffect fires on each ON_RESUME AFTER the composable has entered composition.
+    // The handler reference is stored so pending runnables can be cancelled on pause,
+    // preventing a stale requestAuthentication() firing after cancelAuthentication().
     LifecycleResumeEffect(Unit) {
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            viewModel.requestAuthentication()
-        }, 250L)
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = Runnable { viewModel.requestAuthentication() }
+        handler.postDelayed(runnable, 250L)
 
         onPauseOrDispose {
+            handler.removeCallbacks(runnable) // cancel pending delayed call before resetting state
             viewModel.cancelAuthentication()
         }
     }

@@ -77,6 +77,10 @@ class AuthViewModel @Inject constructor(
      * to show the BiometricPrompt.
      */
     fun requestAuthentication() {
+        // Idempotency guard: don't re-trigger if a prompt is already in flight.
+        // Both LaunchedEffect(Unit) + LifecycleResumeEffect can fire close together on
+        // cold start — without this guard the second call would cancel the first prompt.
+        if (_uiState.value is AuthUiState.Authenticating) return
         viewModelScope.launch {
             _uiState.value = AuthUiState.Authenticating
             _shouldShowPrompt.value = true
