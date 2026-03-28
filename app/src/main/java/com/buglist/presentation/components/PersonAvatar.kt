@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -98,40 +99,21 @@ private fun InitialsAvatar(
             .ifEmpty { "?" }
     }
 
-    val bgColor = remember(name, avatarColor) {
-        if (avatarColor != 0) Color(avatarColor) else generateAvatarColor(name)
-    }
-
-    val textColor = remember(bgColor) {
-        val luminance = 0.299f * bgColor.red + 0.587f * bgColor.green + 0.114f * bgColor.blue
-        if (luminance > 0.5f) Color(0xFF0D0D0D) else Color.White
-    }
-
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(bgColor)
+            .background(BugListColors.SurfaceHigh)
     ) {
         Text(
             text = initials,
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = (size.value * 0.36f).sp,
-            color = textColor
+            color = BugListColors.Gold
         )
     }
-}
-
-/**
- * Generates a deterministic accent color from a name string.
- * Uses a set of streetstyle-appropriate colors.
- * The color palette is also exposed as [avatarColorPalette] for the color picker.
- */
-private fun generateAvatarColor(name: String): Color {
-    val index = kotlin.math.abs(name.hashCode()) % avatarColorPalette.size
-    return avatarColorPalette[index]
 }
 
 /**
