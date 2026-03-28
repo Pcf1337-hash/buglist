@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -776,8 +775,6 @@ private fun PersonCard(
     personWithBalance: PersonWithBalance,
     onClick: () -> Unit
 ) {
-    val showGoldRing = kotlin.math.abs(personWithBalance.netBalance) > 100.0
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -791,25 +788,12 @@ private fun PersonCard(
                 .weight(1f)
                 .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
-            // Avatar with optional gold ring for balance > 100€
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = if (showGoldRing) {
-                    Modifier
-                        .size(52.dp)
-                        .border(2.dp, BugListColors.Gold, CircleShape)
-                        .padding(3.dp)
-                } else {
-                    Modifier.size(44.dp)
-                }
-            ) {
-                PersonAvatar(
-                    name            = personWithBalance.person.name,
-                    avatarColor     = personWithBalance.person.avatarColor,
-                    size            = if (showGoldRing) 44.dp else 44.dp,
-                    avatarImagePath = personWithBalance.person.avatarImagePath
-                )
-            }
+            PersonAvatar(
+                name            = personWithBalance.person.name,
+                avatarColor     = personWithBalance.person.avatarColor,
+                size            = 44.dp,
+                avatarImagePath = personWithBalance.person.avatarImagePath
+            )
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
