@@ -6,6 +6,7 @@ import com.buglist.domain.model.Payment
 import com.buglist.domain.model.Result
 import com.buglist.domain.repository.DebtRepository
 import com.buglist.domain.repository.PaymentRepository
+import com.buglist.domain.repository.TagRepository
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
@@ -36,7 +37,8 @@ import javax.inject.Inject
  */
 class ImportDebtListUseCase @Inject constructor(
     private val debtRepository: DebtRepository,
-    private val paymentRepository: PaymentRepository
+    private val paymentRepository: PaymentRepository,
+    private val tagRepository: TagRepository
 ) {
 
     suspend operator fun invoke(personId: Long, text: String): Result<Int> {
@@ -62,6 +64,12 @@ class ImportDebtListUseCase @Inject constructor(
                     currency = "EUR"
                 )
                 val debtId = debtRepository.addDebtEntry(entry)
+
+                // Apply parsed tags — getOrCreateTagByName ensures they exist in the DB
+                if (parsedEntry.tags.isNotEmpty()) {
+                    val tagIds = parsedEntry.tags.map { tagRepository.getOrCreateTagByName(it) }
+                    tagRepository.setTagsForDebtEntry(debtId, tagIds)
+                }
 
                 // Apply payments in chronological order to correctly compute PARTIAL / PAID
                 val sortedPayments = parsedEntry.payments.sortedBy { it.date }
@@ -101,6 +109,7 @@ internal data class ParsedDebtEntry(
     val amount: Double,
     val isOwedToMe: Boolean,
     val description: String?,
+    val tags: List<String>,
     val payments: List<ParsedPayment>
 )
 
@@ -155,12 +164,13 @@ internal fun parseDebtList(text: String): List<ParsedDebtEntry> {
                 val amount = parseGermanAmount(amountStr)
                 if (amount <= 0.0) continue // skip invalid amounts
 
-                val (description, _) = parseMeta(meta.trim())
+                val (description, tags) = parseMeta(meta.trim())
                 currentEntry = ParsedDebtEntry(
                     date = date,
                     amount = amount,
                     isOwedToMe = sign == "+",
                     description = description,
+                    tags = tags,
                     payments = emptyList()
                 )
             }

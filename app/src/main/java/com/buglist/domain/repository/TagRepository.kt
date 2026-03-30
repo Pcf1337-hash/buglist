@@ -58,4 +58,15 @@ interface TagRepository {
      * Safe to call multiple times — only inserts when the table is empty.
      */
     suspend fun insertDefaultTagsIfEmpty()
+
+    /**
+     * Returns the ID of the tag with the given [name], creating it if it doesn't exist yet.
+     *
+     * Uses upsert semantics: inserts with IGNORE on conflict, then fetches by name.
+     * Guarantees that the returned ID is valid regardless of whether the tag already existed.
+     *
+     * @param name Exact tag name (max. 20 characters).
+     * @return The ID of the existing or newly created tag.
+     */
+    suspend fun getOrCreateTagByName(name: String): Long
 }

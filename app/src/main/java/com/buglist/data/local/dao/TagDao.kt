@@ -74,4 +74,11 @@ interface TagDao {
      */
     @Query("SELECT COUNT(*) FROM tags")
     suspend fun getTagCount(): Int
+
+    /**
+     * Returns a tag by its exact name (case-sensitive), or null if it does not exist.
+     * Used by [ImportDebtListUseCase] to resolve tag names to IDs after insert.
+     */
+    @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
+    suspend fun getTagByName(name: String): TagEntity?
 }

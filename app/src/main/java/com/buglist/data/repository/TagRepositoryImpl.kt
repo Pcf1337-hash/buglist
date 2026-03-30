@@ -84,4 +84,17 @@ class TagRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    /**
+     * Inserts the tag if it doesn't exist (IGNORE on conflict), then fetches it by name
+     * to return the canonical ID — whether the tag was just created or already existed.
+     *
+     * @param name Tag name to look up or create.
+     * @return The ID of the tag row.
+     */
+    override suspend fun getOrCreateTagByName(name: String): Long {
+        tagDao.insertTag(TagEntity(name = name))
+        return tagDao.getTagByName(name)?.id
+            ?: error("Tag '$name' could not be inserted or found")
+    }
 }
