@@ -53,7 +53,9 @@ class ImportDebtListUseCase @Inject constructor(
                 val entry = DebtEntry(
                     personId = personId,
                     amount = parsedEntry.amount,
-                    isOwedToMe = parsedEntry.isOwedToMe,
+                    // The exported list is from the OTHER person's perspective:
+                    // their "+" (they're owed) = my "-" (I owe), and vice versa.
+                    isOwedToMe = !parsedEntry.isOwedToMe,
                     description = parsedEntry.description,
                     date = parsedEntry.date,
                     status = DebtStatus.OPEN,
