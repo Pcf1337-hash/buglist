@@ -207,6 +207,13 @@
     <string name="divider_edit_content_description">Trennstrich bearbeiten</string>
     <string name="divider_delete_content_description">Trennstrich löschen</string>
 
+    <!-- Person Detail – Import -->
+    <string name="person_detail_import_cd">Liste importieren / synchronisieren</string>
+    <string name="person_detail_import_title">LISTE IMPORTIEREN</string>
+    <string name="person_detail_import_hint">Liste hier einfügen. Alle aktuellen Einträge dieser Person werden durch die Liste ersetzt.</string>
+    <string name="person_detail_import_placeholder">Schulden mit NOS – Offen\n\n• 30.03.26 | +€ 310,00 [Cal]\n…\n\nGesamt: +€ 310,00</string>
+    <string name="person_detail_import_action">IMPORTIEREN</string>
+
     <!-- Tags -->
     <string name="settings_tags_section">TAGS</string>
     <string name="settings_tags_add_hint">Neues Tag…</string>

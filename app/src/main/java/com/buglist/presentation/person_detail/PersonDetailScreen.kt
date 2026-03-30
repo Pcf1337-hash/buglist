@@ -22,10 +22,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -116,9 +118,13 @@ fun PersonDetailScreen(
     viewModel: PersonDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val importState by viewModel.importState.collectAsStateWithLifecycle()
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showEditPerson by remember { mutableStateOf(false) }
     var showAddDebt by remember { mutableStateOf(false) }
+    // Import dialog state
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importText by remember { mutableStateOf("") }
     var paymentDebtId by remember { mutableStateOf<Long?>(null) }
     // Edit sheet: non-null when editing an existing debt entry via long-press
     var editDebtEntry by remember { mutableStateOf<DebtEntry?>(null) }
@@ -136,6 +142,23 @@ fun PersonDetailScreen(
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
     val undoLabel = stringResource(R.string.action_undo)
+
+    // Handle import result via snackbar
+    LaunchedEffect(importState) {
+        when (val s = importState) {
+            is ImportUiState.Success -> {
+                snackbarHostState.showSnackbar("${s.count} Einträge importiert ✓")
+                showImportDialog = false
+                importText = ""
+                viewModel.resetImportState()
+            }
+            is ImportUiState.Error -> {
+                snackbarHostState.showSnackbar("Fehler: ${s.message}")
+                viewModel.resetImportState()
+            }
+            else -> Unit
+        }
+    }
 
     when (val state = uiState) {
         is PersonDetailUiState.Loading -> {
@@ -223,6 +246,14 @@ fun PersonDetailScreen(
                             }
                         },
                         actions = {
+                            // Import / sync icon — opens the list import dialog
+                            IconButton(onClick = { showImportDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = stringResource(R.string.person_detail_import_cd),
+                                    tint = BugListColors.Gold
+                                )
+                            }
                             IconButton(onClick = { showEditPerson = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
@@ -476,6 +507,22 @@ fun PersonDetailScreen(
                 )
             }
 
+            // Import dialog — paste a BugList share-text to replace all entries for this person
+            if (showImportDialog) {
+                ImportDebtListDialog(
+                    importText = importText,
+                    isRunning = importState is ImportUiState.Running,
+                    onTextChange = { importText = it },
+                    onImport = { viewModel.importDebtList(importText) },
+                    onDismiss = {
+                        if (importState !is ImportUiState.Running) {
+                            showImportDialog = false
+                            importText = ""
+                        }
+                    }
+                )
+            }
+
             // Easter egg overlay — kiss emoji for person named "Nos"
             if (showKissEgg) {
                 KissEggOverlay(onFinished = { showKissEgg = false })
@@ -516,6 +563,112 @@ private fun KissEggOverlay(onFinished: () -> Unit) {
             fontFamily = BebasNeueFontFamily
         )
     }
+}
+
+/**
+ * Dialog for importing a debt list by pasting the BugList share-text format.
+ *
+ * The user pastes the text (e.g., from a WhatsApp message) into the text field and taps
+ * "IMPORTIEREN". All existing entries for this person are replaced by the parsed list.
+ *
+ * Format example (as produced by double-tap on balance):
+ * ```
+ * Schulden mit NOS – Offen
+ *
+ * • 30.03.26 | +€ 310,00 [Cal]
+ *   ↳ 28.03.26 | € 50,00 · Anzahlung
+ * • 27.03.26 | -€ 50,00
+ *
+ * Gesamt: +€ 260,00
+ * ```
+ */
+@Composable
+private fun ImportDebtListDialog(
+    importText: String,
+    isRunning: Boolean,
+    onTextChange: (String) -> Unit,
+    onImport: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BugListColors.Surface,
+        title = {
+            Text(
+                stringResource(R.string.person_detail_import_title),
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                color = BugListColors.Platinum
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.person_detail_import_hint),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 13.sp,
+                    color = BugListColors.Muted
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = importText,
+                    onValueChange = onTextChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    enabled = !isRunning,
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.person_detail_import_placeholder),
+                            fontFamily = RobotoCondensedFontFamily,
+                            fontSize = 12.sp,
+                            color = BugListColors.Muted
+                        )
+                    },
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontFamily = RobotoCondensedFontFamily,
+                        fontSize = 13.sp,
+                        color = BugListColors.Platinum
+                    ),
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BugListColors.Gold,
+                        unfocusedBorderColor = BugListColors.Muted,
+                        cursorColor = BugListColors.Gold
+                    )
+                )
+                if (isRunning) {
+                    Spacer(Modifier.height(8.dp))
+                    CircularProgressIndicator(
+                        color = BugListColors.Gold,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onImport,
+                enabled = importText.isNotBlank() && !isRunning
+            ) {
+                Text(
+                    stringResource(R.string.person_detail_import_action),
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = if (importText.isNotBlank() && !isRunning)
+                        BugListColors.Gold else BugListColors.Muted
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isRunning) {
+                Text(
+                    stringResource(R.string.action_cancel),
+                    color = BugListColors.Muted
+                )
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -841,13 +994,12 @@ private fun buildShareText(
     return buildString {
         appendLine("Schulden mit ${personName.uppercase()} – $tabLabel")
         appendLine()
-        debts.forEach { dwp ->
+        // CANCELLED entries are excluded — they cannot be meaningfully re-imported
+        debts.filter { it.entry.status != DebtStatus.CANCELLED }.forEach { dwp ->
             val date = df.format(Date(dwp.entry.date))
-            val raw = when (dwp.entry.status) {
-                DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
-                DebtStatus.PAID                     -> dwp.entry.amount
-                DebtStatus.CANCELLED                -> 0.0
-            }
+            // Always export the original amount (not remaining) so the import can reconstruct
+            // the entry + payments losslessly. For OPEN entries this equals the remaining.
+            val raw = dwp.entry.amount
             val signed = if (dwp.entry.isOwedToMe) raw else -raw
             val sign = if (signed >= 0) "+" else "-"
             val amount = "$sign$symbol ${String.format(Locale.GERMAN, "%.2f", kotlin.math.abs(signed))}"
@@ -862,8 +1014,28 @@ private fun buildShareText(
             }
 
             appendLine("• $date | $amount$meta")
+
+            // Payment lines — oldest first so import applies them in chronological order
+            val sortedPayments = dwp.payments.sortedBy { it.date }
+            if (sortedPayments.isNotEmpty()) {
+                sortedPayments.forEach { payment ->
+                    val payDate = df.format(Date(payment.date))
+                    val payAmount = String.format(Locale.GERMAN, "%.2f", payment.amount)
+                    val noteMeta = payment.note?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { " · $it" } ?: ""
+                    appendLine("  ↳ $payDate | $symbol $payAmount$noteMeta")
+                }
+            } else if (dwp.entry.status == DebtStatus.PAID) {
+                // Entry was marked paid directly (no individual payment records).
+                // Add a synthetic payment line so import can reconstruct PAID status.
+                val payDate = df.format(Date(dwp.entry.date))
+                val payAmount = String.format(Locale.GERMAN, "%.2f", dwp.entry.amount)
+                appendLine("  ↳ $payDate | $symbol $payAmount")
+            }
         }
         appendLine()
+        // Gesamt = net outstanding balance (remaining-based), not sum of entry amounts
         append("Gesamt: ${buildBalanceText(debts)}")
     }
 }

@@ -10,6 +10,7 @@ import com.buglist.domain.repository.PaymentRepository
 import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.CancelDebtUseCase
 import com.buglist.domain.usecase.DeletePersonUseCase
+import com.buglist.domain.usecase.ImportDebtListUseCase
 import com.buglist.domain.usecase.MarkDebtAsPaidUseCase
 import com.buglist.domain.repository.DebtRepository
 import com.buglist.domain.repository.PersonRepository
@@ -34,6 +35,26 @@ import javax.inject.Inject
  * Tab selection for the person detail debt list.
  */
 enum class DebtTab { OPEN, PAID, ALL }
+
+/**
+ * State for the debt-list import operation.
+ */
+sealed class ImportUiState {
+    /** No import in progress or recently completed. */
+    object Idle : ImportUiState()
+    /** Import is running (show loading indicator). */
+    object Running : ImportUiState()
+    /**
+     * Import finished successfully.
+     * @param count Number of entries imported.
+     */
+    data class Success(val count: Int) : ImportUiState()
+    /**
+     * Import failed.
+     * @param message Human-readable error description.
+     */
+    data class Error(val message: String) : ImportUiState()
+}
 
 /**
  * UI state for the person detail screen.
@@ -66,7 +87,8 @@ class PersonDetailViewModel @Inject constructor(
     private val paymentRepository: PaymentRepository,
     private val markDebtAsPaidUseCase: MarkDebtAsPaidUseCase,
     private val cancelDebtUseCase: CancelDebtUseCase,
-    private val deletePersonUseCase: DeletePersonUseCase
+    private val deletePersonUseCase: DeletePersonUseCase,
+    private val importDebtListUseCase: ImportDebtListUseCase
 ) : ViewModel() {
 
     val personId: Long = checkNotNull(savedStateHandle["personId"])
@@ -211,5 +233,35 @@ class PersonDetailViewModel @Inject constructor(
                 deletePersonUseCase(state.person)
             }
         }
+    }
+
+    // --- Import ---
+
+    private val _importState = MutableStateFlow<ImportUiState>(ImportUiState.Idle)
+
+    /** Observable import state — drives loading indicator and result snackbar in the UI. */
+    val importState: StateFlow<ImportUiState> = _importState.asStateFlow()
+
+    /**
+     * Parses [text] in the BugList share-text format, replaces all existing debt entries
+     * for this person with the parsed ones (including payments), and refreshes the list.
+     *
+     * The result is emitted via [importState].
+     */
+    fun importDebtList(text: String) {
+        viewModelScope.launch {
+            _importState.value = ImportUiState.Running
+            val result = importDebtListUseCase(personId, text)
+            _importState.value = when (result) {
+                is com.buglist.domain.model.Result.Success -> ImportUiState.Success(result.data)
+                is com.buglist.domain.model.Result.Error -> ImportUiState.Error(result.message)
+            }
+            refresh()
+        }
+    }
+
+    /** Resets the import state back to [ImportUiState.Idle] after the UI has consumed the result. */
+    fun resetImportState() {
+        _importState.value = ImportUiState.Idle
     }
 }

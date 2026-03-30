@@ -83,6 +83,12 @@ interface DebtRepository {
     suspend fun deleteDebtEntryById(debtEntryId: Long)
 
     /**
+     * Deletes ALL debt entries for a person (CASCADE deletes their payments).
+     * Used by the import use case to replace the complete list during sync.
+     */
+    suspend fun deleteAllDebtsForPerson(personId: Long)
+
+    /**
      * Updates only the status of a debt entry.
      * Called by [PaymentRepository] inside a transaction.
      */

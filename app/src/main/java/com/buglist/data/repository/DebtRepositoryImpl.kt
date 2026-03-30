@@ -101,6 +101,11 @@ class DebtRepositoryImpl @Inject constructor(
         _changeVersion.update { it + 1 }
     }
 
+    override suspend fun deleteAllDebtsForPerson(personId: Long) {
+        debtEntryDao.deleteAllForPerson(personId)
+        _changeVersion.update { it + 1 }
+    }
+
     override suspend fun updateDebtStatus(debtEntryId: Long, status: DebtStatus) {
         debtEntryDao.updateStatus(debtEntryId, status.name)
         _changeVersion.update { it + 1 }

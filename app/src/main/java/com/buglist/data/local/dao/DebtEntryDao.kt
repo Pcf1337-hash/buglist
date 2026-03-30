@@ -37,6 +37,13 @@ interface DebtEntryDao {
     suspend fun deleteById(debtEntryId: Long)
 
     /**
+     * Deletes ALL debt entries for a person (CASCADE deletes all their payments).
+     * Used by [ImportDebtListUseCase] to replace the full list during a sync import.
+     */
+    @Query("DELETE FROM debt_entries WHERE personId = :personId")
+    suspend fun deleteAllForPerson(personId: Long)
+
+    /**
      * Reactive count of all debt entries.
      *
      * Used as an InvalidationTracker-compatible trigger: emits on every insert,
