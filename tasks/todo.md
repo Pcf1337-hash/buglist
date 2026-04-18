@@ -689,3 +689,29 @@
 - [x] getActivityByDay (Map<Long, DayActivityCount> — combine aus getNewDebtActivityByDay + getPaymentActivityByDay)
 - [x] reliabilityScore per Person (getPersonReliabilityScores — paidCount/totalCount per personId)
 
+---
+
+## RELEASE v2.1.4 – Statistics Dashboard Redesign + scrollbarer Changelog (2026-04-18)
+
+> **Status:** [x] Released
+> assembleRelease: BUILD SUCCESSFUL (b-6), 0 Problems, 0 Warnings
+> versionCode=43, versionName="2.1.4"
+> GitHub Release: https://github.com/Pcf1337-hash/buglist/releases/tag/v2.1.4
+
+### Aufgabe 1 – Update-Modal Changelog scrollbar
+- [x] `StartupUpdateDialog.kt`: `heightIn(max = 200.dp)` → `heightIn(max = 300.dp)` — Changelog-Box war bereits scrollbar, Höhenlimit erhöht
+- [x] `UpdateDialog.kt`: `maxLines = 6 + TextOverflow.Ellipsis` → scrollbares `Box` mit `verticalScroll(rememberScrollState())` + `heightIn(max = 300.dp)` + Border wie StartupUpdateDialog
+
+### Aufgabe 2 – Version Bump
+- [x] `versionCode = 43` (war: 42)
+- [x] `versionName = "2.1.4"` (war: "2.1.3")
+
+### Aufgabe 3 – Release APK
+- [x] `assembleRelease` → BUILD SUCCESSFUL, 0 Problems
+- [x] APK: `app/build/outputs/apk/release/app-release.apk`
+
+### Aufgabe 4 – GitHub Release
+- [x] `git add` + `git commit` — alle Dateien inkl. Statistics-Redesign aus vorheriger Session
+- [x] `git tag v2.1.4` + `git push origin main --tags`
+- [x] `gh release create v2.1.4` mit Changelog-Body + APK als Asset `BugList-v2.1.4.apk`
+
