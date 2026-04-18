@@ -513,7 +513,20 @@ private fun SettlementInputContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Preview section — only shown when there's a valid amount
+        Spacer(Modifier.height(16.dp))
+
+        // Bottom confirm button — always visible directly after the input pad,
+        // so the user can always reach it without scrolling past the preview list.
+        GoldButton(
+            text = stringResource(R.string.settlement_confirm_button),
+            onClick = onConfirm,
+            enabled = hasValidAmount && totalOpen > 0.001,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        // Preview section — shown below the button so it never pushes the button off-screen.
+        // The user enters an amount, the button is immediately reachable, and the preview
+        // of which entries will be settled is visible by scrolling down.
         if (previewItems.isNotEmpty() && hasValidAmount) {
             Spacer(Modifier.height(16.dp))
 
@@ -549,15 +562,7 @@ private fun SettlementInputContent(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Bottom confirm button — full-width Gold, same shape as header quick-confirm button
-        GoldButton(
-            text = stringResource(R.string.settlement_confirm_button),
-            onClick = onConfirm,
-            enabled = hasValidAmount && totalOpen > 0.001,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Spacer(Modifier.height(32.dp))
     }
 }
 

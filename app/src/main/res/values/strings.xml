@@ -13,6 +13,7 @@
     <string name="auth_error_failed">AUTHENTICATION FAILED</string>
     <string name="auth_error_no_biometric">NO BIOMETRIC ENROLLED. SET UP IN SETTINGS.</string>
     <string name="auth_retry">RETRY</string>
+    <string name="auth_tap_to_unlock">ANTIPPEN ZUM ENTSPERREN</string>
 
     <!-- Navigation -->
     <string name="nav_statistics">Statistiken</string>

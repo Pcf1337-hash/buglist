@@ -111,9 +111,16 @@ class AuthViewModel @Inject constructor(
             }
 
             is AuthResult.Failure -> {
-                // Only count non-cancel errors toward lockout
-                val isCancel = result.errorCode == androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON
-                if (!isCancel) retryCount++
+                // Only count genuine hardware/auth errors toward lockout.
+                // System-initiated cancels (app backgrounded → ERROR_CANCELED=5,
+                // ERROR_USER_CANCELED=10) and user-tapped cancel (ERROR_NEGATIVE_BUTTON=13)
+                // must NOT increment the counter — the OS handles biometric lockout itself.
+                val isSystemOrUserCancel = result.errorCode in setOf(
+                    androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON,  // 13 – user tapped cancel
+                    androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED,    // 10 – home/back pressed
+                    androidx.biometric.BiometricPrompt.ERROR_CANCELED          //  5 – hardware/system cancel
+                )
+                if (!isSystemOrUserCancel) retryCount++
                 if (retryCount >= MAX_RETRY_ATTEMPTS) {
                     _uiState.value = AuthUiState.LockedOut
                 } else {
@@ -137,21 +144,32 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /** Reset state for retry after error (user taps Retry button). */
+    /**
+     * Reset state for retry — called when the user taps the retry button, the fingerprint
+     * icon, or the "ANTIPPEN ZUM ENTSPERREN" fallback CTA.
+     *
+     * The app-level [AuthUiState.LockedOut] is intentionally NOT a hard barrier here:
+     * Android's biometric hardware already enforces its own lockout independently. Our
+     * counter only guards against rapid-fire soft errors (e.g. bad hardware config). Once
+     * the user explicitly requests a retry, we honour that request and reset the counter.
+     */
     fun resetForRetry() {
-        // Always allow retry unless we're in LockedOut state
-        if (_uiState.value !is AuthUiState.LockedOut) {
-            requestAuthentication()
-        }
+        retryCount = 0  // reset so LockedOut doesn't immediately re-trigger
+        requestAuthentication()
     }
 
     /**
      * Called by [LifecycleResumeEffect.onPauseOrDispose] when the screen is paused or leaves
      * composition. Resets the prompt signal so the next [requestAuthentication] call on resume
      * triggers a fresh BiometricPrompt.
+     *
+     * Also resets [retryCount] so that accumulated system-cancel errors (from previous
+     * backgrounding events) never carry over into the next session and cause a premature
+     * [AuthUiState.LockedOut] on what is effectively a fresh authentication attempt.
      */
     fun cancelAuthentication() {
         _shouldShowPrompt.value = false
+        retryCount = 0  // always reset – system cancels must not accumulate across sessions
         // Only reset to Idle if not already authenticated — avoids flickering if auth succeeded
         // just before the pause (e.g., app put to background immediately after unlock).
         if (_uiState.value !is AuthUiState.Authenticated) {

@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.buglist.R
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTypography
+import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import com.buglist.security.BiometricAuthManager
 
@@ -305,6 +307,27 @@ fun AuthScreenContent(
                     Text(
                         text = stringResource(R.string.auth_retry),
                         style = BugListTypography.labelLarge
+                    )
+                }
+            }
+
+            // Fallback CTA — visible in every non-active state so the user always has an
+            // explicit way to trigger the BiometricPrompt if it did not appear automatically
+            // (e.g. OEM race condition, LockedOut recovery, or first-install edge case).
+            // Not shown while Authenticating (prompt is already visible) or after
+            // Authenticated (nav to dashboard is imminent).
+            val showTapPrompt = uiState !is AuthUiState.Authenticating
+                && uiState !is AuthUiState.Authenticated
+            if (showTapPrompt) {
+                Spacer(modifier = Modifier.height(20.dp))
+                TextButton(onClick = onTapFingerprint) {
+                    Text(
+                        text = stringResource(R.string.auth_tap_to_unlock),
+                        fontFamily = OswaldFontFamily,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontSize = 13.sp,
+                        letterSpacing = 2.sp,
+                        color = BugListColors.Gold.copy(alpha = 0.75f)
                     )
                 }
             }
