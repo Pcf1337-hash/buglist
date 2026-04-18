@@ -8,11 +8,13 @@ import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.MonthlyStats
 import com.buglist.domain.model.Payment
+import com.buglist.domain.repository.DayActivityCount
 import com.buglist.domain.repository.DebtRepository
 import com.buglist.domain.repository.StatisticsOpenTotals
 import com.buglist.domain.repository.StatisticsPaidTotals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
@@ -146,6 +148,46 @@ class DebtRepositoryImpl @Inject constructor(
         debtEntryDao.getLatestEntries(limit).map { list ->
             list.map { it.toDomain() }
         }
+
+    override fun getAtRiskAmount(thresholdMs: Long): Flow<Double> =
+        debtEntryDao.getAtRiskAmount(thresholdMs).map { it.atRiskAmount }
+
+    override fun getAvgDebtDurationDays(): Flow<Double> =
+        debtEntryDao.getAvgDebtDurationDays(System.currentTimeMillis()).map { it.avgDays }
+
+    override fun getRepaymentRate(): Flow<Double> =
+        debtEntryDao.getRepaymentRate().map { row ->
+            if (row.totalCount == 0) 0.0
+            else row.paidCount.toDouble() / row.totalCount.toDouble()
+        }
+
+    override fun getPersonReliabilityScores(): Flow<Map<Long, Int>> =
+        debtEntryDao.getPersonReliabilityScores().map { rows ->
+            rows.associate { row ->
+                val score = if (row.totalCount == 0) 0
+                else ((row.paidCount.toDouble() / row.totalCount.toDouble()) * 100).toInt()
+                row.personId to score
+            }
+        }
+
+    override fun getActivityByDay(days: Int): Flow<Map<Long, DayActivityCount>> {
+        val fromMs = System.currentTimeMillis() - (days.toLong() * 86_400_000L)
+        return combine(
+            debtEntryDao.getNewDebtActivityByDay(fromMs),
+            debtEntryDao.getPaymentActivityByDay(fromMs)
+        ) { newDebts, payments ->
+            val result = mutableMapOf<Long, DayActivityCount>()
+            for (row in newDebts) {
+                val existing = result[row.dayEpochMs] ?: DayActivityCount(0, 0)
+                result[row.dayEpochMs] = existing.copy(newDebtCount = existing.newDebtCount + row.newDebtCount)
+            }
+            for (row in payments) {
+                val existing = result[row.dayEpochMs] ?: DayActivityCount(0, 0)
+                result[row.dayEpochMs] = existing.copy(paymentCount = existing.paymentCount + row.paymentCount)
+            }
+            result
+        }
+    }
 }
 
 // --- Mapping extensions ---

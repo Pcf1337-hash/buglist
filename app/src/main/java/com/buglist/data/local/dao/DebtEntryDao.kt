@@ -235,6 +235,95 @@ interface DebtEntryDao {
     fun getOpenTotals(): Flow<OpenTotalsRow>
 
     /**
+     * Returns the sum of open debt amounts that are older than [thresholdMs] ms (e.g. 60 days).
+     * Used for the At-Risk bento card in statistics.
+     */
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE WHEN de.isOwedToMe = 1
+                THEN (de.amount - COALESCE(paid.totalPaid, 0))
+                ELSE 0 END
+        ), 0) AS atRiskAmount
+        FROM debt_entries de
+        LEFT JOIN (
+            SELECT debtEntryId, SUM(amount) AS totalPaid
+            FROM payments
+            GROUP BY debtEntryId
+        ) paid ON paid.debtEntryId = de.id
+        WHERE de.status IN ('OPEN', 'PARTIAL')
+          AND de.date <= :thresholdMs
+    """)
+    fun getAtRiskAmount(thresholdMs: Long): Flow<AtRiskRow>
+
+    /**
+     * Returns the average duration (in days) of currently open/partial debt entries.
+     * Computed as (now - date) / 86400000.
+     * Used for the Ø-Dauer bento card in statistics.
+     */
+    @Query("""
+        SELECT COALESCE(AVG((:nowMs - date) / 86400000.0), 0) AS avgDays
+        FROM debt_entries
+        WHERE status IN ('OPEN', 'PARTIAL')
+    """)
+    fun getAvgDebtDurationDays(nowMs: Long): Flow<AvgDurationRow>
+
+    /**
+     * Returns paid count vs total count for computing the overall repayment rate.
+     * Excludes CANCELLED entries from total.
+     */
+    @Query("""
+        SELECT
+            COUNT(CASE WHEN status = 'PAID' THEN 1 END) AS paidCount,
+            COUNT(CASE WHEN status != 'CANCELLED' THEN 1 END) AS totalCount
+        FROM debt_entries
+    """)
+    fun getRepaymentRate(): Flow<RepaymentRateRow>
+
+    /**
+     * Returns per-person paid/total counts for computing individual reliability scores.
+     * Excludes CANCELLED entries.
+     */
+    @Query("""
+        SELECT
+            personId,
+            COUNT(CASE WHEN status = 'PAID' THEN 1 END) AS paidCount,
+            COUNT(CASE WHEN status != 'CANCELLED' THEN 1 END) AS totalCount
+        FROM debt_entries
+        GROUP BY personId
+    """)
+    fun getPersonReliabilityScores(): Flow<List<PersonReliabilityRow>>
+
+    /**
+     * Returns daily activity counts (payments + new debts) for the heatmap.
+     * [fromMs] = start of 91-day window (13 weeks back from today).
+     */
+    @Query("""
+        SELECT
+            (date / 86400000) * 86400000 AS dayEpochMs,
+            0 AS paymentCount,
+            COUNT(*) AS newDebtCount
+        FROM debt_entries
+        WHERE date >= :fromMs
+        GROUP BY dayEpochMs
+    """)
+    fun getNewDebtActivityByDay(fromMs: Long): Flow<List<DayActivityRow>>
+
+    /**
+     * Returns daily payment activity for the heatmap.
+     * [fromMs] = start of 91-day window.
+     */
+    @Query("""
+        SELECT
+            (date / 86400000) * 86400000 AS dayEpochMs,
+            COUNT(*) AS paymentCount,
+            0 AS newDebtCount
+        FROM payments
+        WHERE date >= :fromMs
+        GROUP BY dayEpochMs
+    """)
+    fun getPaymentActivityByDay(fromMs: Long): Flow<List<DayActivityRow>>
+
+    /**
      * Returns the global net balance across all persons:
      * positive = net owed to me, negative = net I owe.
      * Based on remaining amounts (amount - totalPaid) for non-terminal entries.
@@ -283,4 +372,34 @@ data class OpenTotalsRow(
     val openOwedToMe: Double,
     val openIOwe: Double,
     val totalOpenCount: Int
+)
+
+/** Projection for at-risk amount query (debts open > N days). */
+data class AtRiskRow(
+    val atRiskAmount: Double
+)
+
+/** Projection for average debt duration query. */
+data class AvgDurationRow(
+    val avgDays: Double
+)
+
+/** Projection for repayment rate query. */
+data class RepaymentRateRow(
+    val paidCount: Int,
+    val totalCount: Int
+)
+
+/** Projection for per-person reliability score. */
+data class PersonReliabilityRow(
+    val personId: Long,
+    val paidCount: Int,
+    val totalCount: Int
+)
+
+/** Projection for daily activity heatmap. */
+data class DayActivityRow(
+    val dayEpochMs: Long,
+    val paymentCount: Int,
+    val newDebtCount: Int
 )

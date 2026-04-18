@@ -53,7 +53,9 @@ class CheckForUpdateUseCase @Inject constructor(
                 UpdateState.UpdateAvailable(
                     currentVersion = currentVersion,
                     newVersion = remoteVersion,
-                    releaseNotes = release.body?.take(500),
+                    // Full changelog — the dialog's changelog box scrolls independently.
+                    // Previously clipped to 500 chars, which broke multi-feature releases.
+                    releaseNotes = release.body,
                     downloadUrl = apkAsset?.downloadUrl ?: release.htmlUrl,
                     releasePageUrl = release.htmlUrl
                 )

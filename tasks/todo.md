@@ -659,3 +659,33 @@
 - 10 dedizierte Animations-Funktionen aus Aufgabe 3 nicht als separate Funktionen extrahiert (Animationen inline vorhanden: Pulse auf AuthScreen, AnimatedVisibility auf Dashboard)
 - `BugListComponents.kt` Komponenten-Library (Aufgabe 4) nicht als eigene Datei — Komponenten existieren verteilt in presentation/components/
 
+---
+
+## REDESIGN: Statistics Screen Upgrade (2026-04-18)
+
+> **Status:** [x] Abgeschlossen + verifiziert
+> assembleDebug: BUILD SUCCESSFUL (b-2), 0 Problems
+> assembleRelease: BUILD SUCCESSFUL (b-4), 0 Problems, 0 Warnings
+> lint: 0 Errors, 0 Warnings (b-5)
+> test: 102/102 passed (b-3)
+
+### Priorität 1 – Quick Wins
+- [x] 1. Hero-Balance mit Animated Counter + tabular figures (88sp Bebas Neue, Countup-Animation mit Animatable + FastOutSlowInEasing 1200ms)
+- [x] 2. Segmented Control für Zeiträume (7T / 30T / 6M / ALLE — Material3 SingleChoiceSegmentedButtonRow + Gold-Active-Styling)
+- [x] 3. Insight-Cards als horizontale LazyRow (sealed class Insight: Warning/Info/Celebration, OutlinedCard mit BorderStroke je Severity)
+- [x] 4. Reliability Score pro Person (Canvas-Progress-Ring 40dp um PersonAvatar, rot/orange/grün je Score)
+- [x] 5. Activity-Heatmap GitHub-Style (7×13 Grid, Canvas-basiert, Gold für Zahlungs-, Rot für Schulden-Tage)
+
+### Priorität 2 – Bento-Grid
+- [x] 6. Bento-Grid für Key Metrics (At-Risk volle Breite mit rotem Border, Repayment-Donut + Ø-Dauer-Tile, 3-Tile-Overview-Row)
+
+### Priorität 3 – Grain Overlay
+- [x] 7. Grain-Texture global im Theme (128×128 programmatisch generiertes Noise-Bitmap als BitmapShader, 0.04f alpha, BlendMode.Overlay in BugListTheme Box)
+
+### Neue DAO/Repository-Queries
+- [x] getAtRiskAmount (Schulden > 60 Tage offen — LEFT JOIN payments für remaining-basierte Berechnung)
+- [x] getAvgDebtDurationDays (Ø Tage offen — AVG((nowMs - date) / 86400000.0))
+- [x] getRepaymentRate (paid / total lent — paidCount / totalCount, CANCELLED excluded)
+- [x] getActivityByDay (Map<Long, DayActivityCount> — combine aus getNewDebtActivityByDay + getPaymentActivityByDay)
+- [x] reliabilityScore per Person (getPersonReliabilityScores — paidCount/totalCount per personId)
+

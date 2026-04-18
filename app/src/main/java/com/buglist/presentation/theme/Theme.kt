@@ -1,8 +1,11 @@
 package com.buglist.presentation.theme
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
 /**
  * BugList v2.0.0 Material 3 Dark Color Scheme.
@@ -54,9 +57,17 @@ private val BugListDarkColorScheme = darkColorScheme(
 fun BugListTheme(
     content: @Composable () -> Unit
 ) {
+    val grainBrush = rememberGrainBrush()
     MaterialTheme(
         colorScheme = BugListDarkColorScheme,
-        typography = BugListTypography,
-        content = content
-    )
+        typography = BugListTypography
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .grainOverlay(grainBrush)
+        ) {
+            content()
+        }
+    }
 }

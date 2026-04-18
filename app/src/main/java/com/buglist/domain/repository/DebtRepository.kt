@@ -140,6 +140,36 @@ interface DebtRepository {
      * Returns the latest [limit] entries (newest first) for the activity timeline.
      */
     fun getLatestEntries(limit: Int = 7): Flow<List<DebtEntryWithPayments>>
+
+    /**
+     * Returns the sum of open "owed-to-me" debt amounts where the debt is older than [thresholdMs].
+     * Used for the At-Risk card in statistics (default: 60 days ago).
+     */
+    fun getAtRiskAmount(thresholdMs: Long): Flow<Double>
+
+    /**
+     * Returns the average duration in days of currently open/partial debts.
+     * Used for the Ø-Dauer bento tile.
+     */
+    fun getAvgDebtDurationDays(): Flow<Double>
+
+    /**
+     * Returns the overall repayment rate as a value 0.0–1.0.
+     * Computed as paidCount / totalCount (CANCELLED excluded).
+     */
+    fun getRepaymentRate(): Flow<Double>
+
+    /**
+     * Returns a map of personId → reliabilityScore (0–100) for all persons.
+     * Score = (paidCount / totalCount) * 100. CANCELLED entries excluded.
+     */
+    fun getPersonReliabilityScores(): Flow<Map<Long, Int>>
+
+    /**
+     * Returns daily activity data for the heatmap covering the last [days] days.
+     * Key = day epoch ms (midnight UTC), value = [DayActivityCount].
+     */
+    fun getActivityByDay(days: Int = 91): Flow<Map<Long, DayActivityCount>>
 }
 
 /** Aggregated open-debt totals used by the statistics screen header. */
@@ -154,3 +184,11 @@ data class StatisticsPaidTotals(
     val totalPaidOwedToMe: Double,
     val totalPaidIOwe: Double
 )
+
+/** Activity count for a single day in the heatmap. */
+data class DayActivityCount(
+    val paymentCount: Int,
+    val newDebtCount: Int
+) {
+    val total: Int get() = paymentCount + newDebtCount
+}

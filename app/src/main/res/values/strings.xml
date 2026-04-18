@@ -99,6 +99,23 @@
     <string name="statistics_entries_count">%1$d Einträge</string>
     <string name="statistics_entry_count_singular">%1$d Eintrag</string>
 
+    <!-- Statistics Redesign – new strings -->
+    <string name="statistics_timerange_7d">7T</string>
+    <string name="statistics_timerange_30d">30T</string>
+    <string name="statistics_timerange_6m">6M</string>
+    <string name="statistics_timerange_all">ALLE</string>
+    <string name="statistics_hero_delta_vs_prev">vs. Vormonat</string>
+    <string name="statistics_insights_title">INSIGHTS</string>
+    <string name="statistics_insights_empty">Noch keine Erkenntnisse</string>
+    <string name="statistics_bento_at_risk">AT RISK</string>
+    <string name="statistics_bento_at_risk_subtitle">Offen &gt; 60 Tage</string>
+    <string name="statistics_bento_repayment_rate">RÜCKZAHLQUOTE</string>
+    <string name="statistics_bento_avg_duration">Ø DAUER</string>
+    <string name="statistics_bento_avg_duration_unit">Tage offen</string>
+    <string name="statistics_heatmap_title">AKTIVITÄT</string>
+    <string name="statistics_heatmap_subtitle">Letzte 13 Wochen</string>
+    <string name="statistics_reliability_score_label">ZUVERLÄSSIGKEIT</string>
+
     <!-- Settings Screen -->
     <string name="settings_title">EINSTELLUNGEN</string>
     <string name="settings_section_preferences">EINSTELLUNGEN</string>

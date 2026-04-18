@@ -743,6 +743,51 @@ Box(modifier = Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha.value }
 - Für den Install-Intent MUSS FileProvider verwendet werden: `FileProvider.getUriForFile(context, "$applicationId.fileprovider", file)` + `FLAG_GRANT_READ_URI_PERMISSION`
 - `Uri.fromFile()` direkt im Intent würde auf Android 7+ FileUriExposedException werfen
 
+### L-092 – Grain-Overlay: BitmapShader muss in remember{} leben, nicht in drawWithCache
+
+**Problem:** Wenn `BitmapShader` oder `ShaderBrush` innerhalb von `drawWithCache` oder `drawWithContent` erzeugt wird, wird er bei jeder Recomposition oder jedem Frame-Invalidate neu erstellt → Memory-Leak + Performance-Problem.
+**Ursache:** `drawWithCache` wird bei jedem Draw-Pass neu evaluiert wenn der Block keinen Cache-Key hat. Shader-Erstellung ist teuer.
+**Regel:** `rememberGrainBrush()` mit `remember { ... }` ohne Key aufrufen. Das Bitmap + Shader-Objekt wird nur einmal in der gesamten Composition-Lifetime erzeugt.
+```kotlin
+// RICHTIG
+@Composable
+fun rememberGrainBrush(): ShaderBrush = remember {
+    val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+    // fill with noise...
+    ShaderBrush(BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT))
+}
+// In Theme: val grainBrush = rememberGrainBrush()
+// Dann: Box(Modifier.grainOverlay(grainBrush)) { content() }
+```
+
+### L-093 – Animated Hero-Balance: fontFeatureSettings für tabular figures in AnnotatedString
+
+**Problem:** Bebas Neue Counter wackelt beim Hochzählen weil Ziffern unterschiedliche Breiten haben (proportional spacing).
+**Ursache:** Ohne `fontFeatureSettings = "tnum"` nutzt der Font proportionale Ziffernbreiten — bei Countup-Animationen springt der Text seitwärts.
+**Regel:** `fontFeatureSettings = "tnum"` in SpanStyle des AnnotatedString oder im TextStyle setzen. Funktioniert auch mit BebasNeueFontFamily.
+```kotlin
+// AnnotatedString mit tabular figures:
+withStyle(SpanStyle(fontFamily = BebasNeueFontFamily, fontSize = 88.sp, fontFeatureSettings = "tnum")) {
+    append(String.format(Locale.GERMAN, "%,d", euros))
+}
+// Oder in TextStyle: typography.displayLarge.copy(fontFeatureSettings = "tnum")
+```
+
+### L-094 – TimeRange-Enum: String-Ressourcen direkt als labelRes Int im Enum-Konstruktor
+
+**Problem:** Enum-Einträge für Segmented-Control brauchen String-Resources, aber Enums sind keine Composables → kein `stringResource()` direkt im Enum.
+**Ursache:** `stringResource()` ist eine Composable-Funktion und darf nicht außerhalb von Composables aufgerufen werden.
+**Regel:** Ressourcen-ID als `Int`-Property im Enum speichern, dann im Composable via `stringResource(range.labelRes)` auflösen:
+```kotlin
+enum class TimeRange(val labelRes: Int, val days: Int) {
+    WEEK(R.string.statistics_timerange_7d, 7),
+    MONTH(R.string.statistics_timerange_30d, 30),
+    SIX_MONTHS(R.string.statistics_timerange_6m, 180),
+    ALL(R.string.statistics_timerange_all, Int.MAX_VALUE)
+}
+// Im Composable: stringResource(range.labelRes)
+```
+
 _Initialdokumentation: 2026-03-17_
 _Perfektionierungsrunde: 2026-03-18_
 _Auto-Update System: 2026-03-18_

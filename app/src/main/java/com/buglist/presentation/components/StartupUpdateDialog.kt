@@ -106,7 +106,7 @@ fun StartupUpdateDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(max = 200.dp)
+                                    .heightIn(max = 300.dp)
                                     .border(
                                         width = 1.dp,
                                         color = BugListColors.Divider,
