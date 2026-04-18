@@ -1,6 +1,7 @@
 package com.buglist.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.buglist.domain.model.Tag
 
@@ -10,11 +11,18 @@ import com.buglist.domain.model.Tag
  * Tags are user-defined labels (max. 20 characters) that can be attached
  * to debt entries via the [DebtEntryTagCrossRef] join table.
  *
+ * The UNIQUE index on [name] (added in DB migration 5→6) ensures that
+ * [androidx.room.OnConflictStrategy.IGNORE] in [TagDao.insertTag] actually fires on duplicate
+ * names, preventing phantom tag rows from accumulating during repeated imports.
+ *
  * @param id        Auto-generated primary key.
- * @param name      Display name of the tag.
+ * @param name      Display name of the tag — must be unique (case-sensitive).
  * @param createdAt Insertion timestamp in Unix ms.
  */
-@Entity(tableName = "tags")
+@Entity(
+    tableName = "tags",
+    indices = [Index(value = ["name"], unique = true)]
+)
 data class TagEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

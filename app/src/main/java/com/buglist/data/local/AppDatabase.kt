@@ -36,6 +36,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v3 – Manual crew sort: sort_index column added to persons table
  *   v4 – Custom avatar photo: avatarImagePath column (nullable TEXT) added to persons
  *   v5 – Divider separators: new `dividers` table for crew-list section headers
+ *   v6 – Tag dedup fix: UNIQUE index on tags.name; existing duplicate tag rows removed
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -49,7 +50,7 @@ import com.buglist.data.local.entity.TagEntity
         DebtEntryTagCrossRef::class,
         DividerEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -117,6 +118,119 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        /**
+         * Migration from v5 to v6: adds a UNIQUE index on `tags.name` and deduplicates
+         * any duplicate tag rows created by repeated imports before this fix.
+         *
+         * **Root cause of the duplication bug:**
+         * The original `tags` table (created in MIGRATION_1_2) had NO unique constraint on
+         * `name`. [TagDao.insertTag] uses `OnConflictStrategy.IGNORE`, which silently
+         * ignores constraint violations — but with no constraint, it never fires and always
+         * inserts a new row. Every import call thus created a phantom duplicate tag row.
+         *
+         * **What this migration does:**
+         * 1. Creates `tags_new` with a UNIQUE index on `name`.
+         * 2. Inserts only the canonical (lowest id) row per name from the old table.
+         * 3. Saves cross-ref data to a temp table, remapping duplicate tagIds to canonical ids.
+         * 4. Drops old `debt_entry_tags` and `tags`.
+         * 5. Renames `tags_new` → `tags`.
+         * 6. Recreates `debt_entry_tags` with FK to the renamed table.
+         * 7. Re-inserts deduplicated cross-refs from the temp table.
+         *
+         * All PRAGMAs use `query()` instead of `execSQL()` per L-069 (SQLCipher 4.9.0).
+         * FK enforcement is disabled for the duration to allow safe table drops/renames.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // FK enforcement off for the duration — tables are being recreated.
+                database.query("PRAGMA foreign_keys = OFF", emptyArray<Any?>()).close()
+
+                // 1. New tags table with UNIQUE index on name.
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tags_new` (
+                        `id`        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name`      TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_tags_name` ON `tags_new`(`name`)"
+                )
+
+                // 2. Canonical tags: keep the row with the lowest id for each unique name.
+                database.execSQL(
+                    """
+                    INSERT INTO `tags_new` (`id`, `name`, `createdAt`)
+                    SELECT MIN(id) AS id, name, MIN(createdAt) AS createdAt
+                    FROM `tags`
+                    GROUP BY name
+                    """.trimIndent()
+                )
+
+                // 3. Temp table to hold cross-ref pairs remapped to canonical ids.
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `det_temp` " +
+                    "(`debtEntryId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL)"
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO `det_temp` (`debtEntryId`, `tagId`)
+                    SELECT DISTINCT det.debtEntryId,
+                        (SELECT MIN(t2.id) FROM `tags` t2
+                         WHERE t2.name = t.name) AS canonical_id
+                    FROM `debt_entry_tags` det
+                    JOIN `tags` t ON t.id = det.tagId
+                    """.trimIndent()
+                )
+
+                // 4. Drop old tables.
+                database.execSQL("DROP TABLE IF EXISTS `debt_entry_tags`")
+                database.execSQL("DROP TABLE IF EXISTS `tags`")
+
+                // 5. Rename tags_new → tags.
+                database.execSQL("ALTER TABLE `tags_new` RENAME TO `tags`")
+
+                // 6. Recreate debt_entry_tags with FK referencing the renamed `tags` table.
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `debt_entry_tags` (
+                        `debtEntryId` INTEGER NOT NULL,
+                        `tagId`       INTEGER NOT NULL,
+                        PRIMARY KEY(`debtEntryId`, `tagId`),
+                        FOREIGN KEY(`debtEntryId`) REFERENCES `debt_entries`(`id`) ON DELETE CASCADE,
+                        FOREIGN KEY(`tagId`)       REFERENCES `tags`(`id`)         ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+
+                // 7. Insert canonical cross-refs (OR IGNORE to guard against any edge cases).
+                database.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `debt_entry_tags` (`debtEntryId`, `tagId`)
+                    SELECT DISTINCT `debtEntryId`, `tagId` FROM `det_temp`
+                    """.trimIndent()
+                )
+
+                // 8. Drop temp table.
+                database.execSQL("DROP TABLE IF EXISTS `det_temp`")
+
+                // 9. Recreate indices on debt_entry_tags.
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_debt_entry_tags_tagId` " +
+                    "ON `debt_entry_tags`(`tagId`)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_debt_entry_tags_debtEntryId` " +
+                    "ON `debt_entry_tags`(`debtEntryId`)"
+                )
+
+                // Re-enable FK enforcement.
+                database.query("PRAGMA foreign_keys = ON", emptyArray<Any?>()).close()
             }
         }
 

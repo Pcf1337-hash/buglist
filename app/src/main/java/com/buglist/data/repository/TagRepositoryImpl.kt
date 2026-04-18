@@ -93,8 +93,9 @@ class TagRepositoryImpl @Inject constructor(
      * @return The ID of the tag row.
      */
     override suspend fun getOrCreateTagByName(name: String): Long {
-        tagDao.insertTag(TagEntity(name = name))
-        return tagDao.getTagByName(name)?.id
-            ?: error("Tag '$name' could not be inserted or found")
+        val trimmed = name.trim()
+        tagDao.insertTag(TagEntity(name = trimmed))
+        return tagDao.getTagByName(trimmed)?.id
+            ?: error("Tag '$trimmed' could not be inserted or found")
     }
 }
