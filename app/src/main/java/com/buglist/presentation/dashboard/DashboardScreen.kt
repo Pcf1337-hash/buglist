@@ -840,18 +840,7 @@ private fun DashboardSummaryHeader(
     totalOwedToMe: Double,
     totalIOwe: Double
 ) {
-    // Animated value: counts from 0f to totalBalance on every change (L-093)
-    val animatedBalance = remember { Animatable(0f) }
-    LaunchedEffect(totalBalance) {
-        animatedBalance.snapTo(0f)
-        animatedBalance.animateTo(
-            targetValue = totalBalance.toFloat(),
-            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
-        )
-    }
-    val displayBalance = animatedBalance.value.toDouble()
-
-    // Color mirrors AmountText logic but applied to the animated value
+    // Color mirrors AmountText logic
     val heroColor = when {
         totalBalance > 0.001  -> BugListColors.DebtGreen
         totalBalance < -0.001 -> BugListColors.DebtRed
@@ -878,9 +867,9 @@ private fun DashboardSummaryHeader(
             letterSpacing = 2.sp
         )
         Spacer(Modifier.height(4.dp))
-        // Hero balance — 72sp Bebas Neue with tabular figures + countup animation
+        // Hero balance — 72sp Bebas Neue with tabular figures (no animation)
         AmountText(
-            amount   = displayBalance,
+            amount   = totalBalance,
             fontSize = 72.sp,
             modifier = Modifier.fillMaxWidth(),
             forceColor = heroColor

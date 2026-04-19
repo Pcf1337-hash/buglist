@@ -280,15 +280,6 @@ private fun HeroBalanceSection(
     totalBalance: Double,
     prevMonthBalance: Double
 ) {
-    val animatedBalance = remember { Animatable(0f) }
-
-    LaunchedEffect(totalBalance) {
-        animatedBalance.animateTo(
-            targetValue = totalBalance.toFloat(),
-            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
-        )
-    }
-
     val delta = totalBalance - prevMonthBalance
     val deltaColor = when {
         delta > 0 -> BugListColors.DebtGreen
@@ -302,7 +293,7 @@ private fun HeroBalanceSection(
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         // Currency superscript + big number
-        val displayValue = animatedBalance.value.toDouble()
+        val displayValue = totalBalance
         val isNegative = displayValue < 0
         val absValue = abs(displayValue)
         val euros = absValue.toLong()
