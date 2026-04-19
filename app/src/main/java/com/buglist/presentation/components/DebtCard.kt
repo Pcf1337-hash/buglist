@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -154,21 +156,21 @@ fun DebtCard(
                     color = BugListColors.TextSecondary
                 )
                 if (isOverdue) {
-                    // Feature A: ÜBERFÄLLIG badge — red background, white text
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                BugListColors.DebtRed,
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    // Street-Design: Overdue badge als Stempel — rotated, bordered, uppercase tracking
+                    Surface(
+                        shape = RoundedCornerShape(2.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.5.dp, BugListColors.DebtRed),
+                        modifier = Modifier.rotate(-3f)
                     ) {
                         Text(
                             text = stringResource(R.string.debt_card_overdue),
-                            fontFamily = RobotoCondensedFontFamily,
+                            fontFamily = OswaldFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            color = BugListColors.TextPrimary
+                            fontSize = 11.sp,
+                            color = BugListColors.DebtRed,
+                            letterSpacing = 1.5.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 } else if (entry.dueDate != null) {
@@ -207,6 +209,18 @@ fun DebtCard(
                     totalAmount = entry.amount
                 )
             }
+
+            // Street-Design: Serial number — BL-YYYYMMDD-XXXX (createdAt + id)
+            val serialDateFormat = SimpleDateFormat("yyyyMMdd", Locale.US)
+            val serial = "BL-${serialDateFormat.format(Date(entry.createdAt))}-${"%04d".format(entry.id % 10000)}"
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = serial,
+                fontFamily = RobotoCondensedFontFamily,
+                fontSize = 9.sp,
+                color = BugListColors.TextMuted,
+                letterSpacing = 0.5.sp
+            )
 
             // Expandable payment history
             if (expanded) {

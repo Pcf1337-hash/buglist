@@ -15,8 +15,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 43
-        versionName = "2.1.4"
+        versionCode = 44
+        versionName = "2.1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

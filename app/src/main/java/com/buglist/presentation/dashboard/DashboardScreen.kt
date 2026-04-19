@@ -3,7 +3,10 @@ package com.buglist.presentation.dashboard
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -51,6 +54,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +87,7 @@ import com.buglist.presentation.add_divider.AddDividerSheet
 import com.buglist.presentation.components.AmountText
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
+import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
@@ -822,17 +827,41 @@ private fun PersonCard(
 
 // ── Summary header ────────────────────────────────────────────────────────────
 
+/**
+ * Dashboard summary header with animated hero balance.
+ *
+ * The primary balance counts up from 0 to [totalBalance] on first load and whenever
+ * the value changes (e.g. after a settlement). Animation: 1000ms FastOutSlowInEasing.
+ * Tabular figures (tnum) keep digits fixed-width so the counter never shifts sideways.
+ */
 @Composable
 private fun DashboardSummaryHeader(
     totalBalance: Double,
     totalOwedToMe: Double,
     totalIOwe: Double
 ) {
+    // Animated value: counts from 0f to totalBalance on every change (L-093)
+    val animatedBalance = remember { Animatable(0f) }
+    LaunchedEffect(totalBalance) {
+        animatedBalance.snapTo(0f)
+        animatedBalance.animateTo(
+            targetValue = totalBalance.toFloat(),
+            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
+        )
+    }
+    val displayBalance = animatedBalance.value.toDouble()
+
+    // Color mirrors AmountText logic but applied to the animated value
+    val heroColor = when {
+        totalBalance > 0.001  -> BugListColors.DebtGreen
+        totalBalance < -0.001 -> BugListColors.DebtRed
+        else                  -> BugListColors.Gold
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(BugListColors.SurfaceCard)
-            // Gold gradient border on top
             .border(
                 width = 1.dp,
                 color = BugListColors.BorderGold,
@@ -849,7 +878,13 @@ private fun DashboardSummaryHeader(
             letterSpacing = 2.sp
         )
         Spacer(Modifier.height(4.dp))
-        AmountText(amount = totalBalance, fontSize = 42.sp, modifier = Modifier.fillMaxWidth())
+        // Hero balance — 72sp Bebas Neue with tabular figures + countup animation
+        AmountText(
+            amount   = displayBalance,
+            fontSize = 72.sp,
+            modifier = Modifier.fillMaxWidth(),
+            forceColor = heroColor
+        )
         Spacer(Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),

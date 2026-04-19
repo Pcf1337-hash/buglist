@@ -285,7 +285,7 @@ private fun HeroBalanceSection(
     LaunchedEffect(totalBalance) {
         animatedBalance.animateTo(
             targetValue = totalBalance.toFloat(),
-            animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
         )
     }
 

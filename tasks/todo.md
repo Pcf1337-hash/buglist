@@ -715,3 +715,39 @@
 - [x] `git tag v2.1.4` + `git push origin main --tags`
 - [x] `gh release create v2.1.4` mit Changelog-Body + APK als Asset `BugList-v2.1.4.apk`
 
+---
+
+## RELEASE v2.1.5 – App-weites Street-Design Upgrade
+
+> **Status:** [x] Code + Build abgeschlossen (2026-04-19)
+> assembleDebug: BUILD SUCCESSFUL (43s)
+> assembleRelease: BUILD SUCCESSFUL (1m 15s), 0 Errors
+
+### Änderung 1 – fontFeatureSettings = "tnum" app-weit
+- [x] AmountText.kt: `style = TextStyle(fontFeatureSettings = "tnum")` — alle Betragsdisplays app-weit haben automatisch tabular figures (DashboardScreen/PersonDetailScreen/SettlementSheet nutzen AmountText)
+- [x] AmountInputPad.kt: Display-Text hat eigenes `fontFeatureSettings = "tnum"`
+
+### Änderung 2 – Dashboard Hero-Balance Countup-Animation
+- [x] DashboardScreen.kt DashboardSummaryHeader: `Animatable(0f)` + `animateTo(totalBalance, tween(1000ms, FastOutSlowInEasing))`, 72sp Bebas Neue, Farbe nach Saldo (Green/Red/Gold)
+
+### Änderung 3 – DebtCard Serial-Number
+- [x] DebtCard.kt: `BL-{yyyyMMdd}-{id%10000 als 4-stellig}`, 9sp RobotoCondensed, TextMuted, letterSpacing 0.5.sp — vor expandable payment history
+
+### Änderung 4 – Overdue-Badge als Stempel
+- [x] DebtCard.kt: Surface mit `BorderStroke(1.5.dp, DebtRed)`, `Modifier.rotate(-3f)`, OswaldFontFamily Bold 11.sp, letterSpacing 1.5.sp, DebtRed text, transparent background
+
+### Änderung 5 – UPPERCASE Letter-Spacing auf Section-Labels
+- [x] PersonDetailScreen.kt DebtTabRow: `label.uppercase()` + `letterSpacing = 2.sp`
+- [x] SettingsScreen.kt: `settings_tags_section` + `SectionCard`-Titel hatten bereits `letterSpacing = 2.sp`
+- [x] DashboardScreen.kt: `dashboard_crew_header` hatte bereits `letterSpacing = 3.sp`
+
+### Änderung 6 – PersonDetailHeader Reliability-Ring
+- [x] PersonDetailViewModel.PersonDetailUiState.Ready: `reliabilityScore: Int` (paidCount / totalCount, CANCELLED excluded)
+- [x] PersonDetailScreen PersonDetailHeader: Canvas 84dp Box um 72dp PersonAvatar, 3dp Stroke, StrokeCap.Round, Divider-Track + farbiger Progress-Arc (rot < 40, orange < 75, grün ≥ 75), startAngle=-90f
+
+### Version + Release
+- [x] versionCode = 44, versionName = "2.1.5"
+- [x] assembleRelease grün
+- [ ] git commit + tag v2.1.5 + push
+- [ ] gh release create v2.1.5
+

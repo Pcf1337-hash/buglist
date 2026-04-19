@@ -5,7 +5,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -308,6 +312,7 @@ fun PersonDetailScreen(
                             activeTab = state.activeTab,
                             hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
                             hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
+                            reliabilityScore = state.reliabilityScore,
                             onSettleOwedToMe = { settlementDirection = true },
                             onSettleIOwe = { settlementDirection = false },
                             onLongPressBalance = {
@@ -679,6 +684,7 @@ private fun PersonDetailHeader(
     activeTab: DebtTab,
     hasOpenDebtsOwedToMe: Boolean,
     hasOpenDebtsIOwe: Boolean,
+    reliabilityScore: Int,
     onSettleOwedToMe: () -> Unit,
     onSettleIOwe: () -> Unit,
     onLongPressBalance: () -> Unit,
@@ -705,12 +711,42 @@ private fun PersonDetailHeader(
             .background(BugListColors.Surface)
             .padding(24.dp)
     ) {
-        PersonAvatar(
-            name = person.name,
-            avatarColor = person.avatarColor,
-            size = 72.dp,
-            avatarImagePath = person.avatarImagePath
-        )
+        // Reliability ring around avatar — red < 40, orange < 75, green >= 75
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(84.dp)
+        ) {
+            val ringColor = when {
+                reliabilityScore >= 75 -> BugListColors.DebtGreen
+                reliabilityScore >= 40 -> BugListColors.Orange
+                else                   -> BugListColors.DebtRed
+            }
+            val sweep = (reliabilityScore.coerceIn(0, 100) / 100f) * 360f
+            Canvas(modifier = Modifier.size(84.dp)) {
+                // Background track
+                drawArc(
+                    color = BugListColors.Divider,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                )
+                // Progress arc
+                drawArc(
+                    color = ringColor,
+                    startAngle = -90f,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+            PersonAvatar(
+                name = person.name,
+                avatarColor = person.avatarColor,
+                size = 72.dp,
+                avatarImagePath = person.avatarImagePath
+            )
+        }
         Spacer(Modifier.height(12.dp))
         Text(
             text = person.name.uppercase(),
@@ -833,10 +869,11 @@ private fun DebtTabRow(activeTab: DebtTab, onTabChange: (DebtTab) -> Unit) {
                 onClick = { onTabChange(tab) },
                 text = {
                     Text(
-                        text = label,
+                        text = label.uppercase(),
                         fontFamily = OswaldFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
+                        letterSpacing = 2.sp,
                         color = if (selectedIndex == index) BugListColors.Gold else BugListColors.Muted
                     )
                 }

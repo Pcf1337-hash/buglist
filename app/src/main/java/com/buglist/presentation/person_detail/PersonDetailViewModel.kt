@@ -69,7 +69,9 @@ sealed class PersonDetailUiState {
         /** true if there are OPEN or PARTIAL entries where the person owes the user. */
         val hasOpenDebtsOwedToMe: Boolean,
         /** true if there are OPEN or PARTIAL entries where the user owes the person. */
-        val hasOpenDebtsIOwe: Boolean
+        val hasOpenDebtsIOwe: Boolean,
+        /** Reliability score 0–100 = paidCount / totalCount (CANCELLED excluded). */
+        val reliabilityScore: Int
     ) : PersonDetailUiState()
     object PersonNotFound : PersonDetailUiState()
 }
@@ -148,6 +150,11 @@ class PersonDetailViewModel @Inject constructor(
                 val hasOpenIOwe = allDebts.any {
                     !it.entry.isOwedToMe && it.entry.status in openStatuses
                 }
+                // Reliability score: paid count / total count (CANCELLED excluded)
+                val scoreRelevant = allDebts.filter { it.entry.status != DebtStatus.CANCELLED }
+                val paidCount = scoreRelevant.count { it.entry.status == DebtStatus.PAID }
+                val reliabilityScore = if (scoreRelevant.isEmpty()) 0
+                    else ((paidCount.toDouble() / scoreRelevant.size.toDouble()) * 100).toInt()
                 // Enrich filtered entries with their tags (suspend call per entry).
                 val enriched = filtered.map { dwp ->
                     val tagNames = tagRepository.getTagsForDebtEntry(dwp.entry.id)
@@ -161,7 +168,8 @@ class PersonDetailViewModel @Inject constructor(
                         activeTab = tab,
                         expandedDebtId = expandedId,
                         hasOpenDebtsOwedToMe = hasOpenOwedToMe,
-                        hasOpenDebtsIOwe = hasOpenIOwe
+                        hasOpenDebtsIOwe = hasOpenIOwe,
+                        reliabilityScore = reliabilityScore
                     )
                 )
             }

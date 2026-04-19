@@ -54,7 +54,9 @@ fun AmountText(
         fontWeight = FontWeight.Normal,
         fontSize = fontSize,
         color = color,
-        modifier = modifier
+        modifier = modifier,
+        // Tabular figures: all digits have equal width → no sideways jitter on counter updates
+        style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum")
     )
 }
 

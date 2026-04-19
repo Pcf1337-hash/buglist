@@ -70,13 +70,14 @@ fun AmountInputPad(
             .background(BugListColors.Surface)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Display
+        // Display — tabular figures prevent sideways jitter during input (L-093)
         Text(
             text = "$currencySymbol $inputString",
             fontFamily = BebasNeueFontFamily,
             fontSize = 48.sp,
             color = BugListColors.Gold,
             textAlign = TextAlign.Center,
+            style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
