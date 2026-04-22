@@ -77,13 +77,24 @@ class AuthViewModel @Inject constructor(
      * to show the BiometricPrompt.
      */
     fun requestAuthentication() {
-        // Idempotency guard: don't re-trigger if a prompt is already in flight.
-        // Both LaunchedEffect(Unit) + LifecycleResumeEffect can fire close together on
-        // cold start — without this guard the second call would cancel the first prompt.
-        if (_uiState.value is AuthUiState.Authenticating) return
+        // Idempotency guard: don't re-trigger if a prompt is already in flight or
+        // auth already succeeded. Both LaunchedEffect(Unit) + LifecycleResumeEffect +
+        // the OnWindowFocusChangeListener can fire close together — without this guard
+        // multiple concurrent calls could cancel each other.
+        val current = _uiState.value
+        if (current is AuthUiState.Authenticating || current is AuthUiState.Authenticated) return
         viewModelScope.launch {
             _uiState.value = AuthUiState.Authenticating
             _shouldShowPrompt.value = true
+
+            // Safety net: some OEM ROMs silently drop BiometricPrompt.authenticate()
+            // (e.g. when the window hasn't fully gained focus yet) without ever calling
+            // onAuthenticationError. If we're still Authenticating after 6 s with no
+            // callback, reset to Idle so the "TAP TO UNLOCK" fallback becomes visible.
+            kotlinx.coroutines.delay(6_000L)
+            if (_uiState.value is AuthUiState.Authenticating) {
+                _uiState.value = AuthUiState.Idle
+            }
         }
     }
 

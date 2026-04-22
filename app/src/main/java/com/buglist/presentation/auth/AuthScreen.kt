@@ -27,14 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.eventFlow
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
@@ -46,8 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTypography
@@ -101,44 +97,40 @@ fun AuthScreen(
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    // ── CASE A: AuthScreen enters composition AFTER Activity.onResume has already fired ──
+    // ── PRIMARY TRIGGER: Window-focus-based auth trigger ─────────────────────────────
     //
-    // This is the background-return scenario:
-    //   1. User is on Dashboard, app goes to background
-    //   2. SessionManager.onStart() fires via ProcessLifecycleOwner → lock() → isAuthenticated=false
-    //   3. LaunchedEffect(isAuthenticated) in BugListNavHost fires → navigates to Routes.AUTH
-    //   4. AuthScreen enters composition — but Activity is ALREADY in RESUMED state
-    //   5. LifecycleResumeEffect (Case B) won't fire because ON_RESUME event already happened
-    //      before this composable existed in the composition tree
+    // BiometricPrompt.authenticate() REQUIRES the Activity window to have focus.
+    // Lifecycle events (onResume) fire BEFORE the window gains focus on many OEM ROMs
+    // (Samsung, Xiaomi, OPPO …), causing the prompt to receive ERROR_CANCELED immediately.
     //
-    // Fix: lifecycle.withResumed{} completes IMMEDIATELY when lifecycle >= RESUMED,
-    // or suspends until the next ON_RESUME if not yet resumed (handles cold-start too).
-    // The idempotency guard in AuthViewModel.requestAuthentication() prevents double-firing
-    // if both Case A and Case B trigger at the same time (e.g. on cold-start).
-    LaunchedEffect(Unit) {
-        // If the Activity is not yet RESUMED (cold start — composable runs during onStart),
-        // wait for the next ON_RESUME event. If already RESUMED (background-return via
-        // navigation — LaunchedEffect in NavHost fires after Activity.onResume), skip straight
-        // to the delay. Either way, requestAuthentication() is called exactly once per entry.
-        if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            lifecycleOwner.lifecycle.eventFlow.first { it == Lifecycle.Event.ON_RESUME }
+    // OnWindowFocusChangeListener is the canonical reliable signal:
+    //   - fires when the Activity window gains real interactive focus
+    //   - fires after the BiometricPrompt dialog is dismissed (user cancelled → retry)
+    //   - fires reliably on all Android 8.0+ OEM ROMs
+    //
+    // The idempotency guard in requestAuthentication() (Authenticating / Authenticated)
+    // prevents double-firing when both this and LifecycleResumeEffect trigger at once.
+    DisposableEffect(activity) {
+        val listener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (hasFocus) {
+                viewModel.requestAuthentication()
+            }
         }
-        delay(250L) // avoid "authenticate() called after onSaveInstanceState()" on OEM ROMs
-        viewModel.requestAuthentication()
+        activity.window.decorView.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+        onDispose {
+            activity.window.decorView.viewTreeObserver.removeOnWindowFocusChangeListener(listener)
+        }
     }
 
-    // ── CASE B: AuthScreen is ALREADY in composition, user backgrounds + returns ──
+    // ── SECONDARY TRIGGER: Lifecycle-resume fallback ──────────────────────────────────
     //
-    // Example: user cancels biometrics, then backgrounds the app, then returns.
-    // LifecycleResumeEffect fires on each ON_RESUME AFTER the composable has entered composition.
-    // The handler reference is stored so pending runnables can be cancelled on pause,
-    // preventing a stale requestAuthentication() firing after cancelAuthentication().
+    // Handles: user cancels biometrics, backgrounds the app, returns.
+    // The handler delay gives the window time to gain focus before authenticate() is called.
+    // On dispose (user backgrounds from auth screen), pending call is cancelled and state reset.
     LifecycleResumeEffect(Unit) {
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         val runnable = Runnable { viewModel.requestAuthentication() }
-        handler.postDelayed(runnable, 250L)
+        handler.postDelayed(runnable, 300L)
 
         onPauseOrDispose {
             handler.removeCallbacks(runnable) // cancel pending delayed call before resetting state
@@ -311,13 +303,14 @@ fun AuthScreenContent(
                 }
             }
 
-            // Fallback CTA — visible in every non-active state so the user always has an
-            // explicit way to trigger the BiometricPrompt if it did not appear automatically
-            // (e.g. OEM race condition, LockedOut recovery, or first-install edge case).
-            // Not shown while Authenticating (prompt is already visible) or after
-            // Authenticated (nav to dashboard is imminent).
-            val showTapPrompt = uiState !is AuthUiState.Authenticating
-                && uiState !is AuthUiState.Authenticated
+            // Fallback CTA — always visible except after successful auth (navigation imminent).
+            //
+            // Intentionally shown even during Authenticating state: on OEM ROMs the
+            // BiometricPrompt can silently drop without firing onAuthenticationError,
+            // leaving the UI stuck. If the prompt IS showing, this button is harmlessly
+            // behind the system dialog. If the prompt failed silently, this is the only
+            // way the user can self-recover without a force-kill of the app.
+            val showTapPrompt = uiState !is AuthUiState.Authenticated
             if (showTapPrompt) {
                 Spacer(modifier = Modifier.height(20.dp))
                 TextButton(onClick = onTapFingerprint) {
