@@ -126,11 +126,13 @@ class AuthViewModel @Inject constructor(
                 // System-initiated cancels (app backgrounded → ERROR_CANCELED=5,
                 // ERROR_USER_CANCELED=10) and user-tapped cancel (ERROR_NEGATIVE_BUTTON=13)
                 // must NOT increment the counter — the OS handles biometric lockout itself.
-                val isSystemOrUserCancel = result.errorCode in setOf(
+                val isSystemCancel =
+                    result.errorCode == androidx.biometric.BiometricPrompt.ERROR_CANCELED  // 5
+                val isUserCancel = result.errorCode in setOf(
                     androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON,  // 13 – user tapped cancel
-                    androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED,    // 10 – home/back pressed
-                    androidx.biometric.BiometricPrompt.ERROR_CANCELED          //  5 – hardware/system cancel
+                    androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED     // 10 – home/back pressed
                 )
+                val isSystemOrUserCancel = isSystemCancel || isUserCancel
                 if (!isSystemOrUserCancel) retryCount++
                 if (retryCount >= MAX_RETRY_ATTEMPTS) {
                     _uiState.value = AuthUiState.LockedOut
@@ -140,6 +142,16 @@ class AuthViewModel @Inject constructor(
                         errorCode = result.errorCode,
                         retryCount = retryCount
                     )
+                    // ERROR_CANCELED (5) = BiometricPrompt called before the window had focus
+                    // (common on Samsung when returning from background). The OnWindowFocusChangeListener
+                    // may never fire with hasFocus=true in this scenario. Auto-retry after 600 ms to give
+                    // the system time to grant window focus and try again — invisible to the user.
+                    if (isSystemCancel) {
+                        viewModelScope.launch {
+                            kotlinx.coroutines.delay(600L)
+                            requestAuthentication()
+                        }
+                    }
                 }
             }
 
