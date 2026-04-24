@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.security.AuthResult
 import com.buglist.security.BiometricAuthManager
+import com.buglist.util.DiagEventType
+import com.buglist.util.DiagnosticsEvent
+import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +52,8 @@ sealed class AuthUiState {
  */
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val biometricAuthManager: BiometricAuthManager
+    private val biometricAuthManager: BiometricAuthManager,
+    private val diagnosticsManager: DiagnosticsManager
 ) : ViewModel() {
 
     companion object {
@@ -109,6 +113,17 @@ class AuthViewModel @Inject constructor(
     fun onAuthResult(result: AuthResult) {
         when (result) {
             is AuthResult.Success -> {
+                // If we had retries (bg-return scenario) and finally succeeded, log it
+                if (retryCount > 0) {
+                    val bgSecs = diagnosticsManager.secondsSinceBackground()
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = DiagEventType.BG_RETURN_SUCCESS,
+                        afterBackground = bgSecs > 0,
+                        backgroundSeconds = bgSecs,
+                        retryAttempt = retryCount,
+                        authPath = "STRONG"
+                    ))
+                }
                 retryCount = 0
                 _uiState.value = AuthUiState.Authenticated(result.cipher)
             }
@@ -117,6 +132,16 @@ class AuthViewModel @Inject constructor(
                 // Fallback path: Samsung Galaxy A series / BIOMETRIC_WEAK / DEVICE_CREDENTIAL.
                 // Cipher is null — biometrics used as gate only. PassphraseManager (Tink)
                 // handles DB passphrase independently. See L-088 in lessons.md.
+                if (retryCount > 0) {
+                    val bgSecs = diagnosticsManager.secondsSinceBackground()
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = DiagEventType.BG_RETURN_SUCCESS,
+                        afterBackground = bgSecs > 0,
+                        backgroundSeconds = bgSecs,
+                        retryAttempt = retryCount,
+                        authPath = "FALLBACK"
+                    ))
+                }
                 retryCount = 0
                 _uiState.value = AuthUiState.Authenticated(cipher = null)
             }
@@ -147,6 +172,14 @@ class AuthViewModel @Inject constructor(
                     // may never fire with hasFocus=true in this scenario. Auto-retry after 600 ms to give
                     // the system time to grant window focus and try again — invisible to the user.
                     if (isSystemCancel) {
+                        val bgSecs = diagnosticsManager.secondsSinceBackground()
+                        diagnosticsManager.record(DiagnosticsEvent(
+                            eventType = DiagEventType.BG_RETURN_RETRY,
+                            errorCode = result.errorCode,
+                            afterBackground = bgSecs > 0,
+                            backgroundSeconds = bgSecs,
+                            retryAttempt = retryCount
+                        ))
                         viewModelScope.launch {
                             kotlinx.coroutines.delay(600L)
                             requestAuthentication()

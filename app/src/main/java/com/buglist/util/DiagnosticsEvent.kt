@@ -9,6 +9,10 @@ data class DiagnosticsEvent(
     val errorCode: Int = -1,
     val afterBackground: Boolean = false,
     val backgroundSeconds: Long = -1,
+    /** STRONG = CryptoObject path, FALLBACK = Samsung/WEAK path, UNKNOWN = not set */
+    val authPath: String = "",
+    /** How many auto-retries happened before this result (background-return scenario) */
+    val retryAttempt: Int = 0,
     val sdkInt: Int = android.os.Build.VERSION.SDK_INT,
     val appVersion: String = com.buglist.BuildConfig.VERSION_NAME
 )
@@ -26,4 +30,8 @@ object DiagEventType {
     const val DB_OPEN_FAILED = "DB_OPEN_FAILED"
     const val APP_CRASH = "APP_CRASH"
     const val SESSION_SUMMARY = "SESSION_SUMMARY"
+    /** Auto-retry triggered after ERROR_CANCELED (5) on background-return */
+    const val BG_RETURN_RETRY = "BG_RETURN_RETRY"
+    /** Auth succeeded after one or more background-return auto-retries */
+    const val BG_RETURN_SUCCESS = "BG_RETURN_SUCCESS"
 }

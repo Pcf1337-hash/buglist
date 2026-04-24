@@ -15,8 +15,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 49
-        versionName = "2.2.0"
+        versionCode = 50
+        versionName = "2.2.1"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

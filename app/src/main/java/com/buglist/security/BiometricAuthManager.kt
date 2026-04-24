@@ -198,7 +198,10 @@ class BiometricAuthManager @Inject constructor(
                 ) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
-                        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
+                        diagnosticsManager.record(DiagnosticsEvent(
+                            eventType = DiagEventType.BIOMETRIC_SUCCESS,
+                            authPath = "STRONG"
+                        ))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -212,7 +215,13 @@ class BiometricAuthManager @Inject constructor(
                     val bgSecs = diagnosticsManager.secondsSinceBackground()
                     val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
                         DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = type,
+                        errorCode = errorCode,
+                        afterBackground = bgSecs > 0,
+                        backgroundSeconds = bgSecs,
+                        authPath = "STRONG"
+                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -257,7 +266,10 @@ class BiometricAuthManager @Inject constructor(
                     result: BiometricPrompt.AuthenticationResult
                 ) {
                     // No CryptoObject in this path by design — see method KDoc.
-                    diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = DiagEventType.BIOMETRIC_SUCCESS,
+                        authPath = "FALLBACK"
+                    ))
                     onResult(AuthResult.SuccessNoCipher)
                 }
 
@@ -265,7 +277,13 @@ class BiometricAuthManager @Inject constructor(
                     val bgSecs = diagnosticsManager.secondsSinceBackground()
                     val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
                         DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = type,
+                        errorCode = errorCode,
+                        afterBackground = bgSecs > 0,
+                        backgroundSeconds = bgSecs,
+                        authPath = "FALLBACK"
+                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -350,7 +368,10 @@ class BiometricAuthManager @Inject constructor(
                 ) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
-                        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
+                        diagnosticsManager.record(DiagnosticsEvent(
+                            eventType = DiagEventType.BIOMETRIC_SUCCESS,
+                            authPath = "STRONG"
+                        ))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -364,7 +385,13 @@ class BiometricAuthManager @Inject constructor(
                     val bgSecs = diagnosticsManager.secondsSinceBackground()
                     val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
                         DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
+                    diagnosticsManager.record(DiagnosticsEvent(
+                        eventType = type,
+                        errorCode = errorCode,
+                        afterBackground = bgSecs > 0,
+                        backgroundSeconds = bgSecs,
+                        authPath = "STRONG"
+                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 

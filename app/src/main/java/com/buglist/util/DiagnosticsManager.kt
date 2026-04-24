@@ -36,6 +36,8 @@ class DiagnosticsManager @Inject constructor(
     private val authFailCount = AtomicInteger(0)
     private val authCancelCount = AtomicInteger(0)
     private val bgReturnCount = AtomicInteger(0)
+    private val bgRetryCount = AtomicInteger(0)
+    private val bgRetrySuccessCount = AtomicInteger(0)
     private val dbOpenFailed = AtomicBoolean(false)
 
     private val criticalTypes = setOf(
@@ -60,6 +62,8 @@ class DiagnosticsManager @Inject constructor(
             DiagEventType.APP_FOREGROUND -> {
                 if (event.backgroundSeconds > 0) bgReturnCount.incrementAndGet()
             }
+            DiagEventType.BG_RETURN_RETRY -> bgRetryCount.incrementAndGet()
+            DiagEventType.BG_RETURN_SUCCESS -> bgRetrySuccessCount.incrementAndGet()
         }
 
         if (event.eventType in criticalTypes) uploadEvent(event)
@@ -89,11 +93,13 @@ class DiagnosticsManager @Inject constructor(
         val fail = authFailCount.getAndSet(0)
         val cancel = authCancelCount.getAndSet(0)
         val bgReturns = bgReturnCount.getAndSet(0)
+        val bgRetries = bgRetryCount.getAndSet(0)
+        val bgRetrySuccess = bgRetrySuccessCount.getAndSet(0)
         val dbFail = dbOpenFailed.getAndSet(false)
         sessionStartTimestamp.set(System.currentTimeMillis())
 
         // Skip empty sessions — no auth activity and no errors = not interesting
-        val hasActivity = (ok + fail + cancel) > 0 || dbFail || fail > 0 || cancel > 0
+        val hasActivity = (ok + fail + cancel) > 0 || dbFail || bgRetries > 0
         if (!hasActivity) return
 
         val msg = buildString {
@@ -101,6 +107,7 @@ class DiagnosticsManager @Inject constructor(
             append(" | auths:${ok + fail + cancel}")
             append(" ok:$ok fail:$fail cancel:$cancel")
             append(" | bgReturns:$bgReturns")
+            if (bgRetries > 0) append(" | bgRetries:$bgRetries ok:$bgRetrySuccess")
             append(" | fg:${sessionSeconds}s")
             if (dbFail) append(" | db:FAIL") else append(" | db:ok")
             append(" | sdk:${android.os.Build.VERSION.SDK_INT}")
