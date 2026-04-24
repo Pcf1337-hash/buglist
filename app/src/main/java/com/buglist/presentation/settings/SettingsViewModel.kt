@@ -21,6 +21,7 @@ import com.buglist.domain.usecase.AddPersonUseCase
 import com.buglist.domain.usecase.CheckForUpdateUseCase
 import com.buglist.domain.usecase.ExportDataUseCase
 import com.buglist.security.SessionManager
+import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +69,8 @@ class SettingsViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
     private val appDatabase: AppDatabase,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val diagnosticsManager: DiagnosticsManager
 ) : ViewModel() {
 
     private val _uiData = MutableStateFlow(SettingsUiData())
@@ -249,6 +251,9 @@ class SettingsViewModel @Inject constructor(
             tagRepository.deleteTag(tag)
         }
     }
+
+    /** Returns all recorded diagnostic events as a JSON string. */
+    fun exportDiagnostics(): String = diagnosticsManager.exportAsJson()
 
     /**
      * DEBUG ONLY — generates 50 persons and 500 debt entries for stress testing.

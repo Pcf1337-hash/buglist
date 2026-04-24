@@ -17,6 +17,7 @@ android {
         targetSdk = 35
         versionCode = 48
         versionName = "2.1.9"
+        buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -17,6 +17,9 @@ import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTheme
 import com.buglist.security.BiometricAuthManager
 import com.buglist.security.SessionManager
+import com.buglist.util.DiagEventType
+import com.buglist.util.DiagnosticsEvent
+import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -51,6 +54,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var databaseProvider: DatabaseProvider
+
+    @Inject
+    lateinit var diagnosticsManager: DiagnosticsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // SplashScreen API: installSplashScreen MUST be called before super.onCreate().
@@ -94,5 +100,19 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        diagnosticsManager.markBackground()
+        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.APP_BACKGROUND))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        diagnosticsManager.record(DiagnosticsEvent(
+            eventType = DiagEventType.APP_FOREGROUND,
+            backgroundSeconds = diagnosticsManager.secondsSinceBackground()
+        ))
     }
 }

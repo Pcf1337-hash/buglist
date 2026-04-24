@@ -1,5 +1,6 @@
 package com.buglist.presentation.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -48,6 +49,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -306,6 +309,10 @@ fun SettingsScreen(
                 }
             }
             item {
+                var debugTapCount by remember { mutableIntStateOf(0) }
+                var exportVisible by remember { mutableStateOf(false) }
+                var lastTapTime by remember { mutableLongStateOf(0L) }
+
                 SettingsSection(title = stringResource(R.string.settings_section_about)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -323,8 +330,37 @@ fun SettingsScreen(
                             fontFamily = RobotoCondensedFontFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp,
-                            color = BugListColors.Platinum
+                            color = BugListColors.Platinum,
+                            modifier = Modifier.clickable {
+                                val now = System.currentTimeMillis()
+                                if (now - lastTapTime < 600L) debugTapCount++ else debugTapCount = 1
+                                lastTapTime = now
+                                if (debugTapCount >= 5) exportVisible = true
+                            }
                         )
+                    }
+                    if (exportVisible) {
+                        TextButton(onClick = {
+                            val json = viewModel.exportDiagnostics()
+                            val file = java.io.File(context.cacheDir, "buglist_diag.json")
+                            file.writeText(json)
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.debug_export_button)))
+                        }) {
+                            Text(
+                                text = stringResource(R.string.debug_export_button),
+                                color = BugListColors.Muted
+                            )
+                        }
                     }
                     Spacer(Modifier.height(12.dp))
                     GoldButton(

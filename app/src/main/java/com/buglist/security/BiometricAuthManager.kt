@@ -10,6 +10,9 @@ import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.AuthenticationCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.buglist.util.DiagEventType
+import com.buglist.util.DiagnosticsEvent
+import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,7 +70,8 @@ enum class BiometricAvailability {
 @Singleton
 class BiometricAuthManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val keystoreManager: KeystoreManager
+    private val keystoreManager: KeystoreManager,
+    private val diagnosticsManager: DiagnosticsManager
 ) {
 
     /**
@@ -168,6 +172,7 @@ class BiometricAuthManager @Inject constructor(
             keystoreManager.getEncryptCipher()
         } catch (e: KeyPermanentlyInvalidatedException) {
             keystoreManager.deleteKey()
+            diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.KEY_PERMANENTLY_INVALIDATED))
             onResult(AuthResult.KeyInvalidated)
             return
         } catch (e: Exception) {
@@ -193,6 +198,7 @@ class BiometricAuthManager @Inject constructor(
                 ) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
+                        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -203,6 +209,10 @@ class BiometricAuthManager @Inject constructor(
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    val bgSecs = diagnosticsManager.secondsSinceBackground()
+                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
+                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
+                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -247,10 +257,15 @@ class BiometricAuthManager @Inject constructor(
                     result: BiometricPrompt.AuthenticationResult
                 ) {
                     // No CryptoObject in this path by design — see method KDoc.
+                    diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
                     onResult(AuthResult.SuccessNoCipher)
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    val bgSecs = diagnosticsManager.secondsSinceBackground()
+                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
+                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
+                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -310,6 +325,7 @@ class BiometricAuthManager @Inject constructor(
             keystoreManager.getDecryptCipher(iv)
         } catch (e: KeyPermanentlyInvalidatedException) {
             keystoreManager.deleteKey()
+            diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.KEY_PERMANENTLY_INVALIDATED))
             onResult(AuthResult.KeyInvalidated)
             return
         } catch (e: Exception) {
@@ -334,6 +350,7 @@ class BiometricAuthManager @Inject constructor(
                 ) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
+                        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.BIOMETRIC_SUCCESS))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -344,6 +361,10 @@ class BiometricAuthManager @Inject constructor(
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    val bgSecs = diagnosticsManager.secondsSinceBackground()
+                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
+                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
+                    diagnosticsManager.record(DiagnosticsEvent(eventType = type, errorCode = errorCode, afterBackground = bgSecs > 0, backgroundSeconds = bgSecs))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 

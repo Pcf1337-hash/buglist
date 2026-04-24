@@ -4,6 +4,7 @@ import android.content.Context
 import com.buglist.security.BiometricAuthManager
 import com.buglist.security.KeystoreManager
 import com.buglist.security.PassphraseManager
+import com.buglist.util.DiagnosticsManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,6 +40,7 @@ object SecurityModule {
     @Singleton
     fun provideBiometricAuthManager(
         @ApplicationContext context: Context,
-        keystoreManager: KeystoreManager
-    ): BiometricAuthManager = BiometricAuthManager(context, keystoreManager)
+        keystoreManager: KeystoreManager,
+        diagnosticsManager: DiagnosticsManager
+    ): BiometricAuthManager = BiometricAuthManager(context, keystoreManager, diagnosticsManager)
 }
