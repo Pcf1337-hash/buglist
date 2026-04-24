@@ -1,11 +1,13 @@
 package com.buglist
 
 import android.app.Application
+import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import javax.inject.Inject
 
 /**
  * BugList Application class.
@@ -40,8 +42,14 @@ class BugListApplication : Application() {
     lateinit var sqlCipherInitJob: Deferred<Unit>
         private set
 
+    @Inject
+    lateinit var diagnosticsManager: DiagnosticsManager
+
     override fun onCreate() {
         super.onCreate()
+
+        // Install crash handler after Hilt injection (super.onCreate() triggers Hilt component creation)
+        diagnosticsManager.installCrashHandler()
 
         // Start native lib load immediately in background — parallel to Hilt init and UI setup.
         // See L-075: moving this off the main thread is the key cold-start optimisation.

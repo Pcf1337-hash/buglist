@@ -104,6 +104,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onPause() {
         super.onPause()
+        diagnosticsManager.sendSessionSummary()
         diagnosticsManager.markBackground()
         diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.APP_BACKGROUND))
     }

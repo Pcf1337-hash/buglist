@@ -24,4 +24,6 @@ object DiagEventType {
     const val AUTH_SCREEN_SHOWN = "AUTH_SCREEN_SHOWN"
     const val DB_OPEN_SUCCESS = "DB_OPEN_SUCCESS"
     const val DB_OPEN_FAILED = "DB_OPEN_FAILED"
+    const val APP_CRASH = "APP_CRASH"
+    const val SESSION_SUMMARY = "SESSION_SUMMARY"
 }
