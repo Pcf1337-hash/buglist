@@ -35,6 +35,7 @@ class DiagnosticsManager @Inject constructor(
     private val authSuccessCount = AtomicInteger(0)
     private val authFailCount = AtomicInteger(0)
     private val authCancelCount = AtomicInteger(0)
+    private val bgReturnCount = AtomicInteger(0)
     private val dbOpenFailed = AtomicBoolean(false)
 
     private val criticalTypes = setOf(
@@ -56,6 +57,9 @@ class DiagnosticsManager @Inject constructor(
             DiagEventType.BIOMETRIC_FAILED -> authFailCount.incrementAndGet()
             DiagEventType.BIOMETRIC_CANCELED -> authCancelCount.incrementAndGet()
             DiagEventType.DB_OPEN_FAILED -> dbOpenFailed.set(true)
+            DiagEventType.APP_FOREGROUND -> {
+                if (event.backgroundSeconds > 0) bgReturnCount.incrementAndGet()
+            }
         }
 
         if (event.eventType in criticalTypes) uploadEvent(event)
@@ -84,13 +88,19 @@ class DiagnosticsManager @Inject constructor(
         val ok = authSuccessCount.getAndSet(0)
         val fail = authFailCount.getAndSet(0)
         val cancel = authCancelCount.getAndSet(0)
+        val bgReturns = bgReturnCount.getAndSet(0)
         val dbFail = dbOpenFailed.getAndSet(false)
         sessionStartTimestamp.set(System.currentTimeMillis())
+
+        // Skip empty sessions — no auth activity and no errors = not interesting
+        val hasActivity = (ok + fail + cancel) > 0 || dbFail || fail > 0 || cancel > 0
+        if (!hasActivity) return
 
         val msg = buildString {
             append("SESSION")
             append(" | auths:${ok + fail + cancel}")
             append(" ok:$ok fail:$fail cancel:$cancel")
+            append(" | bgReturns:$bgReturns")
             append(" | fg:${sessionSeconds}s")
             if (dbFail) append(" | db:FAIL") else append(" | db:ok")
             append(" | sdk:${android.os.Build.VERSION.SDK_INT}")
