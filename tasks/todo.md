@@ -748,6 +748,6 @@
 ### Version + Release
 - [x] versionCode = 44, versionName = "2.1.5"
 - [x] assembleRelease grün
-- [ ] git commit + tag v2.1.5 + push
-- [ ] gh release create v2.1.5
+- [x] git commit + tag v2.1.5 + push (commit 1c748a7)
+- [x] gh release create v2.1.5 — https://github.com/Pcf1337-hash/buglist/releases/tag/v2.1.5
 
