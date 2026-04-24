@@ -801,3 +801,8 @@ _Statistik-Ausbau + TILGEN-Verifikation: 2026-03-18_
 _DeleteAllData-Bugfix: 2026-03-18_
 _v1.5.1 Changes: 2026-03-19_
 _Wird nach jedem Fehler erweitert._
+
+## L-095: DiagnosticsManager – Privacy-safe Remote Debugging
+**Problem:** Biometric-Fehler auf Kollegen-Gerät nicht reproduzierbar ohne physischen Zugriff.
+**Root Cause:** Keine Diagnose-Daten verfügbar, kein Logging-System.
+**Regel:** DiagnosticsManager mit whitelisted Events (nur Fehlercodes, keine PII) + ntfy.sh Push für kritische Events (BIOMETRIC_FAILED, BIOMETRIC_CANCELED, KEY_PERMANENTLY_INVALIDATED). @Named("diagnostics") HttpClient für Hilt-Trennung vom Update-Client. ConcurrentLinkedQueue max 200 Events. Fire-and-forget Upload in SupervisorJob Scope. 5-Tap Debug-Export in Settings für manuellen JSON-Share.

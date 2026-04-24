@@ -751,3 +751,12 @@
 - [x] git commit + tag v2.1.5 + push (commit 1c748a7)
 - [x] gh release create v2.1.5 — https://github.com/Pcf1337-hash/buglist/releases/tag/v2.1.5
 
+
+## Diagnose-System (DiagnosticsManager) – v2.2.0
+- [x] DiagnosticsEvent.kt – Privacy-safe Event-Typen (keine PII)
+- [x] DiagnosticsManager.kt – ConcurrentLinkedQueue max 200, ntfy.sh Upload
+- [x] DiagnosticsModule.kt – @Named("diagnostics") HttpClient via Hilt
+- [x] BiometricAuthManager – Biometric Events (Success, Failed, Canceled, KeyInvalidated)
+- [x] MainActivity – App Lifecycle Events (onPause → markBackground, onResume → APP_FOREGROUND)
+- [x] SettingsScreen – 5-Tap Debug-Export (versteckt hinter Versionsnummer)
+- [x] ntfy.sh Topic: https://ntfy.sh/BugListLogs
