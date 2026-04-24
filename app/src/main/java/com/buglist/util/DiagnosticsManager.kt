@@ -72,6 +72,15 @@ class DiagnosticsManager @Inject constructor(
     /** Call this in Activity.onPause() to track background entry time. */
     fun markBackground() {
         lastBackgroundTimestamp.set(System.currentTimeMillis())
+        scope.launch {
+            runCatching {
+                val payload = """{"topic":"BugListLogs","title":"💤 Background","message":"App in Hintergrund | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}","priority":2,"tags":["zzz"]}"""
+                httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
+                    contentType(ContentType.Application.Json)
+                    setBody(payload)
+                }
+            }
+        }
     }
 
     /** Returns seconds since last background, or 0 if app was never backgrounded. */
