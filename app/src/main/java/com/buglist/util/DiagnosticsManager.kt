@@ -36,6 +36,7 @@ class DiagnosticsManager @Inject constructor(
     private val authFailCount = AtomicInteger(0)
     private val authCancelCount = AtomicInteger(0)
     private val bgReturnCount = AtomicInteger(0)
+    private val bgNotificationSent = AtomicBoolean(false)
     private val bgRetryCount = AtomicInteger(0)
     private val bgRetrySuccessCount = AtomicInteger(0)
     private val dbOpenFailed = AtomicBoolean(false)
@@ -45,7 +46,9 @@ class DiagnosticsManager @Inject constructor(
         DiagEventType.BIOMETRIC_CANCELED,
         DiagEventType.KEY_PERMANENTLY_INVALIDATED,
         DiagEventType.DB_OPEN_FAILED,
-        DiagEventType.APP_CRASH
+        DiagEventType.APP_CRASH,
+        DiagEventType.BG_RETURN_RETRY,    // exakt der Fehlerfall: ERROR_CANCELED (5) → auto-retry
+        DiagEventType.BG_RETURN_SUCCESS   // Auflösung: retry hat geklappt
     )
 
     /** Adds an event to the local queue (max 200). Uploads critical events automatically. */
@@ -60,7 +63,14 @@ class DiagnosticsManager @Inject constructor(
             DiagEventType.BIOMETRIC_CANCELED -> authCancelCount.incrementAndGet()
             DiagEventType.DB_OPEN_FAILED -> dbOpenFailed.set(true)
             DiagEventType.APP_FOREGROUND -> {
-                if (event.backgroundSeconds > 0) bgReturnCount.incrementAndGet()
+                // Reset so next onPause → markBackground() fires exactly one notification again
+                bgNotificationSent.set(false)
+                if (event.backgroundSeconds > 0) {
+                    bgReturnCount.incrementAndGet()
+                    // Real-time signal: bg-return scenario is starting RIGHT NOW.
+                    // Fires immediately so we see it in ntfy even if the auth then crashes the app.
+                    if (event.backgroundSeconds > 3) uploadBgReturn(event.backgroundSeconds)
+                }
             }
             DiagEventType.BG_RETURN_RETRY -> bgRetryCount.incrementAndGet()
             DiagEventType.BG_RETURN_SUCCESS -> bgRetrySuccessCount.incrementAndGet()
@@ -72,12 +82,17 @@ class DiagnosticsManager @Inject constructor(
     /** Call this in Activity.onPause() to track background entry time. */
     fun markBackground() {
         lastBackgroundTimestamp.set(System.currentTimeMillis())
-        scope.launch {
-            runCatching {
-                val payload = """{"topic":"BugListLogs","title":"💤 Background","message":"App in Hintergrund | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}","priority":2,"tags":["zzz"]}"""
-                httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
-                    contentType(ContentType.Application.Json)
-                    setBody(payload)
+        // compareAndSet: nur einmal pro Background-Event senden.
+        // bgNotificationSent wird in record(APP_FOREGROUND) wieder auf false zurückgesetzt,
+        // damit das nächste Background-Event wieder eine Notification bekommt.
+        if (bgNotificationSent.compareAndSet(false, true)) {
+            scope.launch {
+                runCatching {
+                    val payload = """{"topic":"BugListLogs","title":"💤 Background","message":"App in Hintergrund | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}","priority":2,"tags":["zzz"]}"""
+                    httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
+                        contentType(ContentType.Application.Json)
+                        setBody(payload)
+                    }
                 }
             }
         }
@@ -174,18 +189,45 @@ class DiagnosticsManager @Inject constructor(
                 val msg = buildString {
                     append(event.eventType)
                     if (event.errorCode >= 0) append(" | ec:${event.errorCode}")
+                    if (event.authPath.isNotEmpty()) append(" | path:${event.authPath}")
                     append(" | bg:${event.afterBackground}")
                     if (event.backgroundSeconds >= 0) append(" | bgS:${event.backgroundSeconds}s")
+                    if (event.retryAttempt > 0) append(" | retry:${event.retryAttempt}")
                     append(" | sdk:${event.sdkInt}")
                     append(" | ver:${event.appVersion}")
                 }
-                val payload = """{"topic":"BugListLogs","title":"🔴 BugList Diagnose","message":"$msg","priority":4,"tags":["warning"]}"""
+                // Titel und Priorität je nach Event-Typ — so ist ntfy sofort lesbar
+                val (title, priority) = when (event.eventType) {
+                    DiagEventType.BG_RETURN_RETRY    -> "🔄 BG-Retry ausgelöst" to 3
+                    DiagEventType.BG_RETURN_SUCCESS  -> "✅ BG-Retry OK" to 2
+                    DiagEventType.DB_OPEN_FAILED     -> "💥 DB Open Failed" to 5
+                    DiagEventType.KEY_PERMANENTLY_INVALIDATED -> "🔑 Key Invalidated" to 4
+                    DiagEventType.APP_CRASH          -> "💥 App Crash" to 5
+                    DiagEventType.BIOMETRIC_CANCELED -> "⚠️ Auth Canceled" to 3
+                    DiagEventType.BIOMETRIC_FAILED   -> "🔴 Auth Failed" to 4
+                    else -> "🔴 BugList Diagnose" to 4
+                }
+                val payload = """{"topic":"BugListLogs","title":"$title","message":"$msg","priority":$priority,"tags":["warning"]}"""
                 httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
                     contentType(ContentType.Application.Json)
                     setBody(payload)
                 }
             }.onFailure { e ->
                 if (BuildConfig.DEBUG) Log.d("DiagMgr", "Upload skipped: ${e.message}")
+            }
+        }
+    }
+
+    /** Sendet Echtzeit-Signal wenn App nach längerem Background zurückkommt. */
+    private fun uploadBgReturn(bgSecs: Long) {
+        scope.launch {
+            runCatching {
+                val msg = "BG_RETURN | bgS:${bgSecs}s | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}"
+                val payload = """{"topic":"BugListLogs","title":"🔄 BG-Return","message":"$msg","priority":3,"tags":["arrows_counterclockwise"]}"""
+                httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
+                    contentType(ContentType.Application.Json)
+                    setBody(payload)
+                }
             }
         }
     }
