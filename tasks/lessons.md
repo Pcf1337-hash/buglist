@@ -47,6 +47,27 @@ BiometricPrompt.PromptInfo.Builder()
 
 ---
 
+## Kryptographie & Backup
+
+### L-098 – Argon2Kt: Parametername `mCostInKibibyte` (ohne 's')
+**Problem:** `assembleRelease` bricht mit "None of the following candidates is applicable" bei `Argon2Kt().hash(...)` ab. Zusätzlich "Unresolved reference 'rawHashAsByteArray'".
+**Ursache:** Der korrekte Kotlin-Parametername im Argon2Kt SDK ist `mCostInKibibyte` (kein abschließendes 's'). Da der Named-Parameter falsch war, konnte der Compiler die Überladung nicht auflösen, was auch das Folge-Fehler auf `.rawHashAsByteArray()` auslöste.
+**Regel:** Bei `Argon2Kt().hash(...)` IMMER `mCostInKibibyte = ...` (ohne 's') schreiben. Nie `mCostInKibibytes`.
+```kotlin
+// FALSCH
+Argon2Kt().hash(mCostInKibibytes = 32768, ...)
+
+// RICHTIG
+Argon2Kt().hash(mCostInKibibyte = 32768, ...)
+```
+
+### L-099 – BugListColors: kein `DarkSurface`, heißt `Surface`
+**Problem:** `BackupPasswordDialog` kompiliert nicht: "Unresolved reference 'DarkSurface'".
+**Ursache:** Das Design-System heißt das Feld `Surface` (nicht `DarkSurface`). `SurfaceHigh` existiert für elevated surfaces.
+**Regel:** Immer `BugListColors.Surface` für normale Card-Hintergründe; `BugListColors.SurfaceHigh` für elevated. `DarkSurface` existiert nicht.
+
+---
+
 ## Compose & UI
 
 ### L-037 – pointerInput(Unit) + stale Lambda → Backspace löscht nur einmal
