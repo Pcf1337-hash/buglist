@@ -87,11 +87,15 @@ class AuthViewModel @Inject constructor(
         // multiple concurrent calls could cancel each other.
         val current = _uiState.value
         if (current is AuthUiState.Authenticating || current is AuthUiState.Authenticated) return
-        // Record when the auth prompt is shown — retryAttempt > 0 means bg-return retry scenario.
-        // Stays in queue only (not auto-uploaded); visible in exported JSON and session context.
+        // Record when the auth prompt is shown — uploaded silently (priority 1) so we see
+        // exactly when the prompt fired relative to BG-Return in the ntfy trace.
+        // retryAttempt > 0 = bg-return retry scenario; backgroundSeconds = how long in bg.
+        val bgSecs = diagnosticsManager.secondsSinceBackground()
         diagnosticsManager.record(DiagnosticsEvent(
             eventType = DiagEventType.AUTH_SCREEN_SHOWN,
-            retryAttempt = retryCount
+            retryAttempt = retryCount,
+            backgroundSeconds = bgSecs,
+            afterBackground = bgSecs > 0
         ))
         viewModelScope.launch {
             _uiState.value = AuthUiState.Authenticating

@@ -41,14 +41,21 @@ class DiagnosticsManager @Inject constructor(
     private val bgRetrySuccessCount = AtomicInteger(0)
     private val dbOpenFailed = AtomicBoolean(false)
 
+    // Hohe Priorität, Ton/Vibration — echter Fehler oder kritisches Ereignis
     private val criticalTypes = setOf(
         DiagEventType.BIOMETRIC_FAILED,
         DiagEventType.BIOMETRIC_CANCELED,
         DiagEventType.KEY_PERMANENTLY_INVALIDATED,
         DiagEventType.DB_OPEN_FAILED,
         DiagEventType.APP_CRASH,
-        DiagEventType.BG_RETURN_RETRY,    // exakt der Fehlerfall: ERROR_CANCELED (5) → auto-retry
-        DiagEventType.BG_RETURN_SUCCESS   // Auflösung: retry hat geklappt
+        DiagEventType.BG_RETURN_RETRY    // exakt der Fehlerfall: ERROR_CANCELED (5) → auto-retry
+    )
+
+    // Priority 1 (kein Ton, kein Badge) — stiller Trace für vollständige Rekonstruktion des Auth-Flows
+    private val traceTypes = setOf(
+        DiagEventType.AUTH_SCREEN_SHOWN,  // wann der Prompt angezeigt wurde
+        DiagEventType.BIOMETRIC_SUCCESS,  // auth erfolgreich
+        DiagEventType.BG_RETURN_SUCCESS   // retry erfolgreich (Erfolg → kein Alarm nötig)
     )
 
     /** Adds an event to the local queue (max 200). Uploads critical events automatically. */
@@ -77,6 +84,7 @@ class DiagnosticsManager @Inject constructor(
         }
 
         if (event.eventType in criticalTypes) uploadEvent(event)
+        else if (event.eventType in traceTypes) uploadTrace(event)
     }
 
     /** Call this in Activity.onPause() to track background entry time. */
@@ -214,6 +222,36 @@ class DiagnosticsManager @Inject constructor(
                 }
             }.onFailure { e ->
                 if (BuildConfig.DEBUG) Log.d("DiagMgr", "Upload skipped: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Stiller Trace-Upload (Priority 1 = kein Ton, kein Badge).
+     * Für Erfolgs-Events und Auth-Zeitpunkte — gibt vollständigen Auth-Flow in ntfy wieder.
+     */
+    private fun uploadTrace(event: DiagnosticsEvent) {
+        scope.launch {
+            runCatching {
+                val msg = buildString {
+                    append(event.eventType)
+                    if (event.authPath.isNotEmpty()) append(" | path:${event.authPath}")
+                    if (event.backgroundSeconds >= 0) append(" | bgS:${event.backgroundSeconds}s")
+                    if (event.retryAttempt > 0) append(" | retry:${event.retryAttempt}")
+                    append(" | sdk:${event.sdkInt} | ver:${event.appVersion}")
+                }
+                val title = when (event.eventType) {
+                    DiagEventType.AUTH_SCREEN_SHOWN -> "🔐 Auth Requested"
+                    DiagEventType.BIOMETRIC_SUCCESS -> "✅ Auth OK"
+                    DiagEventType.BG_RETURN_SUCCESS -> "✅ BG-Retry OK"
+                    else -> "ℹ️ Trace"
+                }
+                // Priority 1 = keine Benachrichtigung, nur sichtbar beim Öffnen der ntfy-App
+                val payload = """{"topic":"BugListLogs","title":"$title","message":"$msg","priority":1}"""
+                httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
+                    contentType(ContentType.Application.Json)
+                    setBody(payload)
+                }
             }
         }
     }
