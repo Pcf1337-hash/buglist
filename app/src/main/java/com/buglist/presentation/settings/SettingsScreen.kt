@@ -493,6 +493,16 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    HorizontalDivider(
+                        color = BugListColors.Divider,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                    SettingsToggleRow(
+                        label = stringResource(R.string.settings_diagnostics_push_label),
+                        sublabel = stringResource(R.string.settings_diagnostics_push_sublabel),
+                        checked = uiData.diagnosticsPushEnabled,
+                        onCheckedChange = viewModel::setDiagnosticsPush
+                    )
                     Spacer(Modifier.height(12.dp))
                     GoldButton(
                         text = "AUF UPDATES PRÜFEN",

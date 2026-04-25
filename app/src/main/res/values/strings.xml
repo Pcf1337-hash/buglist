@@ -128,6 +128,8 @@
     <string name="settings_delete_all_title">ALLE DATEN LÖSCHEN?</string>
     <string name="settings_delete_all_message">Diese Aktion kann nicht rückgängig gemacht werden. Alle Schulden und Personen werden permanent gelöscht.</string>
     <string name="settings_version_label">App-Version</string>
+    <string name="settings_diagnostics_push_label">Debug-Pushs an ntfy.sh</string>
+    <string name="settings_diagnostics_push_sublabel">Auth-Ereignisse und Fehler als Push-Nachricht senden</string>
 
     <!-- Generic Actions -->
     <string name="action_save">SPEICHERN</string>

@@ -50,6 +50,7 @@ import kotlin.random.Random
 private val KEY_CURRENCY = stringPreferencesKey("currency")
 private val KEY_AUTO_LOCK = intPreferencesKey("auto_lock_timeout_seconds")
 private val KEY_SHOW_DESCRIPTION = booleanPreferencesKey("show_description")
+private val KEY_DIAGNOSTICS_PUSH = booleanPreferencesKey("diagnostics_push_enabled")
 
 data class SettingsUiData(
     val currency: String = "EUR",
@@ -60,6 +61,11 @@ data class SettingsUiData(
     val isSeedingData: Boolean = false,
     /** When true, the description/comment field is shown in AddDebtSheet. Default: false. */
     val showDescription: Boolean = false,
+    /**
+     * When true, the app sends real-time debug pushes to ntfy.sh (Auth events, crashes, etc.).
+     * Default true — can be disabled per-device from Settings.
+     */
+    val diagnosticsPushEnabled: Boolean = true,
     /** True while Argon2 KDF + AES-GCM encryption is running for backup export. */
     val isExportingBackup: Boolean = false,
     /**
@@ -173,13 +179,17 @@ class SettingsViewModel @Inject constructor(
             val currency = prefs[KEY_CURRENCY] ?: "EUR"
             val autoLock = prefs[KEY_AUTO_LOCK] ?: 60
             val showDesc = prefs[KEY_SHOW_DESCRIPTION] ?: false
+            val diagPush = prefs[KEY_DIAGNOSTICS_PUSH] ?: true
             _uiData.value = _uiData.value.copy(
                 currency = currency,
                 autoLockTimeoutSeconds = autoLock,
-                showDescription = showDesc
+                showDescription = showDesc,
+                diagnosticsPushEnabled = diagPush
             )
             // Sync session manager with persisted timeout
             sessionManager.autoLockTimeoutMs = autoLock * 1000L
+            // Sync diagnostics manager with persisted toggle state
+            diagnosticsManager.setEnabled(diagPush)
         }
     }
 
@@ -199,6 +209,18 @@ class SettingsViewModel @Inject constructor(
         _uiData.value = _uiData.value.copy(showDescription = show)
         viewModelScope.launch {
             context.appDataStore.edit { it[KEY_SHOW_DESCRIPTION] = show }
+        }
+    }
+
+    /**
+     * Enables or disables real-time ntfy.sh debug push notifications.
+     * Persisted in DataStore; immediately applied to [DiagnosticsManager].
+     */
+    fun setDiagnosticsPush(enabled: Boolean) {
+        _uiData.value = _uiData.value.copy(diagnosticsPushEnabled = enabled)
+        diagnosticsManager.setEnabled(enabled)
+        viewModelScope.launch {
+            context.appDataStore.edit { it[KEY_DIAGNOSTICS_PUSH] = enabled }
         }
     }
 

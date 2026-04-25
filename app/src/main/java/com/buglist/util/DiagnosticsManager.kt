@@ -26,6 +26,31 @@ class DiagnosticsManager @Inject constructor(
     @Named("diagnostics") private val httpClient: HttpClient
 ) {
 
+    /**
+     * Short device tag appended to every ntfy message so multiple devices can be
+     * distinguished in the log feed. Format: first 12 chars of Build.MODEL, spaces → underscores.
+     * Example: "Pixel_8_Pro", "SM-A536B", "sdk_gphone64"
+     */
+    private val deviceTag: String = android.os.Build.MODEL
+        .take(14)
+        .replace(" ", "_")
+
+    /**
+     * When false, no ntfy pushes are sent (neither critical nor trace).
+     * Controlled by the in-app toggle in Settings. Default true.
+     * Updated via [setEnabled] from SettingsViewModel on init and on toggle change.
+     */
+    @Volatile
+    private var enabled: Boolean = true
+
+    /** Called by SettingsViewModel to sync the persisted DataStore preference. */
+    fun setEnabled(value: Boolean) {
+        enabled = value
+    }
+
+    /** Current state of the ntfy push toggle. */
+    fun isEnabled(): Boolean = enabled
+
     private val events = ConcurrentLinkedQueue<DiagnosticsEvent>()
     private val lastBackgroundTimestamp = AtomicLong(0L)
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -93,10 +118,10 @@ class DiagnosticsManager @Inject constructor(
         // compareAndSet: nur einmal pro Background-Event senden.
         // bgNotificationSent wird in record(APP_FOREGROUND) wieder auf false zurückgesetzt,
         // damit das nächste Background-Event wieder eine Notification bekommt.
-        if (bgNotificationSent.compareAndSet(false, true)) {
+        if (enabled && bgNotificationSent.compareAndSet(false, true)) {
             scope.launch {
                 runCatching {
-                    val payload = """{"topic":"BugListLogs","title":"💤 Background","message":"App in Hintergrund | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}","priority":2,"tags":["zzz"]}"""
+                    val payload = """{"topic":"BugListLogs","title":"💤 Background","message":"App in Hintergrund | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME} | dev:$deviceTag","priority":2,"tags":["zzz"]}"""
                     httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
                         contentType(ContentType.Application.Json)
                         setBody(payload)
@@ -134,6 +159,8 @@ class DiagnosticsManager @Inject constructor(
         val hasActivity = (ok + fail + cancel) > 0 || dbFail || bgRetries > 0
         if (!hasActivity) return
 
+        if (!enabled) return
+
         val msg = buildString {
             append("SESSION")
             append(" | auths:${ok + fail + cancel}")
@@ -144,6 +171,7 @@ class DiagnosticsManager @Inject constructor(
             if (dbFail) append(" | db:FAIL") else append(" | db:ok")
             append(" | sdk:${android.os.Build.VERSION.SDK_INT}")
             append(" | ver:${BuildConfig.VERSION_NAME}")
+            append(" | dev:$deviceTag")
         }
 
         scope.launch {
@@ -171,7 +199,7 @@ class DiagnosticsManager @Inject constructor(
                 // Only the class simpleName — never the message (may contain user-visible text)
                 val safeClass = throwable::class.java.simpleName
                 val bgSecs = secondsSinceBackground()
-                val msg = "CRASH: $safeClass | bg:${bgSecs > 0} | bgS:${bgSecs}s | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}"
+                val msg = "CRASH: $safeClass | bg:${bgSecs > 0} | bgS:${bgSecs}s | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME} | dev:$deviceTag"
                 val payload = """{"topic":"BugListLogs","title":"💥 App Crash","message":"$msg","priority":5,"tags":["rotating_light"]}"""
 
                 // Synchronous HTTP — no coroutines available during crash
@@ -192,6 +220,7 @@ class DiagnosticsManager @Inject constructor(
     }
 
     private fun uploadEvent(event: DiagnosticsEvent) {
+        if (!enabled) return
         scope.launch {
             runCatching {
                 val msg = buildString {
@@ -203,6 +232,7 @@ class DiagnosticsManager @Inject constructor(
                     if (event.retryAttempt > 0) append(" | retry:${event.retryAttempt}")
                     append(" | sdk:${event.sdkInt}")
                     append(" | ver:${event.appVersion}")
+                    append(" | dev:$deviceTag")
                 }
                 // Titel und Priorität je nach Event-Typ — so ist ntfy sofort lesbar
                 val (title, priority) = when (event.eventType) {
@@ -231,6 +261,7 @@ class DiagnosticsManager @Inject constructor(
      * Für Erfolgs-Events und Auth-Zeitpunkte — gibt vollständigen Auth-Flow in ntfy wieder.
      */
     private fun uploadTrace(event: DiagnosticsEvent) {
+        if (!enabled) return
         scope.launch {
             runCatching {
                 val msg = buildString {
@@ -239,6 +270,7 @@ class DiagnosticsManager @Inject constructor(
                     if (event.backgroundSeconds >= 0) append(" | bgS:${event.backgroundSeconds}s")
                     if (event.retryAttempt > 0) append(" | retry:${event.retryAttempt}")
                     append(" | sdk:${event.sdkInt} | ver:${event.appVersion}")
+                    append(" | dev:$deviceTag")
                 }
                 val title = when (event.eventType) {
                     DiagEventType.AUTH_SCREEN_SHOWN -> "🔐 Auth Requested"
@@ -258,9 +290,10 @@ class DiagnosticsManager @Inject constructor(
 
     /** Sendet Echtzeit-Signal wenn App nach längerem Background zurückkommt. */
     private fun uploadBgReturn(bgSecs: Long) {
+        if (!enabled) return
         scope.launch {
             runCatching {
-                val msg = "BG_RETURN | bgS:${bgSecs}s | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME}"
+                val msg = "BG_RETURN | bgS:${bgSecs}s | sdk:${android.os.Build.VERSION.SDK_INT} | ver:${BuildConfig.VERSION_NAME} | dev:$deviceTag"
                 val payload = """{"topic":"BugListLogs","title":"🔄 BG-Return","message":"$msg","priority":3,"tags":["arrows_counterclockwise"]}"""
                 httpClient.post(BuildConfig.NTFY_TOPIC_URL) {
                     contentType(ContentType.Application.Json)
