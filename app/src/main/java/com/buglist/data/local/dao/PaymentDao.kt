@@ -81,6 +81,19 @@ interface PaymentDao {
      * @param newStatus The computed new status ("PARTIAL" or "PAID") after this payment.
      * @return          The auto-generated row ID of the inserted payment.
      */
+    // ── Backup / Restore ──────────────────────────────────────────────────────
+
+    /** Returns a one-shot snapshot of all payments (used for encrypted backup export). */
+    @Query("SELECT * FROM payments")
+    suspend fun getAllPayments(): List<PaymentEntity>
+
+    /**
+     * Batch-inserts payments with REPLACE conflict strategy.
+     * Used during backup restore: IDs are preserved so FK relationships stay intact.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(payments: List<PaymentEntity>)
+
     @Transaction
     suspend fun insertPaymentAndUpdateStatus(
         payment: PaymentEntity,

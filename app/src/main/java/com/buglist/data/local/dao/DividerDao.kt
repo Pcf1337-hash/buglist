@@ -40,4 +40,17 @@ interface DividerDao {
      */
     @Query("UPDATE dividers SET sortIndex = :sortIndex WHERE id = :id")
     suspend fun updateSortIndex(id: Long, sortIndex: Int)
+
+    // ── Backup / Restore ──────────────────────────────────────────────────────
+
+    /** Returns a one-shot snapshot of all dividers (used for encrypted backup export). */
+    @Query("SELECT * FROM dividers")
+    suspend fun getAllDividersSnapshot(): List<DividerEntity>
+
+    /**
+     * Batch-inserts dividers with REPLACE conflict strategy.
+     * Used during backup restore: IDs are preserved so sort order stays intact.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(dividers: List<DividerEntity>)
 }

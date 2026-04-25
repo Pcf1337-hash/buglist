@@ -346,6 +346,19 @@ interface DebtEntryDao {
         ) paid ON paid.debtEntryId = de.id
     """)
     fun getTotalNetBalance(): Flow<Double>
+
+    // ── Backup / Restore ──────────────────────────────────────────────────────
+
+    /** Returns a one-shot snapshot of all debt entries (used for encrypted backup export). */
+    @Query("SELECT * FROM debt_entries")
+    suspend fun getAllDebtEntries(): List<DebtEntryEntity>
+
+    /**
+     * Batch-inserts debt entries with REPLACE conflict strategy.
+     * Used during backup restore: IDs are preserved so FK relationships stay intact.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<DebtEntryEntity>)
 }
 
 /** Projection for the monthly totals chart query. */

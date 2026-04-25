@@ -1,6 +1,7 @@
 package com.buglist.presentation.settings
 
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -8,9 +9,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.buglist.util.appDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.buglist.data.backup.BackupPayload
+import com.buglist.data.backup.BackupSummary
+import com.buglist.data.backup.SettingsBackup
 import com.buglist.data.local.AppDatabase
 import com.buglist.domain.model.DebtEntry
 import com.buglist.domain.model.Person
+import com.buglist.domain.model.Result
 import com.buglist.domain.model.Tag
 import com.buglist.data.remote.UpdateState
 import com.buglist.util.DownloadState
@@ -20,6 +25,8 @@ import com.buglist.domain.usecase.AddDebtUseCase
 import com.buglist.domain.usecase.AddPersonUseCase
 import com.buglist.domain.usecase.CheckForUpdateUseCase
 import com.buglist.domain.usecase.ExportDataUseCase
+import com.buglist.domain.usecase.ExportEncryptedBackupUseCase
+import com.buglist.domain.usecase.ImportEncryptedBackupUseCase
 import com.buglist.security.SessionManager
 import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,6 +43,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -51,7 +59,20 @@ data class SettingsUiData(
     val showDeleteConfirm: Boolean = false,
     val isSeedingData: Boolean = false,
     /** When true, the description/comment field is shown in AddDebtSheet. Default: false. */
-    val showDescription: Boolean = false
+    val showDescription: Boolean = false,
+    /** True while Argon2 KDF + AES-GCM encryption is running for backup export. */
+    val isExportingBackup: Boolean = false,
+    /**
+     * Set to the cache File after a successful backup export.
+     * The Screen observes this to fire a Share Intent, then calls [SettingsViewModel.clearBackupExportFile].
+     */
+    val backupExportFile: File? = null,
+    /** Non-null while import confirmation dialog is shown (shows person/debt counts). */
+    val importSummary: BackupSummary? = null,
+    /** Non-null when import decryption or validation failed. */
+    val importError: String? = null,
+    /** True while Argon2 decryption + DB restore is running. */
+    val isImportingBackup: Boolean = false
 )
 
 /**
@@ -70,8 +91,13 @@ class SettingsViewModel @Inject constructor(
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
     private val appDatabase: AppDatabase,
     private val tagRepository: TagRepository,
-    private val diagnosticsManager: DiagnosticsManager
+    private val diagnosticsManager: DiagnosticsManager,
+    private val exportEncryptedBackupUseCase: ExportEncryptedBackupUseCase,
+    private val importEncryptedBackupUseCase: ImportEncryptedBackupUseCase
 ) : ViewModel() {
+
+    /** Holds the decrypted-but-not-yet-applied payload during import confirmation phase. */
+    private var pendingBackupPayload: BackupPayload? = null
 
     private val _uiData = MutableStateFlow(SettingsUiData())
     val uiData: StateFlow<SettingsUiData> = _uiData.asStateFlow()
@@ -251,6 +277,129 @@ class SettingsViewModel @Inject constructor(
             tagRepository.deleteTag(tag)
         }
     }
+
+    // ─── Encrypted Backup ────────────────────────────────────────────────────
+
+    /**
+     * Exports all app data as an encrypted `.blbak` file.
+     *
+     * Runs Argon2id KDF + AES-256-GCM on IO. On success, [SettingsUiData.backupExportFile]
+     * is set to the cache File — the Screen observes this to fire a Share Intent.
+     *
+     * @param password User-supplied backup password (min 4 chars, enforced in UI).
+     */
+    fun exportBackup(password: String) {
+        viewModelScope.launch {
+            _uiData.value = _uiData.value.copy(isExportingBackup = true, backupExportFile = null)
+            val settings = SettingsBackup(
+                currency = _uiData.value.currency,
+                autoLockTimeoutSeconds = _uiData.value.autoLockTimeoutSeconds,
+                showDescription = _uiData.value.showDescription
+            )
+            val result = exportEncryptedBackupUseCase(password, settings)
+            _uiData.value = when (result) {
+                is com.buglist.domain.model.Result.Success ->
+                    _uiData.value.copy(isExportingBackup = false, backupExportFile = result.data)
+                is com.buglist.domain.model.Result.Error ->
+                    _uiData.value.copy(isExportingBackup = false, importError = result.message)
+            }
+        }
+    }
+
+    /** Called by the Screen after the Share Intent has been fired. Clears the export file reference. */
+    fun clearBackupExportFile() {
+        val file = _uiData.value.backupExportFile
+        _uiData.value = _uiData.value.copy(backupExportFile = null)
+        // Clean up cache file asynchronously
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            file?.delete()
+        }
+    }
+
+    /**
+     * Phase 1 of import: decrypts the file at [uri] with [password] and validates the payload.
+     *
+     * On success, the payload is held in [pendingBackupPayload] and [SettingsUiData.importSummary]
+     * is set to show the confirmation dialog. Call [confirmImport] to apply, or [dismissImportResult]
+     * to cancel.
+     *
+     * @param uri   Content URI from SAF file picker.
+     * @param password User-supplied password to decrypt the backup.
+     */
+    fun validateImportFile(uri: Uri, password: String) {
+        viewModelScope.launch {
+            _uiData.value = _uiData.value.copy(isImportingBackup = true, importError = null, importSummary = null)
+            val result = importEncryptedBackupUseCase.parseAndValidate(uri, password)
+            when (result) {
+                is com.buglist.domain.model.Result.Success -> {
+                    pendingBackupPayload = result.data.first
+                    _uiData.value = _uiData.value.copy(
+                        isImportingBackup = false,
+                        importSummary = result.data.second
+                    )
+                }
+                is com.buglist.domain.model.Result.Error -> {
+                    _uiData.value = _uiData.value.copy(
+                        isImportingBackup = false,
+                        importError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Phase 2 of import: applies the [pendingBackupPayload] (wipe + restore) and restores
+     * DataStore settings from the payload.
+     *
+     * Must only be called when [SettingsUiData.importSummary] is non-null (user confirmed dialog).
+     * Emits [deleteAllEvent] on success so the Screen navigates back to Dashboard.
+     */
+    fun confirmImport() {
+        val payload = pendingBackupPayload ?: return
+        _uiData.value = _uiData.value.copy(isImportingBackup = true, importSummary = null)
+        viewModelScope.launch {
+            val result = importEncryptedBackupUseCase.applyBackup(payload)
+            pendingBackupPayload = null
+            when (result) {
+                is com.buglist.domain.model.Result.Success -> {
+                    // Restore DataStore settings from backup payload
+                    val s = payload.settings
+                    context.appDataStore.edit { prefs ->
+                        prefs[KEY_CURRENCY] = s.currency
+                        prefs[KEY_AUTO_LOCK] = s.autoLockTimeoutSeconds
+                        prefs[KEY_SHOW_DESCRIPTION] = s.showDescription
+                    }
+                    _uiData.value = _uiData.value.copy(
+                        isImportingBackup = false,
+                        currency = s.currency,
+                        autoLockTimeoutSeconds = s.autoLockTimeoutSeconds,
+                        showDescription = s.showDescription
+                    )
+                    sessionManager.autoLockTimeoutMs = s.autoLockTimeoutSeconds * 1000L
+                    _deleteAllEvent.emit(Unit)
+                }
+                is com.buglist.domain.model.Result.Error -> {
+                    _uiData.value = _uiData.value.copy(
+                        isImportingBackup = false,
+                        importError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    /** Clears import error message or cancels the pending import confirmation. */
+    fun dismissImportResult() {
+        pendingBackupPayload = null
+        _uiData.value = _uiData.value.copy(
+            importSummary = null,
+            importError = null,
+            isImportingBackup = false
+        )
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     /** Returns all recorded diagnostic events as a JSON string. */
     fun exportDiagnostics(): String = diagnosticsManager.exportAsJson()

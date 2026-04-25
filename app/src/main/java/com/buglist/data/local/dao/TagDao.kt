@@ -81,4 +81,21 @@ interface TagDao {
      */
     @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
     suspend fun getTagByName(name: String): TagEntity?
+
+    // ── Backup / Restore ──────────────────────────────────────────────────────
+
+    /** Returns a one-shot snapshot of all tags (used for encrypted backup export). */
+    @Query("SELECT * FROM tags")
+    suspend fun getAllTagsSnapshot(): List<TagEntity>
+
+    /** Returns a one-shot snapshot of all debt-entry/tag cross-references. */
+    @Query("SELECT * FROM debt_entry_tags")
+    suspend fun getAllCrossRefs(): List<DebtEntryTagCrossRef>
+
+    /**
+     * Batch-inserts tags with REPLACE conflict strategy.
+     * Used during backup restore: IDs are preserved so FK relationships stay intact.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllTags(tags: List<TagEntity>)
 }

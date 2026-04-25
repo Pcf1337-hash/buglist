@@ -89,4 +89,17 @@ interface PersonDao {
     /** Returns the total count of persons. */
     @Query("SELECT COUNT(*) FROM persons")
     fun getPersonCount(): Flow<Int>
+
+    // ── Backup / Restore ──────────────────────────────────────────────────────
+
+    /** Returns a one-shot snapshot of all persons (used for encrypted backup export). */
+    @Query("SELECT * FROM persons")
+    suspend fun getAllPersonsSnapshot(): List<PersonEntity>
+
+    /**
+     * Batch-inserts persons with REPLACE conflict strategy.
+     * Used during backup restore: IDs are preserved so FK relationships stay intact.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(persons: List<PersonEntity>)
 }

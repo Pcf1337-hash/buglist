@@ -64,6 +64,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,11 +101,54 @@ fun SettingsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Navigate away once all data has been deleted.
+    // Backup dialog state
+    var showExportPasswordDialog by remember { mutableStateOf(false) }
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+
+    // SAF launcher — opens file picker for .blbak files
+    val importFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            pendingImportUri = uri
+            showImportPasswordDialog = true
+        }
+    }
+
+    // Navigate away once all data has been deleted / restored.
     LaunchedEffect(Unit) {
         viewModel.deleteAllEvent.collect {
             onDeleteAll()
         }
+    }
+
+    // Share the backup file once export finishes
+    LaunchedEffect(uiData.backupExportFile) {
+        val file = uiData.backupExportFile ?: return@LaunchedEffect
+        try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${BuildConfig.APPLICATION_ID}.fileprovider",
+                file
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "BugList Backup")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Backup teilen"))
+        } finally {
+            viewModel.clearBackupExportFile()
+        }
+    }
+
+    // Show import errors as snackbar
+    LaunchedEffect(uiData.importError) {
+        val msg = uiData.importError ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(msg)
+        viewModel.dismissImportResult()
     }
 
     // Show snackbar feedback for update check results that don't have their own dialog.
@@ -165,6 +211,49 @@ fun SettingsScreen(
         } finally {
             viewModel.clearExportCsv()
         }
+    }
+
+    // Export password dialog
+    if (showExportPasswordDialog) {
+        BackupPasswordDialog(
+            isExport = true,
+            isLoading = uiData.isExportingBackup,
+            errorMessage = null,
+            onConfirm = { password ->
+                showExportPasswordDialog = false
+                viewModel.exportBackup(password)
+            },
+            onDismiss = { showExportPasswordDialog = false }
+        )
+    }
+
+    // Import password dialog (shown after file is selected via SAF)
+    if (showImportPasswordDialog) {
+        BackupPasswordDialog(
+            isExport = false,
+            isLoading = uiData.isImportingBackup,
+            errorMessage = null,
+            onConfirm = { password ->
+                showImportPasswordDialog = false
+                val uri = pendingImportUri
+                if (uri != null) viewModel.validateImportFile(uri, password)
+            },
+            onDismiss = {
+                showImportPasswordDialog = false
+                pendingImportUri = null
+            }
+        )
+    }
+
+    // Import confirmation dialog (shown after successful decryption + validation)
+    val importSummary = uiData.importSummary
+    if (importSummary != null) {
+        BackupConfirmDialog(
+            personCount = importSummary.personCount,
+            debtCount = importSummary.debtCount,
+            onConfirm = { viewModel.confirmImport() },
+            onDismiss = { viewModel.dismissImportResult() }
+        )
     }
 
     if (uiData.showDeleteConfirm) {
@@ -264,7 +353,49 @@ fun SettingsScreen(
                         onClick = viewModel::exportData,
                         enabled = !uiData.isExporting
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = BugListColors.Divider)
+                    Spacer(Modifier.height(8.dp))
+                    // ── Backup section ──────────────────────────────────────
+                    Text(
+                        text = stringResource(R.string.settings_backup_section).uppercase(),
+                        fontFamily = OswaldFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = BugListColors.Muted,
+                        letterSpacing = 2.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    GoldButton(
+                        text = stringResource(R.string.settings_backup_export_button),
+                        onClick = { showExportPasswordDialog = true },
+                        enabled = !uiData.isExportingBackup && !uiData.isImportingBackup
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        onClick = { importFileLauncher.launch(arrayOf("*/*")) },
+                        shape = RoundedCornerShape(8.dp),
+                        color = BugListColors.Gold.copy(alpha = 0.08f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_backup_import_button).uppercase(),
+                                fontFamily = OswaldFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = BugListColors.Gold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
+                    // ────────────────────────────────────────────────────────
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = BugListColors.Divider)
+                    Spacer(Modifier.height(8.dp))
                     Surface(
                         onClick = viewModel::showDeleteConfirm,
                         shape = RoundedCornerShape(8.dp),
