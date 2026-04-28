@@ -10,9 +10,6 @@ import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.AuthenticationCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.buglist.util.DiagEventType
-import com.buglist.util.DiagnosticsEvent
-import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -70,8 +67,7 @@ enum class BiometricAvailability {
 @Singleton
 class BiometricAuthManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val keystoreManager: KeystoreManager,
-    private val diagnosticsManager: DiagnosticsManager
+    private val keystoreManager: KeystoreManager
 ) {
 
     /**
@@ -80,7 +76,7 @@ class BiometricAuthManager @Inject constructor(
     fun checkBiometricAvailability(): BiometricAvailability {
         val manager = BiometricManager.from(context)
         return when (manager.canAuthenticate(BIOMETRIC_STRONG)) {
-            BiometricManager.BIOMETRIC_SUCCESS -> BiometricAvailability.NO_HARDWARE // placeholder; see isBiometricAvailable()
+            BiometricManager.BIOMETRIC_SUCCESS -> BiometricAvailability.NO_HARDWARE
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> BiometricAvailability.NO_HARDWARE
             BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> BiometricAvailability.HARDWARE_UNAVAILABLE
             BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> BiometricAvailability.NONE_ENROLLED
@@ -98,8 +94,7 @@ class BiometricAuthManager @Inject constructor(
 
     /**
      * Returns true if any authentication (weak biometric or device credential) is available.
-     * Used to detect Samsung Galaxy A series devices where the sensor is Class 2 (BIOMETRIC_WEAK)
-     * and canAuthenticate(BIOMETRIC_STRONG) incorrectly returns NONE_ENROLLED.
+     * Used to detect Samsung Galaxy A series devices where the sensor is Class 2 (BIOMETRIC_WEAK).
      */
     fun isFallbackAvailable(): Boolean {
         val manager = BiometricManager.from(context)
@@ -122,13 +117,6 @@ class BiometricAuthManager @Inject constructor(
      * ALWAYS binds a [BiometricPrompt.CryptoObject] with an encrypt-mode cipher.
      * This cryptographically binds the biometric result to a real Keystore operation —
      * software-only auth bypass is impossible. See L-024 in lessons.md.
-     *
-     * @param activity       The hosting [FragmentActivity]. MainActivity extends FragmentActivity
-     *                       explicitly so this is safe without any cast. See L-066 in lessons.md.
-     * @param title          Prompt title shown to the user.
-     * @param subtitle       Prompt subtitle.
-     * @param negativeButton Text for the cancel/negative button.
-     * @param onResult       Callback invoked on the main thread with the [AuthResult].
      */
     fun authenticate(
         activity: FragmentActivity,
@@ -138,28 +126,14 @@ class BiometricAuthManager @Inject constructor(
         onResult: (AuthResult) -> Unit
     ) {
         when {
-            isBiometricAvailable() -> {
-                // Preferred path: BIOMETRIC_STRONG with CryptoObject binding.
-                authenticateStrong(activity, title, subtitle, negativeButton, onResult)
-            }
-            isFallbackAvailable() -> {
-                // Fallback path: Samsung Galaxy A series and other devices with Class 2
-                // sensors. canAuthenticate(BIOMETRIC_STRONG) returns NONE_ENROLLED even
-                // when a fingerprint is enrolled because the sensor is Class 2 (WEAK).
-                // DEVICE_CREDENTIAL is included so PIN/pattern/password also works.
-                // No CryptoObject — biometrics used as gate only (PassphraseManager
-                // uses Tink independently and is not affected). See L-088 in lessons.md.
-                authenticateFallback(activity, title, subtitle, onResult)
-            }
-            else -> {
-                onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
-            }
+            isBiometricAvailable() -> authenticateStrong(activity, title, subtitle, negativeButton, onResult)
+            isFallbackAvailable() -> authenticateFallback(activity, title, subtitle, onResult)
+            else -> onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
         }
     }
 
     /**
      * BIOMETRIC_STRONG path with CryptoObject binding.
-     * Preferred on devices where Class 3 biometrics are available.
      */
     private fun authenticateStrong(
         activity: FragmentActivity,
@@ -172,7 +146,6 @@ class BiometricAuthManager @Inject constructor(
             keystoreManager.getEncryptCipher()
         } catch (e: KeyPermanentlyInvalidatedException) {
             keystoreManager.deleteKey()
-            diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.KEY_PERMANENTLY_INVALIDATED))
             onResult(AuthResult.KeyInvalidated)
             return
         } catch (e: Exception) {
@@ -187,21 +160,13 @@ class BiometricAuthManager @Inject constructor(
             .setAllowedAuthenticators(BIOMETRIC_STRONG)
             .build()
 
-        val executor = ContextCompat.getMainExecutor(activity)
-
         val biometricPrompt = BiometricPrompt(
             activity,
-            executor,
+            ContextCompat.getMainExecutor(activity),
             object : AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(
-                    result: BiometricPrompt.AuthenticationResult
-                ) {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
-                        diagnosticsManager.record(DiagnosticsEvent(
-                            eventType = DiagEventType.BIOMETRIC_SUCCESS,
-                            authPath = "STRONG"
-                        ))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -212,16 +177,6 @@ class BiometricAuthManager @Inject constructor(
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    val bgSecs = diagnosticsManager.secondsSinceBackground()
-                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
-                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = type,
-                        errorCode = errorCode,
-                        afterBackground = bgSecs > 0,
-                        backgroundSeconds = bgSecs,
-                        authPath = "STRONG"
-                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -237,11 +192,9 @@ class BiometricAuthManager @Inject constructor(
     /**
      * Fallback path for Samsung Galaxy A series and other Class 2 devices.
      *
-     * Uses BIOMETRIC_WEAK or DEVICE_CREDENTIAL — no CryptoObject (Android restriction:
-     * CryptoObject requires BIOMETRIC_STRONG). Biometrics serve as a gate only.
+     * Uses BIOMETRIC_WEAK or DEVICE_CREDENTIAL — no CryptoObject (Android restriction).
      * The database passphrase is independently protected by Tink (PassphraseManager).
-     *
-     * Note: No negative button when DEVICE_CREDENTIAL is included in authenticators.
+     * See L-088 in lessons.md.
      */
     private fun authenticateFallback(
         activity: FragmentActivity,
@@ -256,34 +209,15 @@ class BiometricAuthManager @Inject constructor(
             // No setNegativeButtonText — DEVICE_CREDENTIAL provides its own cancel UI
             .build()
 
-        val executor = ContextCompat.getMainExecutor(activity)
-
         val biometricPrompt = BiometricPrompt(
             activity,
-            executor,
+            ContextCompat.getMainExecutor(activity),
             object : AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(
-                    result: BiometricPrompt.AuthenticationResult
-                ) {
-                    // No CryptoObject in this path by design — see method KDoc.
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = DiagEventType.BIOMETRIC_SUCCESS,
-                        authPath = "FALLBACK"
-                    ))
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     onResult(AuthResult.SuccessNoCipher)
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    val bgSecs = diagnosticsManager.secondsSinceBackground()
-                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
-                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = type,
-                        errorCode = errorCode,
-                        afterBackground = bgSecs > 0,
-                        backgroundSeconds = bgSecs,
-                        authPath = "FALLBACK"
-                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 
@@ -299,13 +233,6 @@ class BiometricAuthManager @Inject constructor(
 
     /**
      * Launches BiometricPrompt for decryption (re-opening an existing encrypted session).
-     *
-     * @param iv             The IV from the previously encrypted passphrase.
-     * @param activity       The hosting [FragmentActivity].
-     * @param title          Prompt title.
-     * @param subtitle       Prompt subtitle.
-     * @param negativeButton Cancel button text.
-     * @param onResult       Callback with [AuthResult].
      */
     fun authenticateForDecrypt(
         iv: ByteArray,
@@ -316,15 +243,9 @@ class BiometricAuthManager @Inject constructor(
         onResult: (AuthResult) -> Unit
     ) {
         when {
-            isBiometricAvailable() -> {
-                authenticateForDecryptStrong(iv, activity, title, subtitle, negativeButton, onResult)
-            }
-            isFallbackAvailable() -> {
-                authenticateFallback(activity, title, subtitle, onResult)
-            }
-            else -> {
-                onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
-            }
+            isBiometricAvailable() -> authenticateForDecryptStrong(iv, activity, title, subtitle, negativeButton, onResult)
+            isFallbackAvailable() -> authenticateFallback(activity, title, subtitle, onResult)
+            else -> onResult(AuthResult.HardwareUnavailable(checkBiometricAvailability()))
         }
     }
 
@@ -343,7 +264,6 @@ class BiometricAuthManager @Inject constructor(
             keystoreManager.getDecryptCipher(iv)
         } catch (e: KeyPermanentlyInvalidatedException) {
             keystoreManager.deleteKey()
-            diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.KEY_PERMANENTLY_INVALIDATED))
             onResult(AuthResult.KeyInvalidated)
             return
         } catch (e: Exception) {
@@ -358,20 +278,13 @@ class BiometricAuthManager @Inject constructor(
             .setAllowedAuthenticators(BIOMETRIC_STRONG)
             .build()
 
-        val executor = ContextCompat.getMainExecutor(activity)
         val biometricPrompt = BiometricPrompt(
             activity,
-            executor,
+            ContextCompat.getMainExecutor(activity),
             object : AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(
-                    result: BiometricPrompt.AuthenticationResult
-                ) {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     val authenticatedCipher = result.cryptoObject?.cipher
                     if (authenticatedCipher != null) {
-                        diagnosticsManager.record(DiagnosticsEvent(
-                            eventType = DiagEventType.BIOMETRIC_SUCCESS,
-                            authPath = "STRONG"
-                        ))
                         onResult(AuthResult.Success(authenticatedCipher))
                     } else {
                         onResult(AuthResult.Failure(
@@ -382,16 +295,6 @@ class BiometricAuthManager @Inject constructor(
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    val bgSecs = diagnosticsManager.secondsSinceBackground()
-                    val type = if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED)
-                        DiagEventType.BIOMETRIC_CANCELED else DiagEventType.BIOMETRIC_FAILED
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = type,
-                        errorCode = errorCode,
-                        afterBackground = bgSecs > 0,
-                        backgroundSeconds = bgSecs,
-                        authPath = "STRONG"
-                    ))
                     onResult(AuthResult.Failure(errorCode, errString.toString()))
                 }
 

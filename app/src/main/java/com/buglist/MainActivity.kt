@@ -17,9 +17,6 @@ import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.BugListTheme
 import com.buglist.security.BiometricAuthManager
 import com.buglist.security.SessionManager
-import com.buglist.util.DiagEventType
-import com.buglist.util.DiagnosticsEvent
-import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -32,16 +29,22 @@ import javax.inject.Inject
  * 2. Debugger detection — in release builds, a connected debugger terminates the process
  *    immediately. An attacker cannot pause execution to inspect memory or bypass biometrics.
  *
+ * ## Background behaviour
+ * [onUserLeaveHint] is called when the user explicitly navigates away (Home button, Recents).
+ * The app immediately locks the session and removes itself from the task stack so there is
+ * no thumbnail of sensitive data in the Recents screen. On next launch, a fresh [onCreate]
+ * is guaranteed → BiometricPrompt is always shown on every open.
+ *
+ * [onUserLeaveHint] does NOT fire when the app itself starts another Activity (SAF picker,
+ * Share Intent, BiometricPrompt overlay) — only genuine user-initiated backgrounding triggers it.
+ *
  * ## SplashScreen (L-075)
  * [installSplashScreen] is called BEFORE [super.onCreate] to comply with the SplashScreen API
  * contract. The keep-on-screen condition holds the splash until [BugListApplication.sqlCipherInitJob]
  * completes, ensuring the SQLCipher native library is mapped before the first frame is drawn.
- * This replaces the old `System.loadLibrary` on the main thread with a background job that starts
- * the moment the process is created — the splash hides any perceptible delay.
  *
  * Extends [FragmentActivity] (not [androidx.activity.ComponentActivity]) because
- * [androidx.biometric.BiometricPrompt] requires a [FragmentActivity] host. [FragmentActivity]
- * extends [ComponentActivity], so all Compose and Hilt APIs still work. See L-066.
+ * [androidx.biometric.BiometricPrompt] requires a [FragmentActivity] host. See L-066.
  */
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -55,12 +58,8 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var databaseProvider: DatabaseProvider
 
-    @Inject
-    lateinit var diagnosticsManager: DiagnosticsManager
-
     override fun onCreate(savedInstanceState: Bundle?) {
         // SplashScreen API: installSplashScreen MUST be called before super.onCreate().
-        // It installs the splash theme and registers the exit animation callback.
         val splashScreen = installSplashScreen()
 
         super.onCreate(savedInstanceState)
@@ -70,16 +69,11 @@ class MainActivity : FragmentActivity() {
         window.setFlags(FLAG_SECURE, FLAG_SECURE)
 
         // SECURITY: Terminate if a debugger is attached in release builds.
-        // BuildConfig.DEBUG is false in release — R8 will constant-fold this away entirely.
         if (!BuildConfig.DEBUG && (Debug.isDebuggerConnected() || Debug.waitingForDebugger())) {
             Process.killProcess(Process.myPid())
             return
         }
 
-        // Keep the SplashScreen visible until the SQLCipher native library has finished loading.
-        // sqlCipherInitJob starts in Application.onCreate() on Dispatchers.IO.
-        // Typical load time: 50–150 ms on real hardware — barely perceptible.
-        // isCompleted is thread-safe (Deferred backed by atomic state).
         val app = application as BugListApplication
         splashScreen.setKeepOnScreenCondition { !app.sqlCipherInitJob.isCompleted }
 
@@ -102,18 +96,16 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        diagnosticsManager.sendSessionSummary()
-        diagnosticsManager.markBackground()
-        diagnosticsManager.record(DiagnosticsEvent(eventType = DiagEventType.APP_BACKGROUND))
-    }
-
-    override fun onResume() {
-        super.onResume()
-        diagnosticsManager.record(DiagnosticsEvent(
-            eventType = DiagEventType.APP_FOREGROUND,
-            backgroundSeconds = diagnosticsManager.secondsSinceBackground()
-        ))
+    /**
+     * Called when the user explicitly leaves the app (Home button, Recents gesture).
+     * NOT called when the app itself starts another Activity (SAF, Share Intent, Biometric overlay).
+     *
+     * Locks the session and removes the task from Recents so sensitive data is never
+     * visible in the task switcher. The next launch creates a fresh Activity → BiometricPrompt.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        sessionManager.lock()
+        finishAndRemoveTask()
     }
 }

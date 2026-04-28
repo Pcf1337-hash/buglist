@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.buglist.util.appDataStore
 import androidx.lifecycle.ViewModel
@@ -27,8 +26,6 @@ import com.buglist.domain.usecase.CheckForUpdateUseCase
 import com.buglist.domain.usecase.ExportDataUseCase
 import com.buglist.domain.usecase.ExportEncryptedBackupUseCase
 import com.buglist.domain.usecase.ImportEncryptedBackupUseCase
-import com.buglist.security.SessionManager
-import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -48,24 +45,16 @@ import javax.inject.Inject
 import kotlin.random.Random
 
 private val KEY_CURRENCY = stringPreferencesKey("currency")
-private val KEY_AUTO_LOCK = intPreferencesKey("auto_lock_timeout_seconds")
 private val KEY_SHOW_DESCRIPTION = booleanPreferencesKey("show_description")
-private val KEY_DIAGNOSTICS_PUSH = booleanPreferencesKey("diagnostics_push_enabled")
 
 data class SettingsUiData(
     val currency: String = "EUR",
-    val autoLockTimeoutSeconds: Int = 60,
     val exportCsv: String? = null,
     val isExporting: Boolean = false,
     val showDeleteConfirm: Boolean = false,
     val isSeedingData: Boolean = false,
     /** When true, the description/comment field is shown in AddDebtSheet. Default: false. */
     val showDescription: Boolean = false,
-    /**
-     * When true, the app sends real-time debug pushes to ntfy.sh (Auth events, crashes, etc.).
-     * Default true — can be disabled per-device from Settings.
-     */
-    val diagnosticsPushEnabled: Boolean = true,
     /** True while Argon2 KDF + AES-GCM encryption is running for backup export. */
     val isExportingBackup: Boolean = false,
     /**
@@ -93,11 +82,9 @@ class SettingsViewModel @Inject constructor(
     private val exportDataUseCase: ExportDataUseCase,
     private val addPersonUseCase: AddPersonUseCase,
     private val addDebtUseCase: AddDebtUseCase,
-    private val sessionManager: SessionManager,
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
     private val appDatabase: AppDatabase,
     private val tagRepository: TagRepository,
-    private val diagnosticsManager: DiagnosticsManager,
     private val exportEncryptedBackupUseCase: ExportEncryptedBackupUseCase,
     private val importEncryptedBackupUseCase: ImportEncryptedBackupUseCase
 ) : ViewModel() {
@@ -177,19 +164,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val prefs = context.appDataStore.data.first()
             val currency = prefs[KEY_CURRENCY] ?: "EUR"
-            val autoLock = prefs[KEY_AUTO_LOCK] ?: 60
             val showDesc = prefs[KEY_SHOW_DESCRIPTION] ?: false
-            val diagPush = prefs[KEY_DIAGNOSTICS_PUSH] ?: true
             _uiData.value = _uiData.value.copy(
                 currency = currency,
-                autoLockTimeoutSeconds = autoLock,
-                showDescription = showDesc,
-                diagnosticsPushEnabled = diagPush
+                showDescription = showDesc
             )
-            // Sync session manager with persisted timeout
-            sessionManager.autoLockTimeoutMs = autoLock * 1000L
-            // Sync diagnostics manager with persisted toggle state
-            diagnosticsManager.setEnabled(diagPush)
         }
     }
 
@@ -212,25 +191,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Enables or disables real-time ntfy.sh debug push notifications.
-     * Persisted in DataStore; immediately applied to [DiagnosticsManager].
-     */
-    fun setDiagnosticsPush(enabled: Boolean) {
-        _uiData.value = _uiData.value.copy(diagnosticsPushEnabled = enabled)
-        diagnosticsManager.setEnabled(enabled)
-        viewModelScope.launch {
-            context.appDataStore.edit { it[KEY_DIAGNOSTICS_PUSH] = enabled }
-        }
-    }
-
-    fun setAutoLockTimeout(seconds: Int) {
-        _uiData.value = _uiData.value.copy(autoLockTimeoutSeconds = seconds)
-        sessionManager.autoLockTimeoutMs = seconds * 1000L
-        viewModelScope.launch {
-            context.appDataStore.edit { it[KEY_AUTO_LOCK] = seconds }
-        }
-    }
 
     fun exportData() {
         viewModelScope.launch {
@@ -315,7 +275,7 @@ class SettingsViewModel @Inject constructor(
             _uiData.value = _uiData.value.copy(isExportingBackup = true, backupExportFile = null)
             val settings = SettingsBackup(
                 currency = _uiData.value.currency,
-                autoLockTimeoutSeconds = _uiData.value.autoLockTimeoutSeconds,
+                autoLockTimeoutSeconds = 60, // legacy field, kept for backup format compatibility
                 showDescription = _uiData.value.showDescription
             )
             val result = exportEncryptedBackupUseCase(password, settings)
@@ -389,16 +349,13 @@ class SettingsViewModel @Inject constructor(
                     val s = payload.settings
                     context.appDataStore.edit { prefs ->
                         prefs[KEY_CURRENCY] = s.currency
-                        prefs[KEY_AUTO_LOCK] = s.autoLockTimeoutSeconds
                         prefs[KEY_SHOW_DESCRIPTION] = s.showDescription
                     }
                     _uiData.value = _uiData.value.copy(
                         isImportingBackup = false,
                         currency = s.currency,
-                        autoLockTimeoutSeconds = s.autoLockTimeoutSeconds,
                         showDescription = s.showDescription
                     )
-                    sessionManager.autoLockTimeoutMs = s.autoLockTimeoutSeconds * 1000L
                     _deleteAllEvent.emit(Unit)
                 }
                 is com.buglist.domain.model.Result.Error -> {
@@ -422,9 +379,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-
-    /** Returns all recorded diagnostic events as a JSON string. */
-    fun exportDiagnostics(): String = diagnosticsManager.exportAsJson()
 
     /**
      * DEBUG ONLY — generates 50 persons and 500 debt entries for stress testing.

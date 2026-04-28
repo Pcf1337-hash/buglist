@@ -4,9 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.security.AuthResult
 import com.buglist.security.BiometricAuthManager
-import com.buglist.util.DiagEventType
-import com.buglist.util.DiagnosticsEvent
-import com.buglist.util.DiagnosticsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,11 +46,13 @@ sealed class AuthUiState {
  * The BiometricPrompt itself is launched from the Screen via a [LaunchedEffect]
  * that observes [shouldShowPrompt], because BiometricPrompt requires a FragmentActivity
  * reference which cannot be held in a ViewModel.
+ *
+ * Since the app is fully closed when the user navigates away ([MainActivity.onUserLeaveHint]),
+ * there is no background-return scenario. The auth screen is always a fresh cold start.
  */
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val biometricAuthManager: BiometricAuthManager,
-    private val diagnosticsManager: DiagnosticsManager
+    private val biometricAuthManager: BiometricAuthManager
 ) : ViewModel() {
 
     companion object {
@@ -82,29 +81,20 @@ class AuthViewModel @Inject constructor(
      */
     fun requestAuthentication() {
         // Idempotency guard: don't re-trigger if a prompt is already in flight or
-        // auth already succeeded. Both LaunchedEffect(Unit) + LifecycleResumeEffect +
-        // the OnWindowFocusChangeListener can fire close together — without this guard
-        // multiple concurrent calls could cancel each other.
+        // auth already succeeded. Both LaunchedEffect(Unit) and the OnWindowFocusChangeListener
+        // can fire close together — without this guard multiple concurrent calls
+        // could cancel each other.
         val current = _uiState.value
         if (current is AuthUiState.Authenticating || current is AuthUiState.Authenticated) return
-        // Record when the auth prompt is shown — uploaded silently (priority 1) so we see
-        // exactly when the prompt fired relative to BG-Return in the ntfy trace.
-        // retryAttempt > 0 = bg-return retry scenario; backgroundSeconds = how long in bg.
-        val bgSecs = diagnosticsManager.secondsSinceBackground()
-        diagnosticsManager.record(DiagnosticsEvent(
-            eventType = DiagEventType.AUTH_SCREEN_SHOWN,
-            retryAttempt = retryCount,
-            backgroundSeconds = bgSecs,
-            afterBackground = bgSecs > 0
-        ))
+
         viewModelScope.launch {
             _uiState.value = AuthUiState.Authenticating
             _shouldShowPrompt.value = true
 
             // Safety net: some OEM ROMs silently drop BiometricPrompt.authenticate()
-            // (e.g. when the window hasn't fully gained focus yet) without ever calling
-            // onAuthenticationError. If we're still Authenticating after 6 s with no
-            // callback, reset to Idle so the "TAP TO UNLOCK" fallback becomes visible.
+            // without ever calling onAuthenticationError. If we're still Authenticating
+            // after 6 s with no callback, reset to Idle so the "TAP TO UNLOCK" fallback
+            // becomes visible.
             kotlinx.coroutines.delay(6_000L)
             if (_uiState.value is AuthUiState.Authenticating) {
                 _uiState.value = AuthUiState.Idle
@@ -123,17 +113,6 @@ class AuthViewModel @Inject constructor(
     fun onAuthResult(result: AuthResult) {
         when (result) {
             is AuthResult.Success -> {
-                // If we had retries (bg-return scenario) and finally succeeded, log it
-                if (retryCount > 0) {
-                    val bgSecs = diagnosticsManager.secondsSinceBackground()
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = DiagEventType.BG_RETURN_SUCCESS,
-                        afterBackground = bgSecs > 0,
-                        backgroundSeconds = bgSecs,
-                        retryAttempt = retryCount,
-                        authPath = "STRONG"
-                    ))
-                }
                 retryCount = 0
                 _uiState.value = AuthUiState.Authenticated(result.cipher)
             }
@@ -142,32 +121,20 @@ class AuthViewModel @Inject constructor(
                 // Fallback path: Samsung Galaxy A series / BIOMETRIC_WEAK / DEVICE_CREDENTIAL.
                 // Cipher is null — biometrics used as gate only. PassphraseManager (Tink)
                 // handles DB passphrase independently. See L-088 in lessons.md.
-                if (retryCount > 0) {
-                    val bgSecs = diagnosticsManager.secondsSinceBackground()
-                    diagnosticsManager.record(DiagnosticsEvent(
-                        eventType = DiagEventType.BG_RETURN_SUCCESS,
-                        afterBackground = bgSecs > 0,
-                        backgroundSeconds = bgSecs,
-                        retryAttempt = retryCount,
-                        authPath = "FALLBACK"
-                    ))
-                }
                 retryCount = 0
                 _uiState.value = AuthUiState.Authenticated(cipher = null)
             }
 
             is AuthResult.Failure -> {
                 // Only count genuine hardware/auth errors toward lockout.
-                // System-initiated cancels (app backgrounded → ERROR_CANCELED=5,
-                // ERROR_USER_CANCELED=10) and user-tapped cancel (ERROR_NEGATIVE_BUTTON=13)
-                // must NOT increment the counter — the OS handles biometric lockout itself.
-                val isSystemCancel =
-                    result.errorCode == androidx.biometric.BiometricPrompt.ERROR_CANCELED  // 5
-                val isUserCancel = result.errorCode in setOf(
-                    androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON,  // 13 – user tapped cancel
-                    androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED     // 10 – home/back pressed
+                // System-initiated cancels (ERROR_CANCELED=5, ERROR_USER_CANCELED=10)
+                // and user-tapped cancel (ERROR_NEGATIVE_BUTTON=13) must NOT increment
+                // the counter — the OS handles biometric lockout itself.
+                val isSystemOrUserCancel = result.errorCode in setOf(
+                    androidx.biometric.BiometricPrompt.ERROR_CANCELED,          // 5
+                    androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED,     // 10
+                    androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON    // 13
                 )
-                val isSystemOrUserCancel = isSystemCancel || isUserCancel
                 if (!isSystemOrUserCancel) retryCount++
                 if (retryCount >= MAX_RETRY_ATTEMPTS) {
                     _uiState.value = AuthUiState.LockedOut
@@ -177,24 +144,6 @@ class AuthViewModel @Inject constructor(
                         errorCode = result.errorCode,
                         retryCount = retryCount
                     )
-                    // ERROR_CANCELED (5) = BiometricPrompt called before the window had focus
-                    // (common on Samsung when returning from background). The OnWindowFocusChangeListener
-                    // may never fire with hasFocus=true in this scenario. Auto-retry after 600 ms to give
-                    // the system time to grant window focus and try again — invisible to the user.
-                    if (isSystemCancel) {
-                        val bgSecs = diagnosticsManager.secondsSinceBackground()
-                        diagnosticsManager.record(DiagnosticsEvent(
-                            eventType = DiagEventType.BG_RETURN_RETRY,
-                            errorCode = result.errorCode,
-                            afterBackground = bgSecs > 0,
-                            backgroundSeconds = bgSecs,
-                            retryAttempt = retryCount
-                        ))
-                        viewModelScope.launch {
-                            kotlinx.coroutines.delay(600L)
-                            requestAuthentication()
-                        }
-                    }
                 }
             }
 
@@ -211,33 +160,21 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * Reset state for retry — called when the user taps the retry button, the fingerprint
-     * icon, or the "ANTIPPEN ZUM ENTSPERREN" fallback CTA.
-     *
-     * The app-level [AuthUiState.LockedOut] is intentionally NOT a hard barrier here:
-     * Android's biometric hardware already enforces its own lockout independently. Our
-     * counter only guards against rapid-fire soft errors (e.g. bad hardware config). Once
-     * the user explicitly requests a retry, we honour that request and reset the counter.
+     * Reset state for retry — called when the user taps the retry button or the
+     * "ANTIPPEN ZUM ENTSPERREN" fallback CTA.
      */
     fun resetForRetry() {
-        retryCount = 0  // reset so LockedOut doesn't immediately re-trigger
+        retryCount = 0
         requestAuthentication()
     }
 
     /**
-     * Called by [LifecycleResumeEffect.onPauseOrDispose] when the screen is paused or leaves
-     * composition. Resets the prompt signal so the next [requestAuthentication] call on resume
-     * triggers a fresh BiometricPrompt.
-     *
-     * Also resets [retryCount] so that accumulated system-cancel errors (from previous
-     * backgrounding events) never carry over into the next session and cause a premature
-     * [AuthUiState.LockedOut] on what is effectively a fresh authentication attempt.
+     * Called by [LifecycleResumeEffect.onPauseOrDispose] when the screen is paused.
+     * Resets the prompt signal and retry counter so state never carries over.
      */
     fun cancelAuthentication() {
         _shouldShowPrompt.value = false
-        retryCount = 0  // always reset – system cancels must not accumulate across sessions
-        // Only reset to Idle if not already authenticated — avoids flickering if auth succeeded
-        // just before the pause (e.g., app put to background immediately after unlock).
+        retryCount = 0
         if (_uiState.value !is AuthUiState.Authenticated) {
             _uiState.value = AuthUiState.Idle
         }
