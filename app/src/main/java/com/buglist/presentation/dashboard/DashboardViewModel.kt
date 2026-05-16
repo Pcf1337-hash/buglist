@@ -99,15 +99,12 @@ class DashboardViewModel @Inject constructor(
             combine(collapseInactiveFlow, _isInactiveExpanded) { collapse, expanded -> collapse to expanded }
         ) { persons, totalBalance, dividers, query, (collapseInactive, isExpanded) ->
 
-            // Split persons: active (openCount > 0) vs inactive (openCount == 0)
-            val activePersons = if (collapseInactive) persons.filter { it.openCount > 0 } else persons
-            val inactivePersons = if (collapseInactive) persons.filter { it.openCount == 0 } else emptyList()
-
-            // Merge active persons and dividers into one sorted list by sortIndex.
-            // Persons come from the DB already sorted (sortIndex ASC, name ASC).
-            // We re-sort the combined list so dividers are interleaved correctly.
+            // FULL list — ALL persons + dividers, sorted by sortIndex. Used by EDIT
+            // MODE so the user can position every person (incl. debt-free ones);
+            // each sortIndex is persisted. A debt-free person keeps their slot and
+            // re-appears in the main list at that position once they get a debt.
             val items: List<DashboardListItem> = buildList {
-                addAll(activePersons.map { DashboardListItem.PersonItem(it) })
+                addAll(persons.map { DashboardListItem.PersonItem(it) })
                 addAll(dividers.map { DashboardListItem.DividerItem(it) })
             }.sortedWith(
                 compareBy({ it.sortIndex }, {
@@ -119,11 +116,28 @@ class DashboardViewModel @Inject constructor(
                 })
             )
 
-            // Feature B: filter by search query (case-insensitive, persons only)
-            val filteredItems: List<DashboardListItem> = if (query.isBlank()) {
-                items
+            // Normal-mode display split: pull inactive persons (openCount == 0) out
+            // of the main list into the collapsible section. Order preserved via
+            // sortIndex — this is display-only and never touches the saved order.
+            val mainItems: List<DashboardListItem>
+            val inactiveItems: List<DashboardListItem.PersonItem>
+            if (collapseInactive) {
+                mainItems = items.filter {
+                    it !is DashboardListItem.PersonItem || it.data.openCount > 0
+                }
+                inactiveItems = items.filterIsInstance<DashboardListItem.PersonItem>()
+                    .filter { it.data.openCount == 0 }
             } else {
-                items.filter { item ->
+                mainItems = items
+                inactiveItems = emptyList()
+            }
+
+            // Feature B: filter by search query (case-insensitive, persons only).
+            // Applied to mainItems — the inactive section is hidden during search.
+            val filteredItems: List<DashboardListItem> = if (query.isBlank()) {
+                mainItems
+            } else {
+                mainItems.filter { item ->
                     when (item) {
                         is DashboardListItem.PersonItem ->
                             item.data.person.name.contains(query, ignoreCase = true)
@@ -143,7 +157,7 @@ class DashboardViewModel @Inject constructor(
                 totalOwedToMe = owedToMe,
                 totalIOwe = iOwe,
                 searchQuery = query,
-                inactivePersonItems = inactivePersons.map { DashboardListItem.PersonItem(it) },
+                inactivePersonItems = inactiveItems,
                 isInactiveExpanded = isExpanded,
                 collapseInactivePersons = collapseInactive
             )
