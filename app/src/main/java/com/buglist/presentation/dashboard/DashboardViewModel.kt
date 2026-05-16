@@ -1,5 +1,7 @@
 package com.buglist.presentation.dashboard
 
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buglist.data.remote.UpdateState
@@ -12,15 +14,19 @@ import com.buglist.domain.usecase.CalculateTotalBalanceUseCase
 import com.buglist.domain.usecase.CheckForUpdateUseCase
 import com.buglist.domain.usecase.GetPersonsWithBalancesUseCase
 import com.buglist.domain.usecase.PersonSortOrder
+import com.buglist.util.appDataStore
 import kotlinx.coroutines.Dispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -35,13 +41,19 @@ sealed class DashboardUiState {
         val items: List<DashboardListItem>,
         /** Filtered items — result of search query (same as [items] when query empty). */
         val filteredItems: List<DashboardListItem>,
-        /** Persons only — used for financial summary totals. */
+        /** Persons only — used for financial summary totals (includes inactive). */
         val persons: List<PersonWithBalance>,
         val totalBalance: Double,
         val totalOwedToMe: Double,
         val totalIOwe: Double,
         /** Current search query. Empty string = no filter active. */
-        val searchQuery: String = ""
+        val searchQuery: String = "",
+        /** Persons with openCount == 0, shown in collapsible section when [collapseInactivePersons] is true. */
+        val inactivePersonItems: List<DashboardListItem.PersonItem> = emptyList(),
+        /** Whether the inactive section is currently expanded. */
+        val isInactiveExpanded: Boolean = false,
+        /** Mirror of the DataStore setting — when false the inactive section is not shown. */
+        val collapseInactivePersons: Boolean = true
     ) : DashboardUiState()
 }
 
@@ -54,6 +66,7 @@ sealed class DashboardUiState {
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     getPersonsWithBalancesUseCase: GetPersonsWithBalancesUseCase,
     calculateTotalBalanceUseCase: CalculateTotalBalanceUseCase,
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
@@ -68,18 +81,33 @@ class DashboardViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val KEY_COLLAPSE_INACTIVE = booleanPreferencesKey("collapse_inactive_persons")
+
+    /** Reflects the DataStore preference for collapsing inactive persons. Default: true. */
+    private val collapseInactiveFlow: Flow<Boolean> =
+        context.appDataStore.data.map { it[KEY_COLLAPSE_INACTIVE] ?: true }
+
+    /** Whether the inactive section is currently expanded in the UI. */
+    private val _isInactiveExpanded = MutableStateFlow(false)
+
     val uiState: StateFlow<DashboardUiState> = _sortOrder.flatMapLatest { sortOrder ->
         combine(
             getPersonsWithBalancesUseCase(sortOrder),
             calculateTotalBalanceUseCase(),
             dividerRepository.getAllDividers(),
-            _searchQuery
-        ) { persons, totalBalance, dividers, query ->
-            // Merge persons and dividers into one sorted list by sortIndex.
+            _searchQuery,
+            combine(collapseInactiveFlow, _isInactiveExpanded) { collapse, expanded -> collapse to expanded }
+        ) { persons, totalBalance, dividers, query, (collapseInactive, isExpanded) ->
+
+            // Split persons: active (openCount > 0) vs inactive (openCount == 0)
+            val activePersons = if (collapseInactive) persons.filter { it.openCount > 0 } else persons
+            val inactivePersons = if (collapseInactive) persons.filter { it.openCount == 0 } else emptyList()
+
+            // Merge active persons and dividers into one sorted list by sortIndex.
             // Persons come from the DB already sorted (sortIndex ASC, name ASC).
             // We re-sort the combined list so dividers are interleaved correctly.
             val items: List<DashboardListItem> = buildList {
-                addAll(persons.map { DashboardListItem.PersonItem(it) })
+                addAll(activePersons.map { DashboardListItem.PersonItem(it) })
                 addAll(dividers.map { DashboardListItem.DividerItem(it) })
             }.sortedWith(
                 compareBy({ it.sortIndex }, {
@@ -104,6 +132,7 @@ class DashboardViewModel @Inject constructor(
                 }
             }
 
+            // Financial totals always use ALL persons (including inactive) for correctness
             val owedToMe = persons.filter { it.netBalance > 0 }.sumOf { it.netBalance }
             val iOwe = persons.filter { it.netBalance < 0 }.sumOf { -it.netBalance }
             DashboardUiState.Ready(
@@ -113,7 +142,10 @@ class DashboardViewModel @Inject constructor(
                 totalBalance = totalBalance,
                 totalOwedToMe = owedToMe,
                 totalIOwe = iOwe,
-                searchQuery = query
+                searchQuery = query,
+                inactivePersonItems = inactivePersons.map { DashboardListItem.PersonItem(it) },
+                isInactiveExpanded = isExpanded,
+                collapseInactivePersons = collapseInactive
             )
         }
     }.stateIn(
@@ -166,6 +198,15 @@ class DashboardViewModel @Inject constructor(
      */
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
+    }
+
+    /**
+     * Toggles whether the "Inaktiv" section at the bottom of the crew list is expanded.
+     *
+     * State is kept in-memory (not persisted) — resets to collapsed on every app start.
+     */
+    fun toggleInactiveExpanded() {
+        _isInactiveExpanded.value = !_isInactiveExpanded.value
     }
 
     /**

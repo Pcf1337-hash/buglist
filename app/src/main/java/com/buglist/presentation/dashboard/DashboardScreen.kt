@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -475,6 +477,34 @@ fun DashboardScreen(
                                     }
                                     is DashboardListItem.DividerItem -> {
                                         DividerRow(divider = item.data)
+                                    }
+                                }
+                            }
+
+                            // Collapsible inactive section — hidden when searching
+                            if (state.collapseInactivePersons && state.inactivePersonItems.isNotEmpty() && !searchActive) {
+                                item(key = "inactive_header") {
+                                    InactiveSectionHeader(
+                                        count = state.inactivePersonItems.size,
+                                        isExpanded = state.isInactiveExpanded,
+                                        onClick = { viewModel.toggleInactiveExpanded() }
+                                    )
+                                }
+                                if (state.isInactiveExpanded) {
+                                    itemsIndexed(
+                                        items = state.inactivePersonItems,
+                                        key = { _, item -> "inactive_${item.listKey}" }
+                                    ) { index, item ->
+                                        PersonCard(
+                                            personWithBalance = item.data,
+                                            onClick = { onPersonClick(item.data.person.id) }
+                                        )
+                                        if (index < state.inactivePersonItems.lastIndex) {
+                                            HorizontalDivider(
+                                                color = BugListColors.BorderSubtle,
+                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -972,4 +1002,43 @@ private fun DashboardEmptyState(onAddItem: () -> Unit) {
             )
         }
     }
+}
+
+// ── Inactive section ──────────────────────────────────────────────────────────
+
+/**
+ * Header row for the collapsible "Inaktiv" section at the bottom of the crew list.
+ *
+ * Tapping anywhere on the row toggles the expanded state.
+ *
+ * @param count      Number of inactive persons hidden in the section.
+ * @param isExpanded Whether the section is currently showing its items.
+ * @param onClick    Called when the user taps the header.
+ */
+@Composable
+private fun InactiveSectionHeader(count: Int, isExpanded: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp)
+    ) {
+        Text(
+            text = "INAKTIV ($count)",
+            fontFamily = OswaldFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = BugListColors.TextMuted,
+            letterSpacing = 3.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = if (isExpanded) "Einklappen" else "Ausklappen",
+            tint = BugListColors.TextMuted,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+    HorizontalDivider(color = BugListColors.Divider)
 }

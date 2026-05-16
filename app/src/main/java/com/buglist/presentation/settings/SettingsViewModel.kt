@@ -46,6 +46,7 @@ import kotlin.random.Random
 
 private val KEY_CURRENCY = stringPreferencesKey("currency")
 private val KEY_SHOW_DESCRIPTION = booleanPreferencesKey("show_description")
+private val KEY_COLLAPSE_INACTIVE = booleanPreferencesKey("collapse_inactive_persons")
 
 data class SettingsUiData(
     val currency: String = "EUR",
@@ -55,6 +56,8 @@ data class SettingsUiData(
     val isSeedingData: Boolean = false,
     /** When true, the description/comment field is shown in AddDebtSheet. Default: false. */
     val showDescription: Boolean = false,
+    /** When true, persons with no open/partial debts are collapsed into a separate section. Default: true. */
+    val collapseInactivePersons: Boolean = true,
     /** True while Argon2 KDF + AES-GCM encryption is running for backup export. */
     val isExportingBackup: Boolean = false,
     /**
@@ -165,9 +168,11 @@ class SettingsViewModel @Inject constructor(
             val prefs = context.appDataStore.data.first()
             val currency = prefs[KEY_CURRENCY] ?: "EUR"
             val showDesc = prefs[KEY_SHOW_DESCRIPTION] ?: false
+            val collapseInactive = prefs[KEY_COLLAPSE_INACTIVE] ?: true
             _uiData.value = _uiData.value.copy(
                 currency = currency,
-                showDescription = showDesc
+                showDescription = showDesc,
+                collapseInactivePersons = collapseInactive
             )
         }
     }
@@ -191,6 +196,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Persists whether persons with no open/partial debts are collapsed into an "Inaktiv" section.
+     *
+     * @param collapse true = inactive persons are hidden in a collapsible section (default).
+     */
+    fun setCollapseInactivePersons(collapse: Boolean) {
+        _uiData.value = _uiData.value.copy(collapseInactivePersons = collapse)
+        viewModelScope.launch {
+            context.appDataStore.edit { it[KEY_COLLAPSE_INACTIVE] = collapse }
+        }
+    }
 
     fun exportData() {
         viewModelScope.launch {

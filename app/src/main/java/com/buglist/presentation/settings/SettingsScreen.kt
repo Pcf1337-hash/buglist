@@ -336,7 +336,9 @@ fun SettingsScreen(
                     onAddTag = viewModel::addTag,
                     onDeleteTag = viewModel::deleteTag,
                     showDescription = uiData.showDescription,
-                    onShowDescriptionChange = viewModel::setShowDescription
+                    onShowDescriptionChange = viewModel::setShowDescription,
+                    collapseInactivePersons = uiData.collapseInactivePersons,
+                    onCollapseInactivePersonsChange = viewModel::setCollapseInactivePersons
                 )
             }
             item {
@@ -482,7 +484,9 @@ private fun TagsSection(
     onAddTag: (String) -> Unit,
     onDeleteTag: (com.buglist.domain.model.Tag) -> Unit,
     showDescription: Boolean,
-    onShowDescriptionChange: (Boolean) -> Unit
+    onShowDescriptionChange: (Boolean) -> Unit,
+    collapseInactivePersons: Boolean,
+    onCollapseInactivePersonsChange: (Boolean) -> Unit
 ) {
     var newTagText by remember { mutableStateOf("") }
 
@@ -627,6 +631,16 @@ private fun TagsSection(
                     sublabel = "Zeigt ein Beschreibungsfeld beim Anlegen von Schulden",
                     checked = showDescription,
                     onCheckedChange = onShowDescriptionChange
+                )
+                HorizontalDivider(
+                    color = BugListColors.Divider,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                SettingsToggleRow(
+                    label = "Inaktive Personen ausblenden",
+                    sublabel = "Personen ohne offene Schulden werden eingeklappt",
+                    checked = collapseInactivePersons,
+                    onCheckedChange = onCollapseInactivePersonsChange
                 )
             }
         }
