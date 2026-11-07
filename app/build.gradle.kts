@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
@@ -9,14 +8,16 @@ plugins {
 
 android {
     namespace = "com.buglist"
-    compileSdk = 35
+    // Libraries from late 2026 require compileSdk 37. targetSdk stays 36:
+    // that is the Play submission bar, and it keeps newer runtime behavior opt-in.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.buglist"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 54
-        versionName = "2.4.0"
+        targetSdk = 36
+        versionCode = 55
+        versionName = "2.5.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -58,10 +59,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -83,6 +80,13 @@ android {
         }
     }
 
+}
+
+// AGP 9 compiles Kotlin itself. jvmTarget lives on the Kotlin compiler, not android.kotlinOptions.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
@@ -114,10 +118,10 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.lifecycle.viewmodel.compose)
 
-    // Room — KSP only
+    // Room — KSP only. room-ktx was merged into room-runtime in 2.7.
     implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
     // SQLCipher (Zetetic new artifact — supports 16KB pages)
@@ -129,9 +133,6 @@ dependencies {
     implementation(libs.tink.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.argon2kt)
-
-    // Fonts
-    implementation(libs.androidx.compose.ui.google.fonts)
 
     // Charts
     implementation(libs.vico.compose)

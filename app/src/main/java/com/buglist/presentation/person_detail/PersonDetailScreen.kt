@@ -82,7 +82,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtEntry
@@ -281,12 +281,14 @@ fun PersonDetailScreen(
                 floatingActionButton = {
                     FloatingActionButton(
                         onClick = { showAddDebt = true },
+                        modifier = Modifier.size(64.dp),
                         containerColor = BugListColors.Gold,
                         contentColor = BugListColors.Background
                     ) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = stringResource(R.string.person_detail_add_debt)
+                            contentDescription = stringResource(R.string.person_detail_add_debt),
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -759,7 +761,7 @@ private fun PersonDetailHeader(
         // Long press → copy balance | Double tap → copy full tab history
         AmountText(
             amount = netBalance,
-            fontSize = 40.sp,
+            fontSize = 48.sp,
             modifier = Modifier.combinedClickable(
                 onClick = {},
                 onLongClick = onLongPressBalance,
@@ -789,7 +791,9 @@ private fun PersonDetailHeader(
                             containerColor = BugListColors.DebtGreen,
                             contentColor = BugListColors.Background
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_button_label),
@@ -806,7 +810,9 @@ private fun PersonDetailHeader(
                             containerColor = BugListColors.DebtRed,
                             contentColor = BugListColors.Platinum
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_button_label),
@@ -829,13 +835,15 @@ private fun PersonDetailHeader(
                         containerColor = buttonColor,
                         contentColor = textColor
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.settlement_button_label),
                         fontFamily = OswaldFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 16.sp
                     )
                 }
             }
@@ -867,6 +875,7 @@ private fun DebtTabRow(activeTab: DebtTab, onTabChange: (DebtTab) -> Unit) {
             Tab(
                 selected = selectedIndex == index,
                 onClick = { onTabChange(tab) },
+                modifier = Modifier.height(56.dp),
                 text = {
                     Text(
                         text = label.uppercase(),

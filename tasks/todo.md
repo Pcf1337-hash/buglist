@@ -3,9 +3,9 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-03-27
-**Status:** [x] v2.0.0 – Vollständiges Redesign + neue Features
-**Letzte Änderungen:** Design-System v2, Search, Overdue-Badge, HapticManager, neue Farbtokens, Biometric-Fix bereits in v1.9.1
+**Letztes Update:** 2026-11-08
+**Status:** [~] v2.5.0 – Toolchain auf Stand November 2026, UI-Feinschliff
+**Letzte Änderungen:** compileSdk/targetSdk 36, AGP 9.5, Kotlin 2.4, Compose BOM 2026.09, Schriften im APK, größere Einhand-Ziele auf Dashboard und Personenansicht
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---

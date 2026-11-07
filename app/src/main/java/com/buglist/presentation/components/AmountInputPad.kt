@@ -298,7 +298,7 @@ private fun QuickButton(
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
         color = color.copy(alpha = 0.15f),
-        modifier = modifier.height(40.dp)
+        modifier = modifier.height(48.dp)
     ) {
         Text(
             text = label,

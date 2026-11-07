@@ -78,11 +78,11 @@ fun DebtCard(
         entry.status in listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = BugListColors.SurfaceCard,
         modifier = modifier
             .fillMaxWidth()
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .animateContentSize()
     ) {
@@ -101,7 +101,7 @@ fun DebtCard(
                 AmountText(
                     amount = if (entry.isOwedToMe) displayAmount else -displayAmount,
                     currency = entry.currency,
-                    fontSize = 28.sp
+                    fontSize = 32.sp
                 )
                 StatusChip(status = entry.status)
             }

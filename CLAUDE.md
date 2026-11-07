@@ -11,7 +11,7 @@
 **Zweck:** Offline-first Schulden-Tracker für Android
 **Design:** Gangster-Rap / Streetstyle – reines Dark Mode, Gold (#FFD700), Urban Fonts
 **Sicherheit:** AES-256-GCM (Android Keystore) + BiometricPrompt (BIOMETRIC_STRONG) + SQLCipher
-**Plattform:** Android-Only. Min SDK 26, Target SDK 35. iOS existiert nicht.
+**Plattform:** Android-Only. Min SDK 26, compileSdk 37, targetSdk 36. iOS existiert nicht.
 
 ---
 
@@ -70,18 +70,18 @@ Jeden App-Start mit Logcat begleiten. Crashes sofort fixen, nie ignorieren.
 
 | Komponente | Bibliothek | Version |
 |---|---|---|
-| Sprache | Kotlin | 2.3.x |
-| UI | Jetpack Compose BOM | 2025.x |
-| Design-System | Material 3 | 1.4.x |
-| Datenbank | Room | 2.6.1 |
-| DB-Verschlüsselung | **sqlcipher-android** (Zetetic) | **4.9.0** |
-| SQLite-Bridge | androidx.sqlite | 2.4.0 |
+| Sprache | Kotlin | 2.4.21 |
+| UI | Jetpack Compose BOM | 2026.09.00 |
+| Design-System | Material 3 | über das Compose BOM |
+| Datenbank | Room | 2.8.5 |
+| DB-Verschlüsselung | **sqlcipher-android** (Zetetic) | **4.20.0** |
+| SQLite-Bridge | androidx.sqlite | 2.7.1 |
 | Biometrie | androidx.biometric | 1.1.0 |
 | Key-Storage | Android Keystore AES-256-GCM | OS-nativ |
-| Config-Speicher | Jetpack DataStore + Tink | 1.1.4 / 1.18.0 |
+| Config-Speicher | Jetpack DataStore + Tink | 1.3.0 / 1.24.0 |
 | KDF | Argon2Kt | 1.6.0 |
-| DI | Hilt | 2.51.x |
-| Navigation | Compose Navigation | 2.8.x |
+| DI | Hilt | 2.60.1 |
+| Navigation | Compose Navigation | 2.10.2 |
 | Charts | Vico (Compose-native) | aktuell |
 | Build | Gradle + **KSP** + R8 Full Mode | 8.x |
 

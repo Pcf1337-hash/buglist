@@ -45,7 +45,7 @@ fun GoldButton(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(56.dp)
     ) {
         Text(
             text = text.uppercase(),
