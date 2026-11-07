@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,6 +61,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -168,6 +172,8 @@ fun DashboardScreen(
     // Feature B: search visibility toggle. The title stays put; the field opens under the bar
     // so the wordmark the user expects does not disappear, and the field is a full thumb target.
     var searchActive by remember { mutableStateOf(false) }
+    var inactiveExpanded by rememberSaveable { mutableStateOf(false) }
+    val groupInactive by viewModel.groupInactive.collectAsStateWithLifecycle()
     var localSearchQuery by remember { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
     LaunchedEffect(searchActive) {
@@ -463,7 +469,21 @@ fun DashboardScreen(
                                 }
                             }
 
-                            val displayItems = state.filteredItems
+                            val foldInactive = groupInactive && !searchActive
+                            val inactivePeople = if (foldInactive) {
+                                state.filteredItems.filter { item ->
+                                    item is DashboardListItem.PersonItem && item.data.openCount == 0
+                                }
+                            } else {
+                                emptyList()
+                            }
+                            val displayItems = if (foldInactive) {
+                                state.filteredItems.filter { item ->
+                                    item !is DashboardListItem.PersonItem || item.data.openCount > 0
+                                }
+                            } else {
+                                state.filteredItems
+                            }
                             itemsIndexed(
                                 items = displayItems,
                                 key   = { _, item -> item.listKey }
@@ -485,6 +505,58 @@ fun DashboardScreen(
                                     }
                                     is DashboardListItem.DividerItem -> {
                                         DividerRow(divider = item.data)
+                                    }
+                                }
+                            }
+                            if (inactivePeople.isNotEmpty()) {
+                                item(key = "inactive-header") {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 56.dp)
+                                            .clickable { inactiveExpanded = !inactiveExpanded }
+                                            .padding(horizontal = 16.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.dashboard_inactive_header,
+                                                inactivePeople.size
+                                            ),
+                                            fontFamily = OswaldFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = BugListColors.TextSecondary,
+                                            letterSpacing = 2.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Icon(
+                                            imageVector = if (inactiveExpanded) {
+                                                Icons.Default.ExpandLess
+                                            } else {
+                                                Icons.Default.ExpandMore
+                                            },
+                                            contentDescription = stringResource(
+                                                R.string.settings_group_inactive
+                                            ),
+                                            tint = BugListColors.TextMuted
+                                        )
+                                    }
+                                }
+                                if (inactiveExpanded) {
+                                    items(
+                                        items = inactivePeople,
+                                        key = { item -> item.listKey }
+                                    ) { item ->
+                                        val person = item as DashboardListItem.PersonItem
+                                        PersonCard(
+                                            personWithBalance = person.data,
+                                            onClick = { onPersonClick(person.data.person.id) }
+                                        )
+                                        HorizontalDivider(
+                                            color = BugListColors.BorderSubtle,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
                                     }
                                 }
                             }

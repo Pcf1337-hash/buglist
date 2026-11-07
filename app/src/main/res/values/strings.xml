@@ -250,6 +250,9 @@
     <string name="couple_import_list">Liste einfügen</string>
     <string name="couple_camera_needed">Kamera nicht freigegeben. Den Code kannst du unten einfügen.</string>
     <string name="couple_mailbox_hint">Zum Abgleich beide Apps öffnen. Übertragen wird nur der verschlüsselte Stand, kein Verlauf.</string>
+    <string name="settings_group_inactive">Inaktive Personen ausblenden</string>
+    <string name="settings_group_inactive_hint">Personen ohne offene Schulden werden eingeklappt</string>
+    <string name="dashboard_inactive_header">INAKTIV (%1$d)</string>
 
     <!-- Debug -->
     <string name="debug_export_button">Debug-Log exportieren</string>

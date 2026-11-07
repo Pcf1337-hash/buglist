@@ -1,7 +1,11 @@
 package com.buglist.presentation.dashboard
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.buglist.util.KEY_GROUP_INACTIVE
+import com.buglist.util.appDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.buglist.data.remote.UpdateState
 import com.buglist.domain.model.DashboardListItem
 import com.buglist.domain.model.PersonWithBalance
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -54,6 +59,7 @@ sealed class DashboardUiState {
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    @ApplicationContext context: Context,
     getPersonsWithBalancesUseCase: GetPersonsWithBalancesUseCase,
     calculateTotalBalanceUseCase: CalculateTotalBalanceUseCase,
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
@@ -63,6 +69,11 @@ class DashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _sortOrder = MutableStateFlow(PersonSortOrder.MANUAL)
+
+    /** v2.5.1 behaviour: fold people with no open debts. Default true if the pref is absent. */
+    val groupInactive: StateFlow<Boolean> = context.appDataStore.data
+        .map { prefs -> prefs[KEY_GROUP_INACTIVE] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     /** Feature B: Schnell-Suche — live filter for the crew list. */
     private val _searchQuery = MutableStateFlow("")

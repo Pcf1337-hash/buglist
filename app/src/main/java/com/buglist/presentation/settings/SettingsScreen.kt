@@ -328,6 +328,13 @@ fun SettingsScreen(
                         selected = uiData.currency,
                         onSelect = viewModel::setCurrency
                     )
+                    Spacer(Modifier.height(12.dp))
+                    SettingsToggleRow(
+                        label = stringResource(R.string.settings_group_inactive),
+                        sublabel = stringResource(R.string.settings_group_inactive_hint),
+                        checked = uiData.groupInactive,
+                        onCheckedChange = viewModel::setGroupInactive
+                    )
                 }
             }
             item {
