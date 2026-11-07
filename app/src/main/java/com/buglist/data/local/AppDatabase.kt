@@ -9,11 +9,16 @@ import com.buglist.data.local.dao.DividerDao
 import com.buglist.data.local.dao.PaymentDao
 import com.buglist.data.local.dao.PersonDao
 import com.buglist.data.local.dao.TagDao
+import com.buglist.data.local.dao.SyncDao
 import com.buglist.data.local.entity.DebtEntryEntity
 import com.buglist.data.local.entity.DebtEntryTagCrossRef
+import com.buglist.data.local.entity.DebtSyncEntity
 import com.buglist.data.local.entity.DividerEntity
+import com.buglist.data.local.entity.PairingEntity
 import com.buglist.data.local.entity.PaymentEntity
+import com.buglist.data.local.entity.PaymentSyncEntity
 import com.buglist.data.local.entity.PersonEntity
+import com.buglist.data.local.entity.SyncTombstoneEntity
 import com.buglist.data.local.entity.TagEntity
 
 /**
@@ -37,6 +42,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v4 – Custom avatar photo: avatarImagePath column (nullable TEXT) added to persons
  *   v5 – Divider separators: new `dividers` table for crew-list section headers
  *   v6 – Tag dedup fix: UNIQUE index on tags.name; existing duplicate tag rows removed
+ *   v7 – Coupling tables. The book itself is unchanged; sync ids live beside it.
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -48,9 +54,13 @@ import com.buglist.data.local.entity.TagEntity
         PaymentEntity::class,
         TagEntity::class,
         DebtEntryTagCrossRef::class,
-        DividerEntity::class
+        DividerEntity::class,
+        PairingEntity::class,
+        DebtSyncEntity::class,
+        PaymentSyncEntity::class,
+        SyncTombstoneEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -60,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun paymentDao(): PaymentDao
     abstract fun tagDao(): TagDao
     abstract fun dividerDao(): DividerDao
+    abstract fun syncDao(): SyncDao
 
     companion object {
 
@@ -231,6 +242,36 @@ abstract class AppDatabase : RoomDatabase() {
 
                 // Re-enable FK enforcement.
                 database.query("PRAGMA foreign_keys = ON", emptyArray<Any?>()).close()
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Statements match the Room schema export for version 7.
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pairings` (`personId` INTEGER NOT NULL, `role` TEXT NOT NULL, `roomId` TEXT NOT NULL, `keyMaterial` TEXT NOT NULL, `deviceId` TEXT NOT NULL, `lastPushedHash` TEXT NOT NULL, `linkedAt` INTEGER NOT NULL, PRIMARY KEY(`personId`), FOREIGN KEY(`personId`) REFERENCES `persons`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `debt_sync` (`debtEntryId` INTEGER NOT NULL, `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`debtEntryId`), FOREIGN KEY(`debtEntryId`) REFERENCES `debt_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_debt_sync_syncId` ON `debt_sync` (`syncId`)"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `payment_sync` (`paymentId` INTEGER NOT NULL, `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`paymentId`), FOREIGN KEY(`paymentId`) REFERENCES `payments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_payment_sync_syncId` ON `payment_sync` (`syncId`)"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sync_tombstones` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `personId` INTEGER NOT NULL, `syncId` TEXT NOT NULL, `kind` TEXT NOT NULL, `parentSyncId` TEXT, `updatedAt` INTEGER NOT NULL)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sync_tombstones_personId` ON `sync_tombstones` (`personId`)"
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_sync_tombstones_syncId` ON `sync_tombstones` (`syncId`)"
+                )
             }
         }
 

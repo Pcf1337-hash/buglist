@@ -1,11 +1,15 @@
 package com.buglist.di
 
 import com.buglist.data.repository.DebtRepositoryImpl
+import com.buglist.data.repository.SyncRepositoryImpl
+import com.buglist.data.sync.SyncSchedulerImpl
 import com.buglist.data.repository.DividerRepositoryImpl
 import com.buglist.data.repository.PaymentRepositoryImpl
 import com.buglist.data.repository.PersonRepositoryImpl
 import com.buglist.data.repository.TagRepositoryImpl
 import com.buglist.domain.repository.DebtRepository
+import com.buglist.domain.repository.SyncRepository
+import com.buglist.domain.repository.SyncScheduler
 import com.buglist.domain.repository.DividerRepository
 import com.buglist.domain.repository.PaymentRepository
 import com.buglist.domain.repository.PersonRepository
@@ -45,4 +49,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindDividerRepository(impl: DividerRepositoryImpl): DividerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSyncScheduler(impl: SyncSchedulerImpl): SyncScheduler
 }

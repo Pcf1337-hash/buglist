@@ -64,6 +64,9 @@ interface DebtEntryDao {
     @Query("SELECT * FROM debt_entries WHERE id = :id")
     fun getDebtEntryById(id: Long): Flow<DebtEntryEntity?>
 
+    @Query("SELECT * FROM debt_entries WHERE id = :id")
+    suspend fun getDebtEntryOnce(id: Long): DebtEntryEntity?
+
     /** Returns all debt entries for a person, ordered by date descending. */
     @Query("""
         SELECT * FROM debt_entries

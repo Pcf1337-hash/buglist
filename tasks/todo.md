@@ -4,8 +4,8 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-08
-**Status:** [~] v2.5.0 – Toolchain auf Stand November 2026, UI-Feinschliff
-**Letzte Änderungen:** compileSdk/targetSdk 36, AGP 9.5, Kotlin 2.4, Compose BOM 2026.09, Schriften im APK, größere Einhand-Ziele auf Dashboard und Personenansicht
+**Status:** [~] v2.6.0 – Kopplung ohne Transaktionsprotokoll
+**Letzte Änderungen:** Beim Koppeln wählt man „Ich führe“ oder „Beide ändern“. Übertragen wird nur der verschlüsselte aktuelle Stand.
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---

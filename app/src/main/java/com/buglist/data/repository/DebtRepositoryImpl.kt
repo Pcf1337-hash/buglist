@@ -9,13 +9,17 @@ import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.MonthlyStats
 import com.buglist.domain.model.Payment
 import com.buglist.domain.repository.DayActivityCount
+import com.buglist.data.sync.ChangeSignal
 import com.buglist.domain.repository.DebtRepository
+import com.buglist.domain.repository.NoOpSyncScheduler
+import com.buglist.domain.repository.SyncScheduler
 import com.buglist.domain.repository.StatisticsOpenTotals
 import com.buglist.domain.repository.StatisticsPaidTotals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +31,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class DebtRepositoryImpl @Inject constructor(
-    private val debtEntryDao: DebtEntryDao
+    private val debtEntryDao: DebtEntryDao,
+    private val syncScheduler: SyncScheduler = NoOpSyncScheduler,
+    private val changeSignal: ChangeSignal = ChangeSignal()
 ) : DebtRepository {
 
     /**
@@ -40,7 +46,8 @@ class DebtRepositoryImpl @Inject constructor(
      */
     private val _changeVersion = MutableStateFlow(0L)
 
-    override fun observeDebtEntryChanges(): Flow<Unit> = _changeVersion.map { }
+    override fun observeDebtEntryChanges(): Flow<Unit> =
+        merge(_changeVersion.map { }, changeSignal.version.map { })
 
     override fun getDebtEntriesWithPaymentsForPerson(personId: Long): Flow<List<DebtEntryWithPayments>> =
         debtEntryDao.getDebtEntriesWithPaymentsForPerson(personId).map { list ->
@@ -85,32 +92,43 @@ class DebtRepositoryImpl @Inject constructor(
     override suspend fun addDebtEntry(debtEntry: DebtEntry): Long {
         val id = debtEntryDao.insert(debtEntry.toEntity())
         _changeVersion.update { it + 1 }
+        syncScheduler.afterDebtChanged(id, debtEntry.personId)
         return id
     }
 
     override suspend fun updateDebtEntry(debtEntry: DebtEntry) {
         debtEntryDao.update(debtEntry.toEntity())
         _changeVersion.update { it + 1 }
+        syncScheduler.afterDebtChanged(debtEntry.id, debtEntry.personId)
     }
 
     override suspend fun deleteDebtEntry(debtEntry: DebtEntry) {
+        syncScheduler.beforeDebtDelete(debtEntry.id)
         debtEntryDao.delete(debtEntry.toEntity())
         _changeVersion.update { it + 1 }
+        syncScheduler.afterLocalChange(debtEntry.personId)
     }
 
     override suspend fun deleteDebtEntryById(debtEntryId: Long) {
+        val personId = debtEntryDao.getDebtEntryOnce(debtEntryId)?.personId
+        syncScheduler.beforeDebtDelete(debtEntryId)
         debtEntryDao.deleteById(debtEntryId)
         _changeVersion.update { it + 1 }
+        if (personId != null) syncScheduler.afterLocalChange(personId)
     }
 
     override suspend fun deleteAllDebtsForPerson(personId: Long) {
+        syncScheduler.beforePersonWipe(personId)
         debtEntryDao.deleteAllForPerson(personId)
         _changeVersion.update { it + 1 }
+        syncScheduler.afterLocalChange(personId)
     }
 
     override suspend fun updateDebtStatus(debtEntryId: Long, status: DebtStatus) {
+        val personId = debtEntryDao.getDebtEntryOnce(debtEntryId)?.personId
         debtEntryDao.updateStatus(debtEntryId, status.name)
         _changeVersion.update { it + 1 }
+        if (personId != null) syncScheduler.afterDebtChanged(debtEntryId, personId)
     }
 
     override suspend fun getOpenDebtsForPerson(

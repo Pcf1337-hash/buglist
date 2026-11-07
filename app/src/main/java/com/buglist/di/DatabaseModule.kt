@@ -2,6 +2,7 @@ package com.buglist.di
 
 import com.buglist.data.local.AppDatabase
 import com.buglist.data.local.dao.DebtEntryDao
+import com.buglist.data.local.dao.SyncDao
 import com.buglist.data.local.dao.DividerDao
 import com.buglist.data.local.dao.PaymentDao
 import com.buglist.data.local.dao.PersonDao
@@ -83,4 +84,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDividerDao(db: AppDatabase): DividerDao = db.dividerDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncDao(db: AppDatabase): SyncDao = db.syncDao()
 }

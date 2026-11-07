@@ -32,6 +32,8 @@ argon2kt = "1.6.0"
 # Vico 3 is a chart rewrite. Statistics stays on the 2.0 API.
 vico = "2.0.1"
 reorderable = "2.4.3"
+camera = "1.4.2"
+zxing = "3.5.3"
 
 # Testing
 junit = "4.13.2"
@@ -92,6 +94,10 @@ argon2kt = { group = "com.lambdapioneer.argon2kt", name = "argon2kt", version.re
 # Charts
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable-android", version.ref = "reorderable" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Ktor (Auto-Update via GitHub Releases)
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }

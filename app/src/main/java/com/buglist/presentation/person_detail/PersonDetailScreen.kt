@@ -143,6 +143,11 @@ fun PersonDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var isRefreshing by remember { mutableStateOf(false) }
+    var showCouple by remember { mutableStateOf(false) }
+    val syncRole by viewModel.syncRole.collectAsStateWithLifecycle()
+    val coupleCode by viewModel.coupleCode.collectAsStateWithLifecycle()
+    val coupleError by viewModel.coupleError.collectAsStateWithLifecycle()
+    val canEdit = syncRole?.canEdit != false
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
     val undoLabel = stringResource(R.string.action_undo)
@@ -251,7 +256,7 @@ fun PersonDetailScreen(
                         },
                         actions = {
                             // Import / sync icon — opens the list import dialog
-                            IconButton(onClick = { showImportDialog = true }) {
+                            IconButton(onClick = { showCouple = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Sync,
                                     contentDescription = stringResource(R.string.person_detail_import_cd),
@@ -279,7 +284,7 @@ fun PersonDetailScreen(
                     )
                 },
                 floatingActionButton = {
-                    FloatingActionButton(
+                    if (canEdit) FloatingActionButton(
                         onClick = { showAddDebt = true },
                         modifier = Modifier.size(64.dp),
                         containerColor = BugListColors.Gold,
@@ -315,8 +320,8 @@ fun PersonDetailScreen(
                             hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
                             hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
                             reliabilityScore = state.reliabilityScore,
-                            onSettleOwedToMe = { settlementDirection = true },
-                            onSettleIOwe = { settlementDirection = false },
+                            onSettleOwedToMe = { if (canEdit) settlementDirection = true },
+                            onSettleIOwe = { if (canEdit) settlementDirection = false },
                             onLongPressBalance = {
                                 // Copy just the net balance to clipboard
                                 val balance = buildBalanceText(state.debts)
@@ -345,6 +350,17 @@ fun PersonDetailScreen(
                             onTabChange = viewModel::setActiveTab
                         )
                     }
+                    if (syncRole == com.buglist.domain.model.SyncRole.GUEST) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.couple_role_guest),
+                                fontFamily = RobotoCondensedFontFamily,
+                                fontSize = 14.sp,
+                                color = BugListColors.TextSecondary,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                     if (state.debts.isEmpty()) {
                         item {
                             Box(
@@ -370,10 +386,15 @@ fun PersonDetailScreen(
                                     expanded = state.expandedDebtId == debtWithPayments.entry.id,
                                     onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
                                     // Long press → context menu (Bearbeiten / Stornieren)
-                                    onContextMenu = { contextMenuDebtId = debtWithPayments.entry.id },
-                                    onSwipeLeft = { paymentDebtId = debtWithPayments.entry.id },
-                                    // Swipe right → open edit sheet directly
-                                    onSwipeRight = { editDebtEntry = debtWithPayments.entry },
+                                    onContextMenu = {
+                                        if (canEdit) contextMenuDebtId = debtWithPayments.entry.id
+                                    },
+                                    onSwipeLeft = {
+                                        if (canEdit) paymentDebtId = debtWithPayments.entry.id
+                                    },
+                                    onSwipeRight = {
+                                        if (canEdit) editDebtEntry = debtWithPayments.entry
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                                 )
                                 // Context menu — anchored to this card, opens on long press
@@ -526,6 +547,29 @@ fun PersonDetailScreen(
                             showImportDialog = false
                             importText = ""
                         }
+                    }
+                )
+            }
+
+            if (showCouple) {
+                CoupleSheet(
+                    role = syncRole,
+                    code = coupleCode,
+                    error = coupleError,
+                    onStart = viewModel::startCoupling,
+                    onAccept = viewModel::acceptCoupling,
+                    onUnlink = {
+                        viewModel.unlinkCoupling()
+                        showCouple = false
+                    },
+                    onSyncNow = { viewModel.refresh() },
+                    onImportList = {
+                        showCouple = false
+                        showImportDialog = true
+                    },
+                    onDismiss = {
+                        showCouple = false
+                        viewModel.clearCoupleCode()
                     }
                 )
             }

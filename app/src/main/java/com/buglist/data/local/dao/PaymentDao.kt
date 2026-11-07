@@ -28,6 +28,9 @@ interface PaymentDao {
     @Query("DELETE FROM payments WHERE id = :paymentId")
     suspend fun deleteById(paymentId: Long)
 
+    @Query("SELECT debtEntryId FROM payments WHERE id = :paymentId")
+    suspend fun debtIdOf(paymentId: Long): Long?
+
     /** Returns all payments for a debt entry, ordered by date descending. */
     @Query("""
         SELECT * FROM payments

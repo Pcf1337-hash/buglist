@@ -16,8 +16,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 36
-        versionCode = 55
-        versionName = "2.5.0"
+        versionCode = 56
+        versionName = "2.6.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -139,6 +139,12 @@ dependencies {
 
     // Drag-to-reorder for Crew list
     implementation(libs.reorderable)
+
+    // In-person pairing QR. The mailbox only ever carries ciphertext.
+    implementation(libs.zxing.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
     // Ktor (Auto-Update via GitHub Releases)
     implementation(libs.ktor.client.android)
