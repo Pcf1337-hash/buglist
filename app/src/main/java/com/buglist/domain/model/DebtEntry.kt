@@ -30,5 +30,7 @@ data class DebtEntry(
     val dueDate: Long? = null,
     val status: DebtStatus = DebtStatus.OPEN,
     val createdAt: Long = System.currentTimeMillis(),
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+    /** Host receipt number when this row was copied by sync. */
+    val syncSerial: String? = null
 )

@@ -3,9 +3,9 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-03-27
-**Status:** [x] v2.0.0 – Vollständiges Redesign + neue Features
-**Letzte Änderungen:** Design-System v2, Search, Overdue-Badge, HapticManager, neue Farbtokens, Biometric-Fix bereits in v1.9.1
+**Letztes Update:** 2026-11-08
+**Status:** [~] v2.6.0 – Kopplung ohne Transaktionsprotokoll
+**Letzte Änderungen:** Beim Koppeln wählt man „Ich führe“ oder „Beide ändern“. Übertragen wird nur der verschlüsselte aktuelle Stand.
 **Emulator:** Läuft (nutze MCP für alle Tests)
 
 ---

@@ -40,12 +40,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtEntry
@@ -172,7 +171,34 @@ fun AddDebtSheet(
             AmountInputPad(
                 inputString = amountInput,
                 onInputChange = { amountInput = it },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                belowDisplay = {
+                    GoldButton(
+                        text = stringResource(R.string.action_save),
+                        onClick = {
+                            if (existingDebt != null) {
+                                viewModel.updateDebt(
+                                    existingEntry = existingDebt,
+                                    amountString = amountInput,
+                                    isOwedToMe = !isOwedToMe,
+                                    date = existingDebt.date,
+                                    dueDate = existingDebt.dueDate,
+                                    description = descriptionInput.ifBlank { existingDebt.description }
+                                )
+                            } else {
+                                viewModel.saveDebt(
+                                    personId = personId,
+                                    amountString = amountInput,
+                                    isOwedToMe = !isOwedToMe,
+                                    date = System.currentTimeMillis(),
+                                    dueDate = null,
+                                    description = descriptionInput.ifBlank { null }
+                                )
+                            }
+                        },
+                        enabled = amountInput.isNotBlank() && amountInput != "0"
+                    )
+                }
             )
 
             Spacer(Modifier.height(12.dp))
@@ -271,7 +297,7 @@ fun AddDebtSheet(
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = BugListColors.Gold,
-                                selectedLabelColor = Color.Black,
+                                selectedLabelColor = BugListColors.SurfaceDark,
                                 containerColor = BugListColors.Surface,
                                 labelColor = BugListColors.Platinum
                             ),
@@ -286,10 +312,8 @@ fun AddDebtSheet(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // Error message
             if (uiState is AddDebtUiState.Error) {
+                Spacer(Modifier.height(12.dp))
                 Text(
                     text = (uiState as AddDebtUiState.Error).message,
                     fontFamily = RobotoCondensedFontFamily,
@@ -297,36 +321,7 @@ fun AddDebtSheet(
                     color = BugListColors.DebtRed,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                Spacer(Modifier.height(8.dp))
             }
-
-            // Save button — label differs by mode
-            GoldButton(
-                text = stringResource(R.string.action_save),
-                onClick = {
-                    if (existingDebt != null) {
-                        viewModel.updateDebt(
-                            existingEntry = existingDebt,
-                            amountString = amountInput,
-                            isOwedToMe = !isOwedToMe,
-                            date = existingDebt.date,
-                            dueDate = existingDebt.dueDate,
-                            description = descriptionInput.ifBlank { existingDebt.description }
-                        )
-                    } else {
-                        viewModel.saveDebt(
-                            personId = personId,
-                            amountString = amountInput,
-                            isOwedToMe = !isOwedToMe,
-                            date = System.currentTimeMillis(),
-                            dueDate = null,
-                            description = descriptionInput.ifBlank { null }
-                        )
-                    }
-                },
-                enabled = amountInput.isNotBlank() && amountInput != "0",
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
         }
     }
 }

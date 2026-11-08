@@ -19,11 +19,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.presentation.components.GoldButton
@@ -48,6 +53,11 @@ fun AddPersonSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var name by rememberSaveable { mutableStateOf("") }
+    val nameFocus = androidx.compose.runtime.remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(120)
+        runCatching { nameFocus.requestFocus() }
+    }
     var phone by rememberSaveable { mutableStateOf("") }
     var notes by rememberSaveable { mutableStateOf("") }
 
@@ -80,11 +90,15 @@ fun AddPersonSheet(
                 unfocusedTextColor = BugListColors.Platinum,
                 cursorColor = BugListColors.Gold
             )
-            val fieldShape = RoundedCornerShape(8.dp)
+            val fieldShape = RoundedCornerShape(16.dp)
 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
                 label = {
                     Text(stringResource(R.string.add_person_name_hint),
                         fontFamily = RobotoCondensedFontFamily, color = BugListColors.Muted)
@@ -92,7 +106,9 @@ fun AddPersonSheet(
                 singleLine = true,
                 shape = fieldShape,
                 colors = fieldColors,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(nameFocus)
             )
             Spacer(Modifier.height(12.dp))
 

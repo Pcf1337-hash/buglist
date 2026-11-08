@@ -42,7 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.Divider
@@ -55,7 +55,7 @@ import com.buglist.presentation.theme.RobotoCondensedFontFamily
 
 /** Preset color palette offered in the divider color picker. */
 private val PRESET_COLORS = listOf(
-    0xFFFFD700.toInt(), // Gold
+    0xFF7AD7F0.toInt(), // Neon cyan
     0xFFE5E4E2.toInt(), // Platinum
     0xFFFF3B3B.toInt(), // DebtRed
     0xFF00E676.toInt(), // DebtGreen
@@ -139,7 +139,7 @@ fun AddDividerSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(BugListColors.SurfaceHigh)
                     .padding(vertical = 4.dp)
             ) {
@@ -173,7 +173,7 @@ fun AddDividerSheet(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )

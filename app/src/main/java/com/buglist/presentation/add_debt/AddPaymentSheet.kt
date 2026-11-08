@@ -33,7 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.presentation.components.AmountInputPad
@@ -160,7 +160,34 @@ fun AddPaymentSheet(
                 },
                 maxValue = remaining,
                 currency = currency,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                belowDisplay = {
+                    val buttonColor = if (isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed
+                    val buttonTextColor = if (isOwedToMe) BugListColors.Background else BugListColors.Platinum
+                    Button(
+                        onClick = {
+                            viewModel.savePayment(
+                                debtEntryId = debtEntryId,
+                                amountString = amountInput,
+                                note = note
+                            )
+                        },
+                        enabled = amountInput.isNotBlank() && amountInput != "0",
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = buttonColor,
+                            contentColor = buttonTextColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.add_payment_book),
+                            fontFamily = OswaldFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             )
 
             Spacer(Modifier.height(8.dp))
@@ -189,7 +216,7 @@ fun AddPaymentSheet(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = BugListColors.Gold,
                     unfocusedBorderColor = BugListColors.Divider,
@@ -211,36 +238,6 @@ fun AddPaymentSheet(
                     fontSize = 13.sp,
                     color = BugListColors.DebtRed,
                     modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(Modifier.height(8.dp))
-            }
-
-            // Confirm button: GREEN when person owes user (user receives), RED when user pays
-            val buttonColor = if (isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed
-            val buttonTextColor = if (isOwedToMe) BugListColors.Background else BugListColors.Platinum
-            Button(
-                onClick = {
-                    viewModel.savePayment(
-                        debtEntryId = debtEntryId,
-                        amountString = amountInput,
-                        note = note
-                    )
-                },
-                enabled = amountInput.isNotBlank() && amountInput != "0",
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor,
-                    contentColor = buttonTextColor
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.add_payment_book),
-                    fontFamily = OswaldFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
                 )
             }
         }

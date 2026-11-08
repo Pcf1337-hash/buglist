@@ -30,9 +30,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buglist.R
 import com.buglist.domain.model.DebtEntryWithPayments
+import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Payment
 import com.buglist.presentation.theme.BugListColors
+import com.buglist.presentation.theme.LocalAmbientShift
+import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import java.text.SimpleDateFormat
@@ -65,10 +68,10 @@ fun DebtCard(
 ) {
     val entry = debtWithPayments.entry
     val borderColor = when (entry.status) {
-        DebtStatus.OPEN -> BugListColors.Gold
-        DebtStatus.PARTIAL -> BugListColors.Orange
-        DebtStatus.PAID -> Color.Transparent
-        DebtStatus.CANCELLED -> BugListColors.Muted
+        DebtStatus.OPEN -> BugListColors.BorderGold
+        DebtStatus.PARTIAL -> BugListColors.Orange.copy(alpha = 0.85f)
+        DebtStatus.PAID -> BugListColors.BorderSubtle
+        DebtStatus.CANCELLED -> BugListColors.BorderSubtle
     }
 
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
@@ -78,11 +81,12 @@ fun DebtCard(
         entry.status in listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.SurfaceCard,
         modifier = modifier
             .fillMaxWidth()
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(20.dp))
+            .ambientRim(LocalAmbientShift.current)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .animateContentSize()
     ) {
@@ -101,7 +105,7 @@ fun DebtCard(
                 AmountText(
                     amount = if (entry.isOwedToMe) displayAmount else -displayAmount,
                     currency = entry.currency,
-                    fontSize = 28.sp
+                    fontSize = 32.sp
                 )
                 StatusChip(status = entry.status)
             }
@@ -210,9 +214,7 @@ fun DebtCard(
                 )
             }
 
-            // Street-Design: Serial number — BL-YYYYMMDD-XXXX (createdAt + id)
-            val serialDateFormat = SimpleDateFormat("yyyyMMdd", Locale.US)
-            val serial = "BL-${serialDateFormat.format(Date(entry.createdAt))}-${"%04d".format(entry.id % 10000)}"
+            val serial = debtSerial(entry.createdAt, entry.id, entry.syncSerial)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = serial,

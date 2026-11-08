@@ -1,8 +1,8 @@
 package com.buglist.presentation.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -18,13 +18,9 @@ import com.buglist.presentation.theme.OswaldFontFamily
 /**
  * Primary call-to-action button.
  *
- * Gold background, black text, Oswald Bold UPPERCASE.
+ * Cyan fill, near-black text, a light rim. No blur: elevation shadows use a
+ * RenderEffect and have stalled the emulator RenderThread.
  * Disabled state uses [BugListColors.GoldDim].
- *
- * @param text      Button label — shown in uppercase automatically.
- * @param onClick   Click handler.
- * @param enabled   Whether the button is interactive. Defaults to true.
- * @param modifier  Optional layout modifier.
  */
 @Composable
 fun GoldButton(
@@ -33,19 +29,21 @@ fun GoldButton(
     enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(20.dp)
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(8.dp),
+        shape = shape,
         colors = ButtonDefaults.buttonColors(
             containerColor = BugListColors.Gold,
-            contentColor = BugListColors.Background,
+            contentColor = BugListColors.SurfaceDark,
             disabledContainerColor = BugListColors.GoldDim,
-            disabledContentColor = BugListColors.Background
+            disabledContentColor = BugListColors.SurfaceDark
         ),
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .heightIn(min = 56.dp)
+            .border(1.dp, if (enabled) BugListColors.BorderGold else BugListColors.BorderSubtle, shape)
     ) {
         Text(
             text = text.uppercase(),

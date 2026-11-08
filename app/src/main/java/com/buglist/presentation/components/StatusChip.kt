@@ -48,17 +48,17 @@ fun StatusChip(
             BugListColors.DebtGreen
         )
         DebtStatus.CANCELLED -> Triple(
-            BugListColors.Muted,
-            BugListColors.Background,
-            BugListColors.Muted
+            BugListColors.SurfaceHigh,
+            BugListColors.TextSecondary,
+            BugListColors.BorderSubtle
         )
     }
 
     Surface(
-        shape = RoundedCornerShape(4.dp),
+        shape = RoundedCornerShape(50),
         color = containerColor,
         modifier = modifier
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(4.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(50))
     ) {
         val label = when (status) {
             DebtStatus.OPEN -> stringResource(R.string.status_open)

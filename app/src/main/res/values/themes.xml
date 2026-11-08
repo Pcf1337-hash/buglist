@@ -2,7 +2,7 @@
 <resources>
     <!--
         BugList Theme – Always Dark.
-        windowBackground set to #0D0D0D to prevent white flash on startup.
+        windowBackground set to #070B14 to prevent a light flash on startup.
         See L-014 in lessons.md.
     -->
     <style name="Theme.BugList" parent="android:Theme.DeviceDefault.NoActionBar">

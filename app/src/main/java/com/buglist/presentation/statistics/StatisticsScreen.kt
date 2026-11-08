@@ -66,7 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtStatus
@@ -75,6 +75,7 @@ import com.buglist.domain.repository.DayActivityCount
 import com.buglist.presentation.components.AmountText
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.StatusChip
+import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.components.formatAmount
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
@@ -123,7 +124,7 @@ fun StatisticsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        containerColor = BugListColors.Background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -344,7 +345,9 @@ private fun HeroBalanceSection(
             ) {
                 Icon(
                     imageVector = if (delta > 0) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null,
+                    contentDescription = stringResource(
+                        if (delta > 0) R.string.a11y_balance_up else R.string.a11y_balance_down
+                    ),
                     tint = deltaColor,
                     modifier = Modifier.size(16.dp)
                 )
@@ -438,7 +441,7 @@ private fun InsightCard(insight: Insight) {
     }
 
     OutlinedCard(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = borderColor.copy(alpha = bgAlpha)
         ),
@@ -511,7 +514,7 @@ private fun BentoGridSection(
                 modifier = Modifier.weight(1f)
             )
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface,
                 modifier = Modifier.weight(1f)
             ) {
@@ -548,11 +551,11 @@ private fun AtRiskCard(atRiskAmount: Double) {
     val borderColor = if (hasRisk) BugListColors.DebtRed else BugListColors.Divider
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = containerColor,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -588,7 +591,7 @@ private fun AtRiskCard(atRiskAmount: Double) {
 private fun RepaymentRateTile(rate: Double, modifier: Modifier = Modifier) {
     val pct = (rate * 100).roundToInt().coerceIn(0, 100)
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -652,7 +655,7 @@ private fun RepaymentRateTile(rate: Double, modifier: Modifier = Modifier) {
 private fun AvgDurationTile(avgDays: Double, modifier: Modifier = Modifier) {
     val days = avgDays.roundToInt()
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -695,7 +698,7 @@ private fun OverviewCard(
     showSign: Boolean = false
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -730,7 +733,7 @@ private fun OverviewCard(
 @Composable
 private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = Modifier
             .fillMaxWidth()
@@ -743,15 +746,9 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
             )
 
             if (monthlyStats.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.statistics_no_data),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Muted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp)
+                StreetEmptyState(
+                    title = stringResource(R.string.statistics_no_data),
+                    modifier = Modifier.fillMaxWidth()
                 )
             } else {
                 // Chart legend
@@ -850,16 +847,10 @@ private fun TopPersonsSection(
         Spacer(Modifier.height(8.dp))
 
         if (items.isEmpty()) {
-            Text(
-                text = emptyText,
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 14.sp,
-                color = BugListColors.Muted,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            StreetEmptyState(title = emptyText, modifier = Modifier.fillMaxWidth())
         } else {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface
             ) {
                 Column {
@@ -1037,7 +1028,7 @@ private fun ActivityHeatmapGrid(activityData: Map<Long, DayActivityCount>) {
     val oneDayMs = 86_400_000L
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         color = BugListColors.Surface,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1104,7 +1095,7 @@ private fun StatusDistributionSection(statusCounts: Map<DebtStatus, Int>) {
         Spacer(Modifier.height(8.dp))
 
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1197,7 +1188,7 @@ private fun PaidHistorySection(paidTotals: com.buglist.domain.repository.Statist
         Spacer(Modifier.height(8.dp))
 
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1276,7 +1267,7 @@ private fun ActivitySection(
             )
         } else {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface
             ) {
                 Column {

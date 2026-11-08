@@ -108,7 +108,9 @@ fun BackupPasswordDialog(
                             Icon(
                                 imageVector = if (showPassword) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,
-                                contentDescription = null,
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.a11y_hide_password else R.string.a11y_show_password
+                                ),
                                 tint = BugListColors.Muted
                             )
                         }
@@ -145,7 +147,9 @@ fun BackupPasswordDialog(
                                 Icon(
                                     imageVector = if (showConfirm) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(
+                                        if (showConfirm) R.string.a11y_hide_password else R.string.a11y_show_password
+                                    ),
                                     tint = BugListColors.Muted
                                 )
                             }
@@ -216,7 +220,7 @@ fun BackupPasswordDialog(
         confirmButton = {
             Surface(
                 onClick = { if (canConfirm) onConfirm(password) },
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = if (canConfirm) BugListColors.Gold else BugListColors.GoldDim
             ) {
                 Text(
@@ -281,9 +285,9 @@ fun BackupConfirmDialog(
         confirmButton = {
             Surface(
                 onClick = onConfirm,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = BugListColors.DebtRed.copy(alpha = 0.15f),
-                modifier = Modifier.border(1.dp, BugListColors.DebtRed, RoundedCornerShape(8.dp))
+                modifier = Modifier.border(1.dp, BugListColors.DebtRed, RoundedCornerShape(16.dp))
             ) {
                 Text(
                     text = stringResource(R.string.backup_confirm_apply),

@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
+import com.buglist.domain.model.Result
+import com.buglist.domain.model.SyncRole
 import com.buglist.domain.repository.PaymentRepository
+import com.buglist.domain.repository.SyncRepository
 import com.buglist.domain.repository.TagRepository
 import com.buglist.domain.usecase.CancelDebtUseCase
 import com.buglist.domain.usecase.DeletePersonUseCase
@@ -90,10 +93,29 @@ class PersonDetailViewModel @Inject constructor(
     private val markDebtAsPaidUseCase: MarkDebtAsPaidUseCase,
     private val cancelDebtUseCase: CancelDebtUseCase,
     private val deletePersonUseCase: DeletePersonUseCase,
-    private val importDebtListUseCase: ImportDebtListUseCase
+    private val importDebtListUseCase: ImportDebtListUseCase,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     val personId: Long = checkNotNull(savedStateHandle["personId"])
+
+    /** Null until a coupling exists. Viewer phones cannot change the book. */
+    val pairing: StateFlow<com.buglist.domain.model.PairingLink?> = syncRepository.observe(personId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val syncRole: StateFlow<SyncRole?> = pairing
+        .map { it?.role }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _coupleCode = MutableStateFlow<String?>(null)
+    val coupleCode: StateFlow<String?> = _coupleCode.asStateFlow()
+
+    private val _coupleError = MutableStateFlow<String?>(null)
+    val coupleError: StateFlow<String?> = _coupleError.asStateFlow()
+
+    init {
+        viewModelScope.launch { syncRepository.reconcile(personId) }
+    }
 
     private val _activeTab = MutableStateFlow(DebtTab.OPEN)
     val activeTab: StateFlow<DebtTab> = _activeTab.asStateFlow()
@@ -112,8 +134,58 @@ class PersonDetailViewModel @Inject constructor(
      * Call this after adding/editing a debt entry, or from pull-to-refresh.
      */
     fun refresh() {
-        _refreshTrigger.update { it + 1 }
+        viewModelScope.launch {
+            when (val result = syncRepository.reconcile(personId)) {
+                is Result.Error -> _coupleError.value = result.message
+                is Result.Success -> if (_coupleError.value != null) _coupleError.value = null
+            }
+            _refreshTrigger.update { it + 1 }
+        }
     }
+
+    fun startCoupling(bothCanEdit: Boolean) {
+        viewModelScope.launch {
+            _coupleError.value = null
+            _coupleCode.value = syncRepository.startCoupling(personId, bothCanEdit)
+        }
+    }
+
+    fun acceptCoupling(code: String) {
+        viewModelScope.launch {
+            when (val result = syncRepository.acceptCode(personId, code)) {
+                is Result.Success -> {
+                    _coupleError.value = null
+                    _coupleCode.value = null
+                    _refreshTrigger.update { it + 1 }
+                }
+                is Result.Error -> _coupleError.value = result.message
+            }
+        }
+    }
+
+    fun claimRole(host: Boolean) {
+        viewModelScope.launch {
+            when (val result = syncRepository.claimRole(personId, host)) {
+                is Result.Error -> _coupleError.value = result.message
+                is Result.Success -> _coupleError.value = null
+            }
+            _refreshTrigger.update { it + 1 }
+        }
+    }
+
+    fun clearCoupleCode() {
+        _coupleCode.value = null
+    }
+
+    fun unlinkCoupling() {
+        viewModelScope.launch {
+            syncRepository.unlink(personId)
+            _coupleCode.value = null
+            _coupleError.value = null
+        }
+    }
+
+    private fun editsOpen(): Boolean = syncRole.value?.canEdit != false
 
     val uiState: StateFlow<PersonDetailUiState> = combine(
         personRepository.getPersonById(personId),
@@ -189,6 +261,7 @@ class PersonDetailViewModel @Inject constructor(
     }
 
     fun markAsPaid(debtId: Long) {
+        if (!editsOpen()) return
         viewModelScope.launch {
             markDebtAsPaidUseCase(debtId)
         }
@@ -198,6 +271,7 @@ class PersonDetailViewModel @Inject constructor(
     private val cancelUndoMap = mutableMapOf<Long, DebtStatus>()
 
     fun cancelDebt(debtId: Long) {
+        if (!editsOpen()) return
         viewModelScope.launch {
             // Snapshot current status before cancelling for potential undo
             val currentState = uiState.value
@@ -216,6 +290,7 @@ class PersonDetailViewModel @Inject constructor(
      * Called when user taps "RÜCKGÄNGIG" in the snackbar.
      */
     fun undoCancelDebt(debtId: Long) {
+        if (!editsOpen()) return
         viewModelScope.launch {
             val previousStatus = cancelUndoMap.remove(debtId) ?: DebtStatus.OPEN
             debtRepository.updateDebtStatus(debtId, previousStatus)
@@ -229,6 +304,7 @@ class PersonDetailViewModel @Inject constructor(
      * @param debtId The ID of the debt entry to delete.
      */
     fun deleteDebtEntry(debtId: Long) {
+        if (!editsOpen()) return
         viewModelScope.launch {
             debtRepository.deleteDebtEntryById(debtId)
         }
@@ -257,6 +333,7 @@ class PersonDetailViewModel @Inject constructor(
      * The result is emitted via [importState].
      */
     fun importDebtList(text: String) {
+        if (!editsOpen()) return
         viewModelScope.launch {
             _importState.value = ImportUiState.Running
             val result = importDebtListUseCase(personId, text)

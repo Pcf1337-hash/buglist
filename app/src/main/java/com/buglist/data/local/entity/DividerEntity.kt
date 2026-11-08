@@ -20,8 +20,8 @@ data class DividerEntity(
     /** Text shown centred on the divider line. May be empty string for line-only separators. */
     val label: String,
 
-    /** ARGB color int for both the line and the label text. Default: Gold (#FFD700). */
-    val color: Int = 0xFFFFD700.toInt(),
+    /** ARGB color int for both the line and the label text. Default: neon cyan. */
+    val color: Int = 0xFF7AD7F0.toInt(),
 
     /** Line style stored as string name of [com.buglist.domain.model.DividerLineStyle]. */
     val lineStyle: String = "SOLID",

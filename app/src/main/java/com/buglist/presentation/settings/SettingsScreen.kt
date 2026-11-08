@@ -1,5 +1,6 @@
 package com.buglist.presentation.settings
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -66,7 +67,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.BuildConfig
 import com.buglist.R
@@ -74,6 +75,8 @@ import com.buglist.data.remote.UpdateState
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.components.StartupUpdateDialog
 import com.buglist.presentation.theme.BugListColors
+import com.buglist.presentation.theme.LocalAmbientShift
+import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import java.io.File
@@ -288,7 +291,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        containerColor = BugListColors.Background,
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -327,6 +330,20 @@ fun SettingsScreen(
                     CurrencyDropdown(
                         selected = uiData.currency,
                         onSelect = viewModel::setCurrency
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    SettingsToggleRow(
+                        label = stringResource(R.string.settings_group_inactive),
+                        sublabel = stringResource(R.string.settings_group_inactive_hint),
+                        checked = uiData.groupInactive,
+                        onCheckedChange = viewModel::setGroupInactive
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    SettingsToggleRow(
+                        label = stringResource(R.string.settings_ambient_motion),
+                        sublabel = stringResource(R.string.settings_ambient_motion_hint),
+                        checked = uiData.ambientMotion,
+                        onCheckedChange = viewModel::setAmbientMotion
                     )
                 }
             }
@@ -367,7 +384,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Surface(
                         onClick = { importFileLauncher.launch(arrayOf("*/*")) },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = BugListColors.Gold.copy(alpha = 0.08f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -391,7 +408,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Surface(
                         onClick = viewModel::showDeleteConfirm,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = BugListColors.DebtRed.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -412,7 +429,7 @@ fun SettingsScreen(
                     SettingsSection(title = stringResource(R.string.settings_section_debug)) {
                         Surface(
                             onClick = { viewModel.seedTestData() },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = BugListColors.Gold.copy(alpha = 0.12f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -497,7 +514,7 @@ private fun TagsSection(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -603,7 +620,7 @@ private fun TagsSection(
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.Gold,
-                            contentColor = Color.Black
+                            contentColor = BugListColors.SurfaceDark
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
@@ -649,9 +666,12 @@ private fun SettingsSection(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, BugListColors.BorderSubtle, RoundedCornerShape(20.dp))
+                .ambientRim(LocalAmbientShift.current, corner = 20.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 content()

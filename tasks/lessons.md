@@ -601,17 +601,17 @@ var isOwedToMe by rememberSaveable { mutableStateOf(false) }  // default = unche
 // Toggle-Label-Farbe: if (!isOwedToMe) DebtRed else DebtGreen
 ```
 
-### L-081 – Farb-Konvention: "schuldet mir" → ROT, "ich schulde" → GRÜN
+### L-081 – Farb-Konvention: "schuldet mir" → GRÜN, "ich schulde" → ROT
 
-**Problem:** AddDebtSheet Toggle-Label zeigte "SCHULDET MIR" in Grün — inkonsistent mit DebtCard und PersonDetailHeader die isOwedToMe=true als ROT zeigen.
-**Ursache:** Ursprüngliche Konvention war "Geld kommt zu mir = positiv = Grün". Neue Konvention ist "schuldet mir = aus seiner Sicht Minus = ROT".
+**Stand seit `477d0f3`:** `green = owed to me, red = I owe`. Das ist die gewohnte Bedeutung. Nicht umdrehen.
 **Regel:**
-- `isOwedToMe=true` (Person schuldet mir) → **ROT** (DebtRed) für Betrag-Anzeige + Toggle-Label
-- `isOwedToMe=false` (Ich schulde) → **GRÜN** (DebtGreen) für Betrag-Anzeige + Toggle-Label
-- TILGEN-Button für "schuldet mir" → **GRÜN** (ich bekomme Geld zurück, positiver Fluss)
-- TILGEN-Button für "ich schulde" → **ROT** (ich zahle Geld aus, negativer Fluss)
-- BUCHEN-Button in AddPaymentSheet: gleiche Konvention wie TILGEN-Button
-- DebtCard AmountText: `amount = if (isOwedToMe) -displayAmount else displayAmount` (negative = ROT) ← unverändertes Muster, korrekt
+- `isOwedToMe=true` (Person schuldet mir) → **GRÜN** (DebtGreen), positives Vorzeichen
+- `isOwedToMe=false` (Ich schulde) → **ROT** (DebtRed), negatives Vorzeichen
+- AmountText: positiv = Grün, negativ = Rot
+- DebtCard: `amount = if (isOwedToMe) displayAmount else -displayAmount`
+- TILGEN-Button für "schuldet mir" → **GRÜN** (Geld kommt zurück)
+- TILGEN-Button für "ich schulde" → **ROT** (Geld geht raus)
+- BUCHEN-Button in AddPaymentSheet: gleiche Richtung wie der Tilgen-Knopf
 
 ### L-082 – Toast nach Tilgung: SharedFlow statt UiState-Guard
 
@@ -827,3 +827,8 @@ _Wird nach jedem Fehler erweitert._
 **Problem:** Biometric-Fehler auf Kollegen-Gerät nicht reproduzierbar ohne physischen Zugriff.
 **Root Cause:** Keine Diagnose-Daten verfügbar, kein Logging-System.
 **Regel:** DiagnosticsManager mit whitelisted Events (nur Fehlercodes, keine PII) + ntfy.sh Push für kritische Events (BIOMETRIC_FAILED, BIOMETRIC_CANCELED, KEY_PERMANENTLY_INVALIDATED). @Named("diagnostics") HttpClient für Hilt-Trennung vom Update-Client. ConcurrentLinkedQueue max 200 Events. Fire-and-forget Upload in SupervisorJob Scope. 5-Tap Debug-Export in Settings für manuellen JSON-Share.
+
+## L-100 – AGP 9: kein kotlin-android Plugin, compileSdk 37 bei targetSdk 36
+**Problem:** `assembleDebug` bricht nach dem Toolchain-Update entweder mit „plugin org.jetbrains.kotlin.android is no longer required“ oder mit „dependency requires compileSdk 37“ ab.
+**Ursache:** AGP 9.0+ bringt Kotlin mit. Das Plugin `org.jetbrains.kotlin.android` darf nicht mehr angewendet werden, `jvmTarget` steht in `kotlin { compilerOptions }`. Navigation 2.10, Compose 1.12 und Hilt Navigation 1.4 verlangen compileSdk 37. `targetSdk` bleibt 36, das ist die Play-Grenze für Updates.
+**Regel:** `compileSdk = 37`, `targetSdk = 36`. Plugins: `com.android.application`, Compose, Serialization, Hilt, KSP. Kein `org.jetbrains.kotlin.android`. Gradle 9.6 passend zu AGP 9.5. `hiltViewModel` kommt aus `androidx.hilt.lifecycle.viewmodel.compose`.

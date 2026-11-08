@@ -3,6 +3,7 @@ package com.buglist.util
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
 /**
@@ -16,3 +17,12 @@ import androidx.datastore.preferences.preferencesDataStore
 internal val Context.appDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "buglist_settings"
 )
+
+/**
+ * Default true, matching v2.5.1: people with no open debts fold into INAKTIV.
+ * Missing on older installs, so the default keeps that behaviour after an upgrade.
+ */
+internal val KEY_GROUP_INACTIVE = booleanPreferencesKey("group_inactive_persons")
+
+/** Background light may follow tilt. Default on. Reduced motion still forces it off. */
+internal val KEY_AMBIENT_MOTION = booleanPreferencesKey("ambient_motion")

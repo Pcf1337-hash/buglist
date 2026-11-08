@@ -2,64 +2,37 @@ package com.buglist.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import com.buglist.R
 
 /**
  * BugList Typography System.
  *
+ * Fonts are bundled in the APK (res/font) so the first frame does not wait on
+ * Play Services or a network fetch. Licenses: third_party/fonts/.
+ *
  * - Headlines / App Name: Oswald Bold UPPERCASE (street aesthetic)
  * - Body / Labels:        Roboto Condensed Regular/Medium
  * - Amounts / Numbers:    Bebas Neue Regular (impact numbers)
  */
 
-private val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs
-)
-
 val OswaldFontFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Oswald"),
-        fontProvider = provider,
-        weight = FontWeight.Bold
-    ),
-    Font(
-        googleFont = GoogleFont("Oswald"),
-        fontProvider = provider,
-        weight = FontWeight.Medium
-    ),
-    Font(
-        googleFont = GoogleFont("Oswald"),
-        fontProvider = provider,
-        weight = FontWeight.Normal
-    )
+    Font(R.font.oswald_regular, FontWeight.Normal),
+    Font(R.font.oswald_medium, FontWeight.Medium),
+    Font(R.font.oswald_semibold, FontWeight.SemiBold),
+    Font(R.font.oswald_bold, FontWeight.Bold)
 )
 
 val RobotoCondensedFontFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Roboto Condensed"),
-        fontProvider = provider,
-        weight = FontWeight.Normal
-    ),
-    Font(
-        googleFont = GoogleFont("Roboto Condensed"),
-        fontProvider = provider,
-        weight = FontWeight.Medium
-    )
+    Font(R.font.roboto_condensed_regular, FontWeight.Normal),
+    Font(R.font.roboto_condensed_medium, FontWeight.Medium)
 )
 
 val BebasNeueFontFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Bebas Neue"),
-        fontProvider = provider,
-        weight = FontWeight.Normal
-    )
+    Font(R.font.bebas_neue_regular, FontWeight.Normal)
 )
 
 val BugListTypography = Typography(

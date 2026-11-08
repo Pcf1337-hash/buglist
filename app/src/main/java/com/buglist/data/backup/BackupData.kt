@@ -58,7 +58,9 @@ data class DebtEntryBackup(
     val date: Long,
     val dueDate: Long? = null,
     val status: String = "OPEN",
-    val createdAt: Long
+    val createdAt: Long,
+    /** Host receipt number. Absent in backups from before v2.6.0 serial fix. */
+    val syncSerial: String? = null
 )
 
 @Serializable
@@ -96,7 +98,11 @@ data class DividerBackup(
 data class SettingsBackup(
     val currency: String = "EUR",
     val autoLockTimeoutSeconds: Int = 60,
-    val showDescription: Boolean = false
+    val showDescription: Boolean = false,
+    /** Absent in backups from before v2.6.0. Default keeps the v2.5.1 fold. */
+    val groupInactive: Boolean = true,
+    /** Absent in older backups. Default keeps the light available. */
+    val ambientMotion: Boolean = true
 )
 
 /** Summary shown to the user before confirming an import. */
@@ -126,13 +132,13 @@ fun PersonBackup.toEntity() = PersonEntity(
 fun DebtEntryEntity.toBackup() = DebtEntryBackup(
     id = id, personId = personId, amount = amount, currency = currency,
     isOwedToMe = isOwedToMe, description = description, date = date,
-    dueDate = dueDate, status = status, createdAt = createdAt
+    dueDate = dueDate, status = status, createdAt = createdAt, syncSerial = syncSerial
 )
 
 fun DebtEntryBackup.toEntity() = DebtEntryEntity(
     id = id, personId = personId, amount = amount, currency = currency,
     isOwedToMe = isOwedToMe, description = description, date = date,
-    dueDate = dueDate, status = status, createdAt = createdAt
+    dueDate = dueDate, status = status, createdAt = createdAt, syncSerial = syncSerial
 )
 
 fun PaymentEntity.toBackup() = PaymentBackup(

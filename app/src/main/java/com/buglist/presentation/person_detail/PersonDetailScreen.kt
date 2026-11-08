@@ -3,11 +3,14 @@ package com.buglist.presentation.person_detail
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Column
@@ -26,7 +29,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,6 +67,8 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,7 +86,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtEntry
@@ -92,6 +96,7 @@ import com.buglist.domain.model.Person
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
 import com.buglist.presentation.components.AmountText
+import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.edit_person.EditPersonSheet
 import com.buglist.presentation.components.DebtCard
 import com.buglist.presentation.components.PersonAvatar
@@ -143,6 +148,12 @@ fun PersonDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var isRefreshing by remember { mutableStateOf(false) }
+    var showCouple by remember { mutableStateOf(false) }
+    val syncRole by viewModel.syncRole.collectAsStateWithLifecycle()
+    val pairing by viewModel.pairing.collectAsStateWithLifecycle()
+    val coupleCode by viewModel.coupleCode.collectAsStateWithLifecycle()
+    val coupleError by viewModel.coupleError.collectAsStateWithLifecycle()
+    val canEdit = syncRole?.canEdit != false
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
     val undoLabel = stringResource(R.string.action_undo)
@@ -233,7 +244,7 @@ fun PersonDetailScreen(
             }
 
             Scaffold(
-                containerColor = BugListColors.Background,
+                containerColor = Color.Transparent,
                 snackbarHost = {
                     SnackbarHost(hostState = snackbarHostState)
                 },
@@ -250,22 +261,14 @@ fun PersonDetailScreen(
                             }
                         },
                         actions = {
-                            // Import / sync icon — opens the list import dialog
-                            IconButton(onClick = { showImportDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Sync,
-                                    contentDescription = stringResource(R.string.person_detail_import_cd),
-                                    tint = BugListColors.Gold
-                                )
-                            }
-                            IconButton(onClick = { showEditPerson = true }) {
+                            if (canEdit) IconButton(onClick = { showEditPerson = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Person bearbeiten",
                                     tint = BugListColors.Platinum
                                 )
                             }
-                            IconButton(onClick = { showDeleteConfirm = true }) {
+                            if (canEdit) IconButton(onClick = { showDeleteConfirm = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.action_delete),
@@ -279,14 +282,16 @@ fun PersonDetailScreen(
                     )
                 },
                 floatingActionButton = {
-                    FloatingActionButton(
+                    if (canEdit) FloatingActionButton(
                         onClick = { showAddDebt = true },
+                        modifier = Modifier.size(64.dp),
                         containerColor = BugListColors.Gold,
                         contentColor = BugListColors.Background
                     ) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = stringResource(R.string.person_detail_add_debt)
+                            contentDescription = stringResource(R.string.person_detail_add_debt),
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -313,8 +318,10 @@ fun PersonDetailScreen(
                             hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
                             hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
                             reliabilityScore = state.reliabilityScore,
-                            onSettleOwedToMe = { settlementDirection = true },
-                            onSettleIOwe = { settlementDirection = false },
+                            onSettleOwedToMe = { if (canEdit) settlementDirection = true },
+                            onSettleIOwe = { if (canEdit) settlementDirection = false },
+                            syncRole = syncRole,
+                            onSecretTap = { showCouple = true },
                             onLongPressBalance = {
                                 // Copy just the net balance to clipboard
                                 val balance = buildBalanceText(state.debts)
@@ -343,22 +350,23 @@ fun PersonDetailScreen(
                             onTabChange = viewModel::setActiveTab
                         )
                     }
+                    if (syncRole == com.buglist.domain.model.SyncRole.GUEST) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.couple_role_guest),
+                                fontFamily = RobotoCondensedFontFamily,
+                                fontSize = 14.sp,
+                                color = BugListColors.TextSecondary,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                     if (state.debts.isEmpty()) {
                         item {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.person_detail_empty),
-                                    fontFamily = OswaldFontFamily,
-                                    fontSize = 18.sp,
-                                    color = BugListColors.Muted,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            StreetEmptyState(
+                                title = stringResource(R.string.person_detail_empty),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     } else {
                         items(state.debts, key = { it.entry.id }) { debtWithPayments ->
@@ -368,10 +376,15 @@ fun PersonDetailScreen(
                                     expanded = state.expandedDebtId == debtWithPayments.entry.id,
                                     onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
                                     // Long press → context menu (Bearbeiten / Stornieren)
-                                    onContextMenu = { contextMenuDebtId = debtWithPayments.entry.id },
-                                    onSwipeLeft = { paymentDebtId = debtWithPayments.entry.id },
-                                    // Swipe right → open edit sheet directly
-                                    onSwipeRight = { editDebtEntry = debtWithPayments.entry },
+                                    onContextMenu = {
+                                        if (canEdit) contextMenuDebtId = debtWithPayments.entry.id
+                                    },
+                                    onSwipeLeft = {
+                                        if (canEdit) paymentDebtId = debtWithPayments.entry.id
+                                    },
+                                    onSwipeRight = {
+                                        if (canEdit) editDebtEntry = debtWithPayments.entry
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                                 )
                                 // Context menu — anchored to this card, opens on long press
@@ -524,6 +537,26 @@ fun PersonDetailScreen(
                             showImportDialog = false
                             importText = ""
                         }
+                    }
+                )
+            }
+
+            if (showCouple) {
+                CoupleSheet(
+                    link = pairing,
+                    code = coupleCode,
+                    error = coupleError,
+                    onStart = { viewModel.startCoupling(false) },
+                    onAccept = viewModel::acceptCoupling,
+                    onClaim = viewModel::claimRole,
+                    onUnlink = {
+                        viewModel.unlinkCoupling()
+                        showCouple = false
+                    },
+                    onSyncNow = { viewModel.refresh() },
+                    onDismiss = {
+                        showCouple = false
+                        viewModel.clearCoupleCode()
                     }
                 )
             }
@@ -687,9 +720,13 @@ private fun PersonDetailHeader(
     reliabilityScore: Int,
     onSettleOwedToMe: () -> Unit,
     onSettleIOwe: () -> Unit,
+    syncRole: com.buglist.domain.model.SyncRole?,
+    onSecretTap: () -> Unit,
     onLongPressBalance: () -> Unit,
     onDoubleTapBalance: () -> Unit
 ) {
+    var nameTaps by remember { mutableIntStateOf(0) }
+    var lastNameTap by remember { mutableLongStateOf(0L) }
     // Balance calculation per status:
     // OPEN/PARTIAL → remaining (what's still outstanding)
     // PAID         → entry.amount (original debt, totalPaid may be 0 for direct-mark-as-paid)
@@ -753,13 +790,43 @@ private fun PersonDetailHeader(
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
-            color = BugListColors.Platinum
+            color = BugListColors.Platinum,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                val now = System.currentTimeMillis()
+                nameTaps = if (now - lastNameTap > 2_000L) 1 else nameTaps + 1
+                lastNameTap = now
+                if (nameTaps >= 10) {
+                    nameTaps = 0
+                    onSecretTap()
+                }
+            }
         )
+        if (syncRole == com.buglist.domain.model.SyncRole.HOST ||
+            syncRole == com.buglist.domain.model.SyncRole.GUEST
+        ) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(
+                    if (syncRole == com.buglist.domain.model.SyncRole.HOST) {
+                        R.string.couple_badge_host
+                    } else {
+                        R.string.couple_badge_view
+                    }
+                ),
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = BugListColors.Gold
+            )
+        }
         Spacer(Modifier.height(8.dp))
         // Long press → copy balance | Double tap → copy full tab history
         AmountText(
             amount = netBalance,
-            fontSize = 40.sp,
+            fontSize = 48.sp,
             modifier = Modifier.combinedClickable(
                 onClick = {},
                 onLongClick = onLongPressBalance,
@@ -784,12 +851,14 @@ private fun PersonDetailHeader(
                 ) {
                     Button(
                         onClick = onSettleOwedToMe,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.DebtGreen,
                             contentColor = BugListColors.Background
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_button_label),
@@ -801,12 +870,14 @@ private fun PersonDetailHeader(
                     }
                     Button(
                         onClick = onSettleIOwe,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.DebtRed,
                             contentColor = BugListColors.Platinum
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_button_label),
@@ -824,18 +895,20 @@ private fun PersonDetailHeader(
                 val textColor = if (hasOpenDebtsOwedToMe) BugListColors.Background else BugListColors.Platinum
                 Button(
                     onClick = onClick,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = buttonColor,
                         contentColor = textColor
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.settlement_button_label),
                         fontFamily = OswaldFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 16.sp
                     )
                 }
             }
@@ -867,6 +940,7 @@ private fun DebtTabRow(activeTab: DebtTab, onTabChange: (DebtTab) -> Unit) {
             Tab(
                 selected = selectedIndex == index,
                 onClick = { onTabChange(tab) },
+                modifier = Modifier.height(56.dp),
                 text = {
                     Text(
                         text = label.uppercase(),

@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,8 +30,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,6 +43,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,13 +57,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
 import com.buglist.domain.model.DebtStatus
 import com.buglist.presentation.components.AmountInputPad
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.components.formatAmount
+import com.buglist.presentation.theme.AmbientGates
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
@@ -76,9 +84,7 @@ import java.util.Locale
  * - Success state shows which entries were settled.
  * - Toast confirmation fires immediately after settlement via [SettlementViewModel.toastEvent].
  *
- * The sheet closes via swipe-down or the cancel button. With [skipPartiallyExpanded = true]
- * the user must drag the sheet fully off-screen to dismiss, which gives the ~80%-drag
- * threshold behaviour described in the design spec.
+ * Swipe and scrim do not close the sheet. Close and system back do, without booking.
  *
  * @param personId      The person whose debts are being settled.
  * @param personName    Shown in the sheet header.
@@ -100,12 +106,11 @@ fun SettlementSheet(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val openDebts by viewModel.openDebts.collectAsStateWithLifecycle()
-    // skipPartiallyExpanded = true: only EXPANDED and HIDDEN states exist.
-    // The sheet must be dragged fully off-screen to dismiss (~80-100% of its height),
-    // which is the desired drag-threshold behaviour without any confirmValueChange restriction.
-    val sheetState: SheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
+    val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    DisposableEffect(Unit) {
+        AmbientGates.acquire()
+        onDispose { AmbientGates.release() }
+    }
 
     var amountInput by rememberSaveable { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -224,6 +229,12 @@ fun SettlementSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = null,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = true,
+            shouldDismissOnClickOutside = false
+        ),
         containerColor = BugListColors.Surface
     ) {
         when (val state = uiState) {
@@ -280,6 +291,7 @@ fun SettlementSheet(
                     onAmountInputChange = { newInput -> amountInput = newInput },
                     previewItems = emptyList(),
                     onConfirm = handleConfirm,
+                    onClose = onDismiss,
                     openDebts = openDebts
                 )
             }
@@ -294,6 +306,7 @@ fun SettlementSheet(
                     onAmountInputChange = { newInput -> amountInput = newInput },
                     previewItems = state.preview,
                     onConfirm = handleConfirm,
+                    onClose = onDismiss,
                     totalOpen = state.totalOpen,
                     openCount = state.openCount,
                     openDebts = openDebts
@@ -313,28 +326,25 @@ private fun SettlementInputContent(
     onAmountInputChange: (String) -> Unit,
     previewItems: List<SettlementPreviewItem>,
     onConfirm: () -> Unit,
+    onClose: () -> Unit,
     totalOpen: Double = state?.totalOpen ?: 0.0,
     openCount: Int = state?.openCount ?: 0,
     openDebts: List<com.buglist.domain.model.DebtEntryWithPayments> = emptyList()
 ) {
     val scrollState = rememberScrollState()
     val hasValidAmount = parseAmountInput(amountInput) > 0.001
+    val isConfirmEnabled = hasValidAmount && totalOpen > 0.001
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(scrollState)
-            .padding(bottom = 32.dp)
-    ) {
-        // Header — title left, quick-confirm button right (Gold background, black text)
-        val isConfirmEnabled = hasValidAmount && totalOpen > 0.001
+    BoxWithConstraints(Modifier.fillMaxWidth().fillMaxHeight(0.96f)) {
+    val keyHeight = ((maxHeight - 280.dp) / 4).coerceIn(48.dp, 72.dp)
+    Column(Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(
                     text = stringResource(R.string.settlement_title),
                     fontFamily = OswaldFontFamily,
@@ -349,29 +359,20 @@ private fun SettlementInputContent(
                     color = BugListColors.Muted
                 )
             }
-            // Quick-confirm button: Gold background, black text, same shape as bottom button,
-            // slightly smaller height so it fits the header row without crowding the title.
-            Button(
-                onClick = onConfirm,
-                enabled = isConfirmEnabled,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BugListColors.Gold,
-                    contentColor = androidx.compose.ui.graphics.Color.Black,
-                    disabledContainerColor = BugListColors.GoldDim,
-                    disabledContentColor = BugListColors.Muted
-                ),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.settlement_button_label),
-                    fontFamily = OswaldFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.settlement_close),
+                    tint = BugListColors.Platinum
                 )
             }
         }
 
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(scrollState)
+        ) {
         Spacer(Modifier.height(12.dp))
 
         // Direction label
@@ -421,7 +422,7 @@ private fun SettlementInputContent(
         Surface(
             onClick = { debtsExpanded = !debtsExpanded },
             color = BugListColors.SurfaceHigh,
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
@@ -504,32 +505,8 @@ private fun SettlementInputContent(
 
         Spacer(Modifier.height(8.dp))
 
-        // Amount input pad
-        AmountInputPad(
-            inputString = amountInput,
-            onInputChange = onAmountInputChange,
-            maxValue = 999_999.99,
-            currency = currency,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Bottom confirm button — always visible directly after the input pad,
-        // so the user can always reach it without scrolling past the preview list.
-        GoldButton(
-            text = stringResource(R.string.settlement_confirm_button),
-            onClick = onConfirm,
-            enabled = hasValidAmount && totalOpen > 0.001,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        // Preview section — shown below the button so it never pushes the button off-screen.
-        // The user enters an amount, the button is immediately reachable, and the preview
-        // of which entries will be settled is visible by scrolling down.
         if (previewItems.isNotEmpty() && hasValidAmount) {
-            Spacer(Modifier.height(16.dp))
-
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.settlement_preview_title),
                 fontFamily = OswaldFontFamily,
@@ -538,14 +515,12 @@ private fun SettlementInputContent(
                 color = BugListColors.Platinum,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
-
             Spacer(Modifier.height(8.dp))
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .background(BugListColors.SurfaceHigh, RoundedCornerShape(8.dp))
+                    .background(BugListColors.SurfaceHigh, RoundedCornerShape(16.dp))
                     .padding(vertical = 4.dp)
             ) {
                 Column {
@@ -560,9 +535,28 @@ private fun SettlementInputContent(
                     }
                 }
             }
+            Spacer(Modifier.height(12.dp))
         }
-
-        Spacer(Modifier.height(32.dp))
+        }
+        AmountInputPad(
+            inputString = amountInput,
+            onInputChange = onAmountInputChange,
+            maxValue = 999_999.99,
+            currency = currency,
+            modifier = Modifier.fillMaxWidth(),
+            showQuickAmounts = false,
+            keyHeight = keyHeight,
+            keyGap = 8.dp,
+            contrastRim = true,
+            belowDisplay = {
+                GoldButton(
+                    text = stringResource(R.string.settlement_confirm_button),
+                    onClick = onConfirm,
+                    enabled = isConfirmEnabled
+                )
+            }
+        )
+    }
     }
 }
 
@@ -876,7 +870,7 @@ private fun OverpaymentDialog(
                 Button(
                     onClick = onCounterDebt,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BugListColors.Gold,
                         contentColor = androidx.compose.ui.graphics.Color.Black
@@ -904,13 +898,13 @@ private fun OverpaymentDialog(
                         .border(
                             width = 1.dp,
                             color = BugListColors.Gold.copy(alpha = 0.45f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(16.dp)
                         )
                 ) {
                     TextButton(
                         onClick = onTip,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_overpay_tip),

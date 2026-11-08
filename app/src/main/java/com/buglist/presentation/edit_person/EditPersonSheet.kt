@@ -46,7 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.domain.model.Person
 import com.buglist.presentation.components.GoldButton
@@ -250,7 +250,7 @@ fun EditPersonSheet(
                 unfocusedTextColor = BugListColors.Platinum,
                 cursorColor = BugListColors.Gold
             )
-            val fieldShape = RoundedCornerShape(8.dp)
+            val fieldShape = RoundedCornerShape(16.dp)
 
             OutlinedTextField(
                 value = nameInput,
