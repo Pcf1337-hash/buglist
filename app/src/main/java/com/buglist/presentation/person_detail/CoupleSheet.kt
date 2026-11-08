@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -133,6 +134,15 @@ fun CoupleSheet(
                         .fillMaxWidth()
                         .height(280.dp)
                 )
+                Spacer(Modifier.height(8.dp))
+                SelectionContainer {
+                    Text(
+                        text = code,
+                        fontFamily = RobotoCondensedFontFamily,
+                        fontSize = 11.sp,
+                        color = BugListColors.TextSecondary
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (role == SyncRole.BOTH) {
