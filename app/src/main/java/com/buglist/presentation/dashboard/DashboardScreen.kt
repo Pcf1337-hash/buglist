@@ -30,7 +30,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
@@ -174,10 +177,14 @@ fun DashboardScreen(
     var searchActive by remember { mutableStateOf(false) }
     var inactiveExpanded by rememberSaveable { mutableStateOf(false) }
     val groupInactive by viewModel.groupInactive.collectAsStateWithLifecycle()
-    var localSearchQuery by remember { mutableStateOf("") }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchFocus = remember { FocusRequester() }
     LaunchedEffect(searchActive) {
-        if (searchActive) searchFocus.requestFocus()
+        if (searchActive) {
+            // The field must be in the tree before focus, or key events (and adb text) miss it.
+            kotlinx.coroutines.delay(80)
+            runCatching { searchFocus.requestFocus() }
+        }
     }
 
     Scaffold(
@@ -199,7 +206,6 @@ fun DashboardScreen(
                             if (searchActive) {
                                 IconButton(onClick = {
                                     searchActive = false
-                                    localSearchQuery = ""
                                     viewModel.onSearchQueryChanged("")
                                 }) {
                                     Icon(
@@ -236,35 +242,36 @@ fun DashboardScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.SurfaceDark)
                 )
                 if (searchActive && !editMode) {
-                    BasicTextField(
-                        value = localSearchQuery,
-                        onValueChange = { q ->
-                            localSearchQuery = q
-                            viewModel.onSearchQueryChanged(q)
-                        },
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = viewModel::onSearchQueryChanged,
                         singleLine = true,
                         textStyle = TextStyle(
                             fontFamily = RobotoCondensedFontFamily,
                             fontSize = 18.sp,
                             color = BugListColors.TextPrimary
                         ),
-                        cursorBrush = SolidColor(BugListColors.Gold),
-                        decorationBox = { inner ->
-                            if (localSearchQuery.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.dashboard_search_hint),
-                                    fontFamily = RobotoCondensedFontFamily,
-                                    fontSize = 18.sp,
-                                    color = BugListColors.TextMuted
-                                )
-                            }
-                            inner()
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.dashboard_search_hint),
+                                fontFamily = RobotoCondensedFontFamily,
+                                fontSize = 18.sp,
+                                color = BugListColors.TextMuted
+                            )
                         },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = BugListColors.TextPrimary,
+                            unfocusedTextColor = BugListColors.TextPrimary,
+                            cursorColor = BugListColors.Gold,
+                            focusedBorderColor = BugListColors.Gold,
+                            unfocusedBorderColor = BugListColors.BorderSubtle
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 56.dp)
                             .focusRequester(searchFocus)
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
                 HorizontalDivider(color = BugListColors.BorderSubtle, thickness = 0.5.dp)

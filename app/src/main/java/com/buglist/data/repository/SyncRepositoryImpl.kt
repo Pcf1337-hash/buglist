@@ -111,7 +111,7 @@ class SyncRepositoryImpl @Inject constructor(
 
     private suspend fun pull(pairing: PairingEntity): String? {
         val payload = try {
-            mailbox.latestPayload(PairingCode.topicFor(pairing.roomId))
+            mailbox.messages(PairingCode.topicFor(pairing.roomId)).lastOrNull()
         } catch (_: Exception) {
             return "Stand gerade nicht erreichbar"
         } ?: return "Noch kein Stand vom anderen Handy"
