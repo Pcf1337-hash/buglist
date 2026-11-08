@@ -553,10 +553,6 @@ fun PersonDetailScreen(
                         showCouple = false
                     },
                     onSyncNow = { viewModel.refresh() },
-                    onImportList = {
-                        showCouple = false
-                        showImportDialog = true
-                    },
                     onDismiss = {
                         showCouple = false
                         viewModel.clearCoupleCode()

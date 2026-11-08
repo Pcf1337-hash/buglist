@@ -55,7 +55,8 @@ fun AmountInputPad(
     onInputChange: (String) -> Unit,
     maxValue: Double = 999_999.99,
     currency: String = "EUR",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    belowDisplay: @Composable () -> Unit = {}
 ) {
     val currencySymbol = when (currency) {
         "USD" -> "$"
@@ -82,6 +83,8 @@ fun AmountInputPad(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
         )
+
+        belowDisplay()
 
         Spacer(Modifier.height(4.dp))
 

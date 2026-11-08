@@ -71,7 +71,6 @@ fun CoupleSheet(
     onClaim: (host: Boolean) -> Unit,
     onUnlink: () -> Unit,
     onSyncNow: () -> Unit,
-    onImportList: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -273,13 +272,6 @@ fun CoupleSheet(
                 )
             }
 
-            if (role?.canEdit != false) {
-                Spacer(Modifier.height(16.dp))
-                GoldButton(
-                    text = stringResource(R.string.couple_import_list),
-                    onClick = onImportList
-                )
-            }
         }
     }
 }

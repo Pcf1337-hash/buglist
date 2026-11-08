@@ -3,6 +3,7 @@
 
     <!-- Internet – für GitHub Releases Update-Check und APK-Download -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- APK-Installation aus der App heraus (Update-Flow) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

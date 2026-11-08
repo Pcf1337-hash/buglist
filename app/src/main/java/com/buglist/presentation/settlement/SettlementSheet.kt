@@ -349,27 +349,6 @@ private fun SettlementInputContent(
                     color = BugListColors.Muted
                 )
             }
-            // Quick-confirm button: Gold background, black text, same shape as bottom button,
-            // slightly smaller height so it fits the header row without crowding the title.
-            Button(
-                onClick = onConfirm,
-                enabled = isConfirmEnabled,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BugListColors.Gold,
-                    contentColor = androidx.compose.ui.graphics.Color.Black,
-                    disabledContainerColor = BugListColors.GoldDim,
-                    disabledContentColor = BugListColors.Muted
-                ),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.settlement_button_label),
-                    fontFamily = OswaldFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -510,18 +489,14 @@ private fun SettlementInputContent(
             onInputChange = onAmountInputChange,
             maxValue = 999_999.99,
             currency = currency,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Bottom confirm button — always visible directly after the input pad,
-        // so the user can always reach it without scrolling past the preview list.
-        GoldButton(
-            text = stringResource(R.string.settlement_confirm_button),
-            onClick = onConfirm,
-            enabled = hasValidAmount && totalOpen > 0.001,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.fillMaxWidth(),
+            belowDisplay = {
+                GoldButton(
+                    text = stringResource(R.string.settlement_confirm_button),
+                    onClick = onConfirm,
+                    enabled = isConfirmEnabled
+                )
+            }
         )
 
         // Preview section — shown below the button so it never pushes the button off-screen.

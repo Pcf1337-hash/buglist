@@ -17,8 +17,11 @@ import com.buglist.data.sync.SyncNote
 import com.buglist.data.sync.WireBook
 import com.buglist.data.sync.toLocalBook
 import com.buglist.data.sync.toWire
-import com.buglist.domain.sync.RoleDecision
-import com.buglist.domain.sync.decideRoles
+import com.buglist.domain.sync.PeerMessage
+import com.buglist.domain.sync.PhoneSync
+import com.buglist.domain.sync.SyncProblem
+import com.buglist.domain.sync.handshake
+import com.buglist.domain.sync.visibleProblem
 import com.buglist.domain.model.PairingLink
 import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.Result
@@ -107,9 +110,7 @@ class SyncRepositoryImpl @Inject constructor(
 
     override suspend fun claimRole(personId: Long, host: Boolean): Result<Unit> {
         val pairing = syncDao.getPairing(personId) ?: return Result.Error("Noch nicht verbunden")
-        syncDao.upsertPairing(
-            pairing.copy(wantedRole = if (host) "HOST" else "GUEST", role = "PENDING")
-        )
+        syncDao.upsertPairing(pairing.copy(wantedRole = if (host) "HOST" else "GUEST"))
         return reconcile(personId)
     }
 
@@ -121,56 +122,61 @@ class SyncRepositoryImpl @Inject constructor(
         val mutex = locks.getOrPut(personId) { Mutex() }
         return mutex.withLock {
             val pairing = syncDao.getPairing(personId) ?: return@withLock Result.Success(Unit)
-            val notes = try {
+            val fetched = try {
                 readNotes(pairing)
             } catch (_: Exception) {
-                return@withLock Result.Error("Stand gerade nicht erreichbar")
+                return@withLock Result.Error(problemText(SyncProblem.OFFLINE))
             }
-            var peerRole = pairing.peerRole
-            var peerSeen = pairing.peerSeenAt
             var book: List<BookDebt>? = null
-            for (note in notes) {
-                if (note.from.isBlank() || note.from == pairing.deviceId) continue
-                peerSeen = System.currentTimeMillis()
-                when (note.t) {
-                    "role" -> peerRole = if (note.role == "HOST") "HOST" else "GUEST"
-                    "hello" -> Unit
-                    else -> book = note.debts.map { it.toLocalBook() }
+            val inbox = fetched.map { note ->
+                val kind = when (note.t) {
+                    "role" -> "role"
+                    "hello" -> "hello"
+                    else -> "book"
                 }
+                if (kind == "book" && note.from.isNotBlank() && note.from != pairing.deviceId) {
+                    book = note.debts.map { it.toLocalBook() }
+                }
+                PeerMessage(from = note.from, kind = kind, role = note.role)
             }
-            val decision = decideRoles(
-                mineIsHost = pairing.wantedRole?.let { it == "HOST" },
-                peerIsHost = peerRole?.let { it == "HOST" }
+            val result = handshake(
+                PhoneSync(
+                    deviceId = pairing.deviceId,
+                    wanted = pairing.wantedRole,
+                    role = pairing.role,
+                    peerRole = pairing.peerRole,
+                    peerSeen = pairing.peerSeenAt > 0L
+                ),
+                inbox
             )
-            val role = when (decision) {
-                RoleDecision.I_AM_HOST -> "HOST"
-                RoleDecision.I_AM_VIEWER -> "GUEST"
-                RoleDecision.WAITING ->
-                    if (pairing.role == "HOST" || pairing.role == "GUEST") pairing.role else "PENDING"
-                else -> "PENDING"
+            val seenAt = if (result.phone.peerSeen) {
+                pairing.peerSeenAt.takeIf { it > 0L } ?: System.currentTimeMillis()
+            } else {
+                0L
             }
-            val updated = pairing.copy(role = role, peerRole = peerRole, peerSeenAt = peerSeen)
+            val updated = pairing.copy(
+                role = result.phone.role,
+                peerRole = result.phone.peerRole,
+                peerSeenAt = seenAt
+            )
             syncDao.upsertPairing(updated)
-            if (role == "PENDING") {
-                announce(updated)?.let { return@withLock Result.Error(it) }
-            }
-            when (role) {
-                "HOST" -> push(updated)?.let { return@withLock Result.Error(it) }
-                "GUEST" -> {
-                    if (book != null) {
-                        replaceLocalBook(updated.personId, book)
-                        changeSignal.bump()
-                    } else {
-                        return@withLock Result.Error(WAITING_FOR_BOOK)
-                    }
+            for (message in result.outgoing) {
+                val note = when (message.kind) {
+                    "role" -> SyncNote(t = "role", from = pairing.deviceId, role = message.role)
+                    else -> SyncNote(t = "hello", from = pairing.deviceId)
                 }
+                publishNote(updated, note)?.let { return@withLock Result.Error(it) }
             }
-            val problem = when (decision) {
-                RoleDecision.BOTH_HOST -> "Ihr seid beide Host. Einer muss nur zusehen."
-                RoleDecision.BOTH_VIEW -> "Einer muss die Liste führen."
-                else -> null
+            if (result.pushBook) {
+                push(updated)?.let { return@withLock Result.Error(it) }
             }
-            if (problem != null) Result.Error(problem) else Result.Success(Unit)
+            val received = book
+            if (result.takeBook && received != null) {
+                replaceLocalBook(updated.personId, received)
+                changeSignal.bump()
+            }
+            val problem = visibleProblem(fetchFailed = false, problem = result.problem)
+            if (problem != null) Result.Error(problemText(problem)) else Result.Success(Unit)
         }
     }
 
@@ -190,14 +196,11 @@ class SyncRepositoryImpl @Inject constructor(
             runCatching { json.decodeFromString<SyncNote>(plain.decodeToString()) }.getOrNull()
         }
 
-    private suspend fun announce(pairing: PairingEntity): String? {
-        val hello = SyncNote(t = "hello", from = pairing.deviceId)
-        publishNote(pairing, hello)?.let { return it }
-        val wanted = pairing.wantedRole ?: return null
-        return publishNote(
-            pairing,
-            SyncNote(t = "role", from = pairing.deviceId, role = wanted)
-        )
+    private fun problemText(problem: SyncProblem): String = when (problem) {
+        SyncProblem.BOTH_HOST -> "Ihr seid beide Host. Einer muss nur zusehen."
+        SyncProblem.BOTH_VIEW -> "Einer muss die Liste führen."
+        SyncProblem.NO_BOOK -> WAITING_FOR_BOOK
+        SyncProblem.OFFLINE -> "Stand gerade nicht erreichbar"
     }
 
     private suspend fun publishNote(pairing: PairingEntity, note: SyncNote): String? {
