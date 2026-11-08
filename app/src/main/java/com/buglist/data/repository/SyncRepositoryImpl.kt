@@ -13,9 +13,12 @@ import com.buglist.data.sync.ChangeSignal
 import com.buglist.data.sync.NtfyMailbox
 import com.buglist.data.sync.PairingCode
 import com.buglist.data.sync.SnapshotCrypto
+import com.buglist.data.sync.SyncNote
 import com.buglist.data.sync.WireBook
 import com.buglist.data.sync.toLocalBook
 import com.buglist.data.sync.toWire
+import com.buglist.domain.sync.RoleDecision
+import com.buglist.domain.sync.decideRoles
 import com.buglist.domain.model.PairingLink
 import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.Result
@@ -49,7 +52,14 @@ class SyncRepositoryImpl @Inject constructor(
 
     override fun observe(personId: Long): Flow<PairingLink?> =
         syncDao.observePairing(personId).map { entity ->
-            entity?.let { PairingLink(SyncRole.fromStored(it.role)) }
+            entity?.let {
+                PairingLink(
+                    role = SyncRole.fromStored(it.role),
+                    wantedHost = it.wantedRole?.let { role -> role == "HOST" },
+                    peerHost = it.peerRole?.let { role -> role == "HOST" },
+                    peerSeen = it.peerSeenAt > 0L
+                )
+            }
         }
 
     @Suppress("UNUSED_PARAMETER")
@@ -60,7 +70,7 @@ class SyncRepositoryImpl @Inject constructor(
         }
         val pairing = PairingEntity(
             personId = personId,
-            role = "HOST",
+            role = "PENDING",
             roomId = PairingCode.randomRoomId(),
             keyMaterial = PairingCode.randomKey(),
             deviceId = PairingCode.randomDeviceId(),
@@ -75,11 +85,10 @@ class SyncRepositoryImpl @Inject constructor(
     override suspend fun acceptCode(personId: Long, code: String): Result<PairingLink> {
         val offer = PairingCode.decode(code)
             ?: return Result.Error("Das ist kein BugList-Kopplungscode")
-        val role = if (offer.scannerIsGuest) SyncRole.GUEST else SyncRole.GUEST
         syncDao.upsertPairing(
             PairingEntity(
                 personId = personId,
-                role = role.name,
+                role = "PENDING",
                 roomId = offer.roomId,
                 keyMaterial = offer.keyBase64Url,
                 deviceId = PairingCode.randomDeviceId(),
@@ -88,7 +97,20 @@ class SyncRepositoryImpl @Inject constructor(
             )
         )
         val synced = reconcile(personId)
-        return if (synced is Result.Error) Result.Error(synced.message) else Result.Success(PairingLink(role))
+        val link = observeLink(personId)
+        return if (synced is Result.Error && synced.message != WAITING_FOR_BOOK) {
+            Result.Error(synced.message)
+        } else {
+            Result.Success(link)
+        }
+    }
+
+    override suspend fun claimRole(personId: Long, host: Boolean): Result<Unit> {
+        val pairing = syncDao.getPairing(personId) ?: return Result.Error("Noch nicht verbunden")
+        syncDao.upsertPairing(
+            pairing.copy(wantedRole = if (host) "HOST" else "GUEST", role = "PENDING")
+        )
+        return reconcile(personId)
     }
 
     override suspend fun unlink(personId: Long) {
@@ -99,33 +121,96 @@ class SyncRepositoryImpl @Inject constructor(
         val mutex = locks.getOrPut(personId) { Mutex() }
         return mutex.withLock {
             val pairing = syncDao.getPairing(personId) ?: return@withLock Result.Success(Unit)
-            val role = SyncRole.fromStored(pairing.role)
-            if (role == SyncRole.HOST) {
-                push(pairing)?.let { return@withLock Result.Error(it) }
-            } else {
-                pull(pairing)?.let { return@withLock Result.Error(it) }
+            val notes = try {
+                readNotes(pairing)
+            } catch (_: Exception) {
+                return@withLock Result.Error("Stand gerade nicht erreichbar")
             }
-            Result.Success(Unit)
+            var peerRole = pairing.peerRole
+            var peerSeen = pairing.peerSeenAt
+            var book: List<BookDebt>? = null
+            for (note in notes) {
+                if (note.from.isBlank() || note.from == pairing.deviceId) continue
+                peerSeen = System.currentTimeMillis()
+                when (note.t) {
+                    "role" -> peerRole = if (note.role == "HOST") "HOST" else "GUEST"
+                    "hello" -> Unit
+                    else -> book = note.debts.map { it.toLocalBook() }
+                }
+            }
+            val decision = decideRoles(
+                mineIsHost = pairing.wantedRole?.let { it == "HOST" },
+                peerIsHost = peerRole?.let { it == "HOST" }
+            )
+            val role = when (decision) {
+                RoleDecision.I_AM_HOST -> "HOST"
+                RoleDecision.I_AM_VIEWER -> "GUEST"
+                RoleDecision.WAITING ->
+                    if (pairing.role == "HOST" || pairing.role == "GUEST") pairing.role else "PENDING"
+                else -> "PENDING"
+            }
+            val updated = pairing.copy(role = role, peerRole = peerRole, peerSeenAt = peerSeen)
+            syncDao.upsertPairing(updated)
+            if (role == "PENDING") {
+                announce(updated)?.let { return@withLock Result.Error(it) }
+            }
+            when (role) {
+                "HOST" -> push(updated)?.let { return@withLock Result.Error(it) }
+                "GUEST" -> {
+                    if (book != null) {
+                        replaceLocalBook(updated.personId, book)
+                        changeSignal.bump()
+                    } else {
+                        return@withLock Result.Error(WAITING_FOR_BOOK)
+                    }
+                }
+            }
+            val problem = when (decision) {
+                RoleDecision.BOTH_HOST -> "Ihr seid beide Host. Einer muss nur zusehen."
+                RoleDecision.BOTH_VIEW -> "Einer muss die Liste führen."
+                else -> null
+            }
+            if (problem != null) Result.Error(problem) else Result.Success(Unit)
         }
     }
 
-    private suspend fun pull(pairing: PairingEntity): String? {
-        val payload = try {
-            mailbox.messages(PairingCode.topicFor(pairing.roomId)).lastOrNull()
-        } catch (_: Exception) {
-            return "Stand gerade nicht erreichbar"
-        } ?: return "Noch kein Stand vom anderen Handy"
-        val plain = SnapshotCrypto.decrypt(payload, pairing.keyMaterial)
-            ?: return "Stand passt nicht zum Code"
-        val wire = try {
-            json.decodeFromString<WireBook>(plain.decodeToString())
-        } catch (_: Exception) {
-            return "Stand passt nicht zum Code"
+    private suspend fun observeLink(personId: Long): PairingLink {
+        val row = syncDao.getPairing(personId)
+        return PairingLink(
+            role = SyncRole.fromStored(row?.role ?: "PENDING"),
+            wantedHost = row?.wantedRole?.let { it == "HOST" },
+            peerHost = row?.peerRole?.let { it == "HOST" },
+            peerSeen = (row?.peerSeenAt ?: 0L) > 0L
+        )
+    }
+
+    private suspend fun readNotes(pairing: PairingEntity): List<SyncNote> =
+        mailbox.messages(PairingCode.topicFor(pairing.roomId)).mapNotNull { payload ->
+            val plain = SnapshotCrypto.decrypt(payload, pairing.keyMaterial) ?: return@mapNotNull null
+            runCatching { json.decodeFromString<SyncNote>(plain.decodeToString()) }.getOrNull()
         }
-        if (wire.from == pairing.deviceId) return "Noch kein Stand vom anderen Handy"
-        replaceLocalBook(pairing.personId, wire.debts.map { it.toLocalBook() })
-        changeSignal.bump()
-        return null
+
+    private suspend fun announce(pairing: PairingEntity): String? {
+        val hello = SyncNote(t = "hello", from = pairing.deviceId)
+        publishNote(pairing, hello)?.let { return it }
+        val wanted = pairing.wantedRole ?: return null
+        return publishNote(
+            pairing,
+            SyncNote(t = "role", from = pairing.deviceId, role = wanted)
+        )
+    }
+
+    private suspend fun publishNote(pairing: PairingEntity, note: SyncNote): String? {
+        val payload = SnapshotCrypto.encrypt(
+            json.encodeToString(note).encodeToByteArray(),
+            pairing.keyMaterial
+        )
+        return try {
+            mailbox.publish(PairingCode.topicFor(pairing.roomId), payload)
+            null
+        } catch (_: Exception) {
+            "Stand gerade nicht erreichbar"
+        }
     }
 
     private suspend fun push(pairing: PairingEntity): String? {
@@ -340,6 +425,10 @@ class SyncRepositoryImpl @Inject constructor(
         val created = PaymentSyncEntity(paymentId, UUID.randomUUID().toString(), System.currentTimeMillis())
         syncDao.upsertPaymentSync(created)
         return created
+    }
+
+    private companion object {
+        const val WAITING_FOR_BOOK = "Noch kein Stand vom anderen Handy"
     }
 
     private fun statusOf(debt: BookDebt): String {

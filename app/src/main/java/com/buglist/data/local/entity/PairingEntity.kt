@@ -22,5 +22,8 @@ data class PairingEntity(
     val keyMaterial: String,
     val deviceId: String,
     val lastPushedHash: String,
-    val linkedAt: Long
+    val linkedAt: Long,
+    val wantedRole: String? = null,
+    val peerRole: String? = null,
+    val peerSeenAt: Long = 0
 )

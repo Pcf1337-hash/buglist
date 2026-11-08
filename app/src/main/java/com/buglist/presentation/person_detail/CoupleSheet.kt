@@ -46,6 +46,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.buglist.R
+import com.buglist.domain.model.PairingLink
 import com.buglist.domain.model.SyncRole
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.theme.BugListColors
@@ -62,18 +63,21 @@ import java.util.concurrent.Executors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoupleSheet(
-    role: SyncRole?,
+    link: PairingLink?,
     code: String?,
     error: String?,
-    onStart: (bothCanEdit: Boolean) -> Unit,
+    onStart: () -> Unit,
     onAccept: (String) -> Unit,
+    onClaim: (host: Boolean) -> Unit,
     onUnlink: () -> Unit,
     onSyncNow: () -> Unit,
     onImportList: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val role = link?.role
     var scanning by remember { mutableStateOf(false) }
+    var entering by remember { mutableStateOf(false) }
     var pasted by remember { mutableStateOf("") }
 
     ModalBottomSheet(
@@ -104,29 +108,7 @@ fun CoupleSheet(
             )
             Spacer(Modifier.height(16.dp))
 
-            if (role != null && code == null) {
-                Text(
-                    text = when (role) {
-                        SyncRole.HOST -> stringResource(R.string.couple_role_host)
-                        SyncRole.GUEST -> stringResource(R.string.couple_role_guest)
-                        SyncRole.BOTH -> stringResource(R.string.couple_role_both)
-                    },
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 16.sp,
-                    color = BugListColors.TextPrimary
-                )
-                Spacer(Modifier.height(16.dp))
-                if (role != SyncRole.GUEST) {
-                    GoldButton(
-                        text = stringResource(R.string.couple_show_code),
-                        onClick = { onStart(role == SyncRole.BOTH) }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-                GoldButton(text = stringResource(R.string.couple_sync_now), onClick = onSyncNow)
-                Spacer(Modifier.height(8.dp))
-                GoldButton(text = stringResource(R.string.couple_unlink), onClick = onUnlink)
-            } else if (code != null) {
+            if (code != null) {
                 Image(
                     bitmap = remember(code) { qrBitmap(code).asImageBitmap() },
                     contentDescription = stringResource(R.string.couple_title),
@@ -143,18 +125,10 @@ fun CoupleSheet(
                         color = BugListColors.TextSecondary
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (role == SyncRole.BOTH) {
-                        stringResource(R.string.couple_role_both)
-                    } else {
-                        stringResource(R.string.couple_role_host)
-                    },
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.TextSecondary
-                )
-            } else {
+                Spacer(Modifier.height(12.dp))
+            }
+
+            if (role == null && code == null) {
                 Text(
                     text = stringResource(R.string.couple_host_hint),
                     fontFamily = RobotoCondensedFontFamily,
@@ -163,14 +137,95 @@ fun CoupleSheet(
                 )
                 Spacer(Modifier.height(8.dp))
                 GoldButton(
-                    text = stringResource(R.string.couple_host),
-                    onClick = { onStart(false) }
+                    text = stringResource(R.string.couple_show),
+                    onClick = onStart
+                )
+                Spacer(Modifier.height(8.dp))
+                GoldButton(
+                    text = stringResource(R.string.couple_enter),
+                    onClick = { entering = !entering }
+                )
+                if (entering) {
+                    Spacer(Modifier.height(12.dp))
+                    GoldButton(
+                        text = stringResource(R.string.couple_scan),
+                        onClick = { scanning = !scanning }
+                    )
+                }
+            } else if (role == null || role == SyncRole.PENDING || link?.wantedHost == null) {
+                Text(
+                    text = stringResource(R.string.couple_pick_hint),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 16.sp,
+                    color = BugListColors.TextPrimary
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (link?.peerSeen == true) {
+                        stringResource(R.string.couple_wait_role)
+                    } else {
+                        stringResource(R.string.couple_wait)
+                    },
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 14.sp,
+                    color = BugListColors.TextSecondary
+                )
+                if (link?.wantedHost != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            if (link.wantedHost) R.string.couple_chosen_host else R.string.couple_chosen_view
+                        ),
+                        fontFamily = RobotoCondensedFontFamily,
+                        fontSize = 14.sp,
+                        color = BugListColors.Gold
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                GoldButton(
+                    text = stringResource(R.string.couple_pick_host),
+                    onClick = { onClaim(true) }
+                )
+                Spacer(Modifier.height(8.dp))
+                GoldButton(
+                    text = stringResource(R.string.couple_pick_view),
+                    onClick = { onClaim(false) }
+                )
+                if (code == null && role != null) {
+                    Spacer(Modifier.height(8.dp))
+                    GoldButton(text = stringResource(R.string.couple_show_code), onClick = onStart)
+                }
+                Spacer(Modifier.height(8.dp))
+                GoldButton(text = stringResource(R.string.couple_sync_now), onClick = onSyncNow)
+                if (role != null) {
+                    Spacer(Modifier.height(8.dp))
+                    GoldButton(text = stringResource(R.string.couple_unlink), onClick = onUnlink)
+                }
+            } else {
+                Text(
+                    text = when (role) {
+                        SyncRole.HOST -> stringResource(R.string.couple_role_host)
+                        SyncRole.GUEST, SyncRole.BOTH -> stringResource(R.string.couple_role_guest)
+                        SyncRole.PENDING -> stringResource(R.string.couple_pick_hint)
+                    },
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontSize = 16.sp,
+                    color = BugListColors.TextPrimary
                 )
                 Spacer(Modifier.height(16.dp))
-                GoldButton(
-                    text = stringResource(R.string.couple_scan),
-                    onClick = { scanning = !scanning }
-                )
+                if (role == SyncRole.HOST) {
+                    GoldButton(
+                        text = stringResource(R.string.couple_show_code),
+                        onClick = onStart
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                GoldButton(text = stringResource(R.string.couple_sync_now), onClick = onSyncNow)
+                Spacer(Modifier.height(8.dp))
+                GoldButton(text = stringResource(R.string.couple_unlink), onClick = onUnlink)
+            }
+
+            if (role == null && code == null && entering) {
                 if (scanning) {
                     Spacer(Modifier.height(12.dp))
                     QrScanner(onCode = { scanned ->

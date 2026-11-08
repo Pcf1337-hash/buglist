@@ -12,6 +12,9 @@ interface SyncRepository {
 
     suspend fun acceptCode(personId: Long, code: String): Result<PairingLink>
 
+    /** After the code is exchanged, each phone picks host or view-only. */
+    suspend fun claimRole(personId: Long, host: Boolean): Result<Unit>
+
     suspend fun unlink(personId: Long)
 
     /**

@@ -148,6 +148,7 @@ fun PersonDetailScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var showCouple by remember { mutableStateOf(false) }
     val syncRole by viewModel.syncRole.collectAsStateWithLifecycle()
+    val pairing by viewModel.pairing.collectAsStateWithLifecycle()
     val coupleCode by viewModel.coupleCode.collectAsStateWithLifecycle()
     val coupleError by viewModel.coupleError.collectAsStateWithLifecycle()
     val canEdit = syncRole?.canEdit != false
@@ -317,6 +318,7 @@ fun PersonDetailScreen(
                             reliabilityScore = state.reliabilityScore,
                             onSettleOwedToMe = { if (canEdit) settlementDirection = true },
                             onSettleIOwe = { if (canEdit) settlementDirection = false },
+                            syncRole = syncRole,
                             onSecretTap = { showCouple = true },
                             onLongPressBalance = {
                                 // Copy just the net balance to clipboard
@@ -549,11 +551,12 @@ fun PersonDetailScreen(
 
             if (showCouple) {
                 CoupleSheet(
-                    role = syncRole,
+                    link = pairing,
                     code = coupleCode,
                     error = coupleError,
-                    onStart = viewModel::startCoupling,
+                    onStart = { viewModel.startCoupling(false) },
                     onAccept = viewModel::acceptCoupling,
+                    onClaim = viewModel::claimRole,
                     onUnlink = {
                         viewModel.unlinkCoupling()
                         showCouple = false
@@ -729,6 +732,7 @@ private fun PersonDetailHeader(
     reliabilityScore: Int,
     onSettleOwedToMe: () -> Unit,
     onSettleIOwe: () -> Unit,
+    syncRole: com.buglist.domain.model.SyncRole?,
     onSecretTap: () -> Unit,
     onLongPressBalance: () -> Unit,
     onDoubleTapBalance: () -> Unit
@@ -812,6 +816,24 @@ private fun PersonDetailHeader(
                 }
             }
         )
+        if (syncRole == com.buglist.domain.model.SyncRole.HOST ||
+            syncRole == com.buglist.domain.model.SyncRole.GUEST
+        ) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(
+                    if (syncRole == com.buglist.domain.model.SyncRole.HOST) {
+                        R.string.couple_badge_host
+                    } else {
+                        R.string.couple_badge_view
+                    }
+                ),
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = BugListColors.Gold
+            )
+        }
         Spacer(Modifier.height(8.dp))
         // Long press → copy balance | Double tap → copy full tab history
         AmountText(

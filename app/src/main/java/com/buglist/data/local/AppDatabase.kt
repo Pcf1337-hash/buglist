@@ -44,6 +44,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v6 – Tag dedup fix: UNIQUE index on tags.name; existing duplicate tag rows removed
  *   v7 – Coupling tables. The book itself is unchanged; sync ids live beside it.
  *   v8 – Optional host receipt number on debt_entries (syncSerial).
+ *   v9 – Role handshake columns on pairings.
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -61,7 +62,7 @@ import com.buglist.data.local.entity.TagEntity
         PaymentSyncEntity::class,
         SyncTombstoneEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -243,6 +244,19 @@ abstract class AppDatabase : RoomDatabase() {
 
                 // Re-enable FK enforcement.
                 database.query("PRAGMA foreign_keys = ON", emptyArray<Any?>()).close()
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `pairings` ADD COLUMN `wantedRole` TEXT")
+                database.execSQL("ALTER TABLE `pairings` ADD COLUMN `peerRole` TEXT")
+                database.execSQL(
+                    "ALTER TABLE `pairings` ADD COLUMN `peerSeenAt` INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "UPDATE `pairings` SET `wantedRole` = `role` WHERE `role` IN ('HOST', 'GUEST')"
+                )
             }
         }
 

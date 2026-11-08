@@ -5,6 +5,14 @@ import com.buglist.domain.sync.BookPayment
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class SyncNote(
+    val t: String = "book",
+    val from: String = "",
+    val role: String? = null,
+    val debts: List<WireDebt> = emptyList()
+)
+
+@Serializable
 data class WireBook(
     val from: String,
     val debts: List<WireDebt>

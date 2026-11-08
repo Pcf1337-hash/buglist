@@ -99,8 +99,11 @@ class PersonDetailViewModel @Inject constructor(
 
     val personId: Long = checkNotNull(savedStateHandle["personId"])
 
-    /** Null until a coupling exists. Guest phones cannot change the book. */
-    val syncRole: StateFlow<SyncRole?> = syncRepository.observe(personId)
+    /** Null until a coupling exists. Viewer phones cannot change the book. */
+    val pairing: StateFlow<com.buglist.domain.model.PairingLink?> = syncRepository.observe(personId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val syncRole: StateFlow<SyncRole?> = pairing
         .map { it?.role }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -157,6 +160,16 @@ class PersonDetailViewModel @Inject constructor(
                 }
                 is Result.Error -> _coupleError.value = result.message
             }
+        }
+    }
+
+    fun claimRole(host: Boolean) {
+        viewModelScope.launch {
+            when (val result = syncRepository.claimRole(personId, host)) {
+                is Result.Error -> _coupleError.value = result.message
+                is Result.Success -> _coupleError.value = null
+            }
+            _refreshTrigger.update { it + 1 }
         }
     }
 
