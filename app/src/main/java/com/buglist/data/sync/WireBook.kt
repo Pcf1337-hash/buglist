@@ -23,7 +23,9 @@ data class WireDebt(
     val x: Boolean = false,
     val cancelled: Boolean = false,
     val p: List<WirePay> = emptyList(),
-    val rp: List<WireRemoval> = emptyList()
+    val rp: List<WireRemoval> = emptyList(),
+    /** Host receipt number. Missing on snapshots from 51bcda8. */
+    val srl: String? = null
 )
 
 @Serializable
@@ -53,7 +55,8 @@ fun BookDebt.toWire(): WireDebt = WireDebt(
     x = deleted,
     cancelled = cancelled,
     p = payments.map { WirePay(it.syncId, it.amountCents, it.note, it.date, it.updatedAt) },
-    rp = removedPayments.map { (id, at) -> WireRemoval(id, at) }
+    rp = removedPayments.map { (id, at) -> WireRemoval(id, at) },
+    srl = serial
 )
 
 /** [owedToPublisher] is the sender's direction, so the receiver flips it. */
@@ -69,5 +72,6 @@ fun WireDebt.toLocalBook(): BookDebt = BookDebt(
     cancelled = cancelled,
     deleted = x,
     payments = p.map { BookPayment(it.i, it.a, it.n, it.t, it.u) },
-    removedPayments = rp.associate { it.i to it.u }
+    removedPayments = rp.associate { it.i to it.u },
+    serial = srl
 )

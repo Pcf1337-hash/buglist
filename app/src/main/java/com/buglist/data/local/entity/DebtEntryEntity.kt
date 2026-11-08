@@ -42,5 +42,7 @@ data class DebtEntryEntity(
     val date: Long,
     val dueDate: Long? = null,
     val status: String = "OPEN",  // OPEN | PARTIAL | PAID | CANCELLED
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Host receipt number. Null on rows created on this phone. */
+    val syncSerial: String? = null
 )

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buglist.R
 import com.buglist.domain.model.DebtEntryWithPayments
+import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Payment
 import com.buglist.presentation.theme.BugListColors
@@ -210,9 +211,7 @@ fun DebtCard(
                 )
             }
 
-            // Street-Design: Serial number — BL-YYYYMMDD-XXXX (createdAt + id)
-            val serialDateFormat = SimpleDateFormat("yyyyMMdd", Locale.US)
-            val serial = "BL-${serialDateFormat.format(Date(entry.createdAt))}-${"%04d".format(entry.id % 10000)}"
+            val serial = debtSerial(entry.createdAt, entry.id, entry.syncSerial)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = serial,

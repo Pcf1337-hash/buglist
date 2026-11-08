@@ -16,7 +16,9 @@ data class BookDebt(
     val cancelled: Boolean,
     val deleted: Boolean,
     val payments: List<BookPayment>,
-    val removedPayments: Map<String, Long>
+    val removedPayments: Map<String, Long>,
+    /** Host receipt number. Null until the first publish fills it. */
+    val serial: String? = null
 )
 
 data class BookPayment(

@@ -43,6 +43,7 @@ import com.buglist.data.local.entity.TagEntity
  *   v5 – Divider separators: new `dividers` table for crew-list section headers
  *   v6 – Tag dedup fix: UNIQUE index on tags.name; existing duplicate tag rows removed
  *   v7 – Coupling tables. The book itself is unchanged; sync ids live beside it.
+ *   v8 – Optional host receipt number on debt_entries (syncSerial).
  *
  * NEVER use fallbackToDestructiveMigration() in release builds. Every schema
  * change requires an explicit Migration class. See L-030 in lessons.md.
@@ -60,7 +61,7 @@ import com.buglist.data.local.entity.TagEntity
         PaymentSyncEntity::class,
         SyncTombstoneEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -242,6 +243,12 @@ abstract class AppDatabase : RoomDatabase() {
 
                 // Re-enable FK enforcement.
                 database.query("PRAGMA foreign_keys = ON", emptyArray<Any?>()).close()
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `debt_entries` ADD COLUMN `syncSerial` TEXT")
             }
         }
 

@@ -17,6 +17,7 @@ import com.buglist.data.sync.WireBook
 import com.buglist.data.sync.toLocalBook
 import com.buglist.data.sync.toWire
 import com.buglist.domain.model.PairingLink
+import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.Result
 import com.buglist.domain.model.SyncRole
 import com.buglist.domain.repository.SyncRepository
@@ -179,7 +180,8 @@ class SyncRepositoryImpl @Inject constructor(
                 cancelled = debt.status == "CANCELLED",
                 deleted = false,
                 payments = bookPayments,
-                removedPayments = removed
+                removedPayments = removed,
+                serial = debt.syncSerial ?: debtSerial(debt.createdAt, debt.id)
             )
         }
         val liveIds = live.map { it.syncId }.toSet()
@@ -243,7 +245,8 @@ class SyncRepositoryImpl @Inject constructor(
                 date = debt.date,
                 dueDate = debt.dueDate,
                 status = statusOf(debt),
-                createdAt = debt.date
+                createdAt = debt.date,
+                syncSerial = debt.serial
             )
         )
         syncDao.upsertDebtSync(DebtSyncEntity(id, debt.syncId, debt.updatedAt))
@@ -272,7 +275,8 @@ class SyncRepositoryImpl @Inject constructor(
                 description = debt.note,
                 date = debt.date,
                 dueDate = debt.dueDate,
-                status = statusOf(debt)
+                status = statusOf(debt),
+                syncSerial = debt.serial ?: row.syncSerial
             )
         )
         syncDao.touchDebt(existing.debtEntryId, debt.updatedAt)

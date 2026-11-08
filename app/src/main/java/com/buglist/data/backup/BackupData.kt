@@ -58,7 +58,9 @@ data class DebtEntryBackup(
     val date: Long,
     val dueDate: Long? = null,
     val status: String = "OPEN",
-    val createdAt: Long
+    val createdAt: Long,
+    /** Host receipt number. Absent in backups from before v2.6.0 serial fix. */
+    val syncSerial: String? = null
 )
 
 @Serializable
@@ -128,13 +130,13 @@ fun PersonBackup.toEntity() = PersonEntity(
 fun DebtEntryEntity.toBackup() = DebtEntryBackup(
     id = id, personId = personId, amount = amount, currency = currency,
     isOwedToMe = isOwedToMe, description = description, date = date,
-    dueDate = dueDate, status = status, createdAt = createdAt
+    dueDate = dueDate, status = status, createdAt = createdAt, syncSerial = syncSerial
 )
 
 fun DebtEntryBackup.toEntity() = DebtEntryEntity(
     id = id, personId = personId, amount = amount, currency = currency,
     isOwedToMe = isOwedToMe, description = description, date = date,
-    dueDate = dueDate, status = status, createdAt = createdAt
+    dueDate = dueDate, status = status, createdAt = createdAt, syncSerial = syncSerial
 )
 
 fun PaymentEntity.toBackup() = PaymentBackup(

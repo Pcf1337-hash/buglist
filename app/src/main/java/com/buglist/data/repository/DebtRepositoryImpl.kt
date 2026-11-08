@@ -220,7 +220,8 @@ internal fun DebtEntryEntity.toDomain(): DebtEntry = DebtEntry(
     date = date,
     dueDate = dueDate,
     status = DebtStatus.fromString(status),
-    createdAt = createdAt
+    createdAt = createdAt,
+    syncSerial = syncSerial
 )
 
 internal fun DebtEntry.toEntity(): DebtEntryEntity = DebtEntryEntity(
@@ -233,7 +234,8 @@ internal fun DebtEntry.toEntity(): DebtEntryEntity = DebtEntryEntity(
     date = date,
     dueDate = dueDate,
     status = status.name,
-    createdAt = createdAt
+    createdAt = createdAt,
+    syncSerial = syncSerial
 )
 
 internal fun DebtEntryWithPaymentsRelation.toDomain(): DebtEntryWithPayments {
