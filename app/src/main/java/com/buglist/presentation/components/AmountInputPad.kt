@@ -74,16 +74,16 @@ fun AmountInputPad(
         Text(
             text = "$currencySymbol $inputString",
             fontFamily = BebasNeueFontFamily,
-            fontSize = 48.sp,
+            fontSize = 52.sp,
             color = BugListColors.Gold,
             textAlign = TextAlign.Center,
             style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(vertical = 4.dp)
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         // Quick-Minus row
         Row(
@@ -104,7 +104,7 @@ fun AmountInputPad(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         // Numpad
         val rows = listOf(
@@ -118,7 +118,7 @@ fun AmountInputPad(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 3.dp)
+                    .padding(vertical = 2.dp)
             ) {
                 row.forEach { key ->
                     if (key == "⌫") {
@@ -146,7 +146,7 @@ fun AmountInputPad(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         // Quick-Plus row
         Row(
@@ -232,13 +232,13 @@ private fun NumpadKey(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = BugListColors.SurfaceHigh,
-        modifier = modifier.height(56.dp)
+        modifier = modifier.height(64.dp)
     ) {
         Text(
             text = label,
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
+            fontSize = 26.sp,
             color = BugListColors.Gold,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -265,7 +265,7 @@ private fun BackspaceButton(
         shape = RoundedCornerShape(8.dp),
         color = BugListColors.SurfaceHigh,
         modifier = modifier
-            .height(56.dp)
+            .height(64.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { currentOnTap() },
@@ -277,7 +277,7 @@ private fun BackspaceButton(
             text = "⌫",
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
+            fontSize = 26.sp,
             color = BugListColors.Platinum,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -298,13 +298,13 @@ private fun QuickButton(
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
         color = color.copy(alpha = 0.15f),
-        modifier = modifier.height(48.dp)
+        modifier = modifier.height(56.dp)
     ) {
         Text(
             text = label,
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
             color = color,
             textAlign = TextAlign.Center,
             modifier = Modifier
