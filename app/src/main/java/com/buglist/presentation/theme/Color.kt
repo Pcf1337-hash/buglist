@@ -6,9 +6,9 @@ import androidx.compose.ui.graphics.Color
  * BugList color tokens. Always dark.
  *
  * Deep navy black, with a quiet neon cyan as the accent. The name [Gold] is
- * kept so existing call sites stay the accent. Red and green stay the two
- * money colors and are not the accent: red means "schuldet mir", green means
- * "ich schulde" (L-081).
+ * kept so existing call sites stay the accent. Money colors are unchanged
+ * since 477d0f3: green means "schuldet mir" (positive), red means "ich schulde"
+ * (negative).
  *
  * Text and accent pairs were checked against WCAG 2.2 AA (4.5:1) on
  * [SurfaceDark] and [SurfaceCard].

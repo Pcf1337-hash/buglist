@@ -105,7 +105,6 @@ private fun DrawScope.drawAmbient() {
 fun BugListTheme(
     content: @Composable () -> Unit
 ) {
-    val grainBrush = rememberGrainBrush()
     MaterialTheme(
         colorScheme = BugListDarkColorScheme,
         typography = BugListTypography,
@@ -115,7 +114,6 @@ fun BugListTheme(
             modifier = Modifier
                 .fillMaxSize()
                 .drawBehind { drawAmbient() }
-                .grainOverlay(grainBrush, alpha = 0.025f)
         ) {
             content()
         }

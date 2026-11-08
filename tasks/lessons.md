@@ -601,17 +601,17 @@ var isOwedToMe by rememberSaveable { mutableStateOf(false) }  // default = unche
 // Toggle-Label-Farbe: if (!isOwedToMe) DebtRed else DebtGreen
 ```
 
-### L-081 – Farb-Konvention: "schuldet mir" → ROT, "ich schulde" → GRÜN
+### L-081 – Farb-Konvention: "schuldet mir" → GRÜN, "ich schulde" → ROT
 
-**Problem:** AddDebtSheet Toggle-Label zeigte "SCHULDET MIR" in Grün — inkonsistent mit DebtCard und PersonDetailHeader die isOwedToMe=true als ROT zeigen.
-**Ursache:** Ursprüngliche Konvention war "Geld kommt zu mir = positiv = Grün". Neue Konvention ist "schuldet mir = aus seiner Sicht Minus = ROT".
+**Stand seit `477d0f3`:** `green = owed to me, red = I owe`. Das ist die gewohnte Bedeutung. Nicht umdrehen.
 **Regel:**
-- `isOwedToMe=true` (Person schuldet mir) → **ROT** (DebtRed) für Betrag-Anzeige + Toggle-Label
-- `isOwedToMe=false` (Ich schulde) → **GRÜN** (DebtGreen) für Betrag-Anzeige + Toggle-Label
-- TILGEN-Button für "schuldet mir" → **GRÜN** (ich bekomme Geld zurück, positiver Fluss)
-- TILGEN-Button für "ich schulde" → **ROT** (ich zahle Geld aus, negativer Fluss)
-- BUCHEN-Button in AddPaymentSheet: gleiche Konvention wie TILGEN-Button
-- DebtCard AmountText: `amount = if (isOwedToMe) -displayAmount else displayAmount` (negative = ROT) ← unverändertes Muster, korrekt
+- `isOwedToMe=true` (Person schuldet mir) → **GRÜN** (DebtGreen), positives Vorzeichen
+- `isOwedToMe=false` (Ich schulde) → **ROT** (DebtRed), negatives Vorzeichen
+- AmountText: positiv = Grün, negativ = Rot
+- DebtCard: `amount = if (isOwedToMe) displayAmount else -displayAmount`
+- TILGEN-Button für "schuldet mir" → **GRÜN** (Geld kommt zurück)
+- TILGEN-Button für "ich schulde" → **ROT** (Geld geht raus)
+- BUCHEN-Button in AddPaymentSheet: gleiche Richtung wie der Tilgen-Knopf
 
 ### L-082 – Toast nach Tilgung: SharedFlow statt UiState-Guard
 

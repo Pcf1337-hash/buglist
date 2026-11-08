@@ -9,7 +9,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,7 +18,8 @@ import com.buglist.presentation.theme.OswaldFontFamily
 /**
  * Primary call-to-action button.
  *
- * Cyan fill, near-black text, a soft glow. Oswald Bold UPPERCASE.
+ * Cyan fill, near-black text, a light rim. No blur: elevation shadows use a
+ * RenderEffect and have stalled the emulator RenderThread.
  * Disabled state uses [BugListColors.GoldDim].
  */
 @Composable
@@ -43,13 +43,7 @@ fun GoldButton(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .shadow(
-                elevation = if (enabled) 14.dp else 0.dp,
-                shape = shape,
-                ambientColor = BugListColors.Gold.copy(alpha = 0.38f),
-                spotColor = BugListColors.Gold.copy(alpha = 0.28f)
-            )
-            .border(1.dp, BugListColors.BorderGold, shape)
+            .border(1.dp, if (enabled) BugListColors.BorderGold else BugListColors.BorderSubtle, shape)
     ) {
         Text(
             text = text.uppercase(),
