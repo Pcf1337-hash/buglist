@@ -132,7 +132,10 @@ class PersonDetailViewModel @Inject constructor(
      */
     fun refresh() {
         viewModelScope.launch {
-            syncRepository.reconcile(personId)
+            when (val result = syncRepository.reconcile(personId)) {
+                is Result.Error -> _coupleError.value = result.message
+                is Result.Success -> if (_coupleError.value != null) _coupleError.value = null
+            }
             _refreshTrigger.update { it + 1 }
         }
     }

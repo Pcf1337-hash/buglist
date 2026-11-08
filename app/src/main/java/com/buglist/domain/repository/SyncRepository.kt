@@ -14,8 +14,11 @@ interface SyncRepository {
 
     suspend fun unlink(personId: Long)
 
-    /** Pulls the other phone's snapshot and, when this phone may edit, publishes the current book. */
-    suspend fun reconcile(personId: Long)
+    /**
+     * Host publishes the current book. Guest replaces the local book with it.
+     * The error text names the failure and never includes amounts or names.
+     */
+    suspend fun reconcile(personId: Long): Result<Unit>
 }
 
 /**

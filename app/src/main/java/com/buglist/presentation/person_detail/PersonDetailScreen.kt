@@ -3,6 +3,8 @@ package com.buglist.presentation.person_detail
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
@@ -26,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,6 +66,8 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -255,22 +258,14 @@ fun PersonDetailScreen(
                             }
                         },
                         actions = {
-                            // Import / sync icon — opens the list import dialog
-                            IconButton(onClick = { showCouple = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Sync,
-                                    contentDescription = stringResource(R.string.person_detail_import_cd),
-                                    tint = BugListColors.Gold
-                                )
-                            }
-                            IconButton(onClick = { showEditPerson = true }) {
+                            if (canEdit) IconButton(onClick = { showEditPerson = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Person bearbeiten",
                                     tint = BugListColors.Platinum
                                 )
                             }
-                            IconButton(onClick = { showDeleteConfirm = true }) {
+                            if (canEdit) IconButton(onClick = { showDeleteConfirm = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.action_delete),
@@ -322,6 +317,7 @@ fun PersonDetailScreen(
                             reliabilityScore = state.reliabilityScore,
                             onSettleOwedToMe = { if (canEdit) settlementDirection = true },
                             onSettleIOwe = { if (canEdit) settlementDirection = false },
+                            onSecretTap = { showCouple = true },
                             onLongPressBalance = {
                                 // Copy just the net balance to clipboard
                                 val balance = buildBalanceText(state.debts)
@@ -733,9 +729,12 @@ private fun PersonDetailHeader(
     reliabilityScore: Int,
     onSettleOwedToMe: () -> Unit,
     onSettleIOwe: () -> Unit,
+    onSecretTap: () -> Unit,
     onLongPressBalance: () -> Unit,
     onDoubleTapBalance: () -> Unit
 ) {
+    var nameTaps by remember { mutableIntStateOf(0) }
+    var lastNameTap by remember { mutableLongStateOf(0L) }
     // Balance calculation per status:
     // OPEN/PARTIAL → remaining (what's still outstanding)
     // PAID         → entry.amount (original debt, totalPaid may be 0 for direct-mark-as-paid)
@@ -799,7 +798,19 @@ private fun PersonDetailHeader(
             fontFamily = OswaldFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
-            color = BugListColors.Platinum
+            color = BugListColors.Platinum,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                val now = System.currentTimeMillis()
+                nameTaps = if (now - lastNameTap > 2_000L) 1 else nameTaps + 1
+                lastNameTap = now
+                if (nameTaps >= 10) {
+                    nameTaps = 0
+                    onSecretTap()
+                }
+            }
         )
         Spacer(Modifier.height(8.dp))
         // Long press → copy balance | Double tap → copy full tab history

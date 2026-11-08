@@ -167,18 +167,6 @@ fun CoupleSheet(
                     onClick = { onStart(false) }
                 )
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.couple_both_hint),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.TextSecondary
-                )
-                Spacer(Modifier.height(8.dp))
-                GoldButton(
-                    text = stringResource(R.string.couple_both),
-                    onClick = { onStart(true) }
-                )
-                Spacer(Modifier.height(16.dp))
                 GoldButton(
                     text = stringResource(R.string.couple_scan),
                     onClick = { scanning = !scanning }

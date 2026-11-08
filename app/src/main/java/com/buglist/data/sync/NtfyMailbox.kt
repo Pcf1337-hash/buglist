@@ -19,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class NtfyMailbox @Inject constructor() {
     private val http = HttpClient(Android) {
+        expectSuccess = true
         engine {
             connectTimeout = 12_000
             socketTimeout = 12_000
@@ -30,13 +31,13 @@ class NtfyMailbox @Inject constructor() {
         http.post("https://ntfy.sh/$topic") {
             header("Title", ".")
             header("Priority", "1")
-            header("Tags", "")
             setBody(payload)
         }
     }
 
     suspend fun latestPayload(topic: String): String? {
-        val body = http.get("https://ntfy.sh/$topic/json?poll=1&since=7d").bodyAsText()
+        // ntfy rejects a "d" unit (since=7d is HTTP 400). Cached messages are a few hours.
+        val body = http.get("https://ntfy.sh/$topic/json?poll=1&since=all").bodyAsText()
         var newest: MailEvent? = null
         for (line in body.lineSequence()) {
             if (line.isBlank()) continue

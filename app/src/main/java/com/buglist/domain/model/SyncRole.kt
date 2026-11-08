@@ -3,15 +3,16 @@ package com.buglist.domain.model
 /**
  * Who may change a coupled book.
  *
- * [HOST] publishes the book. The other phone is [GUEST] and only receives it.
- * [BOTH] means either phone may change the current book. There is no transaction log.
+ * [HOST] keeps the list and publishes it.
+ * [GUEST] only receives that list. Editing stays locked until sync is turned off.
+ * [BOTH] is no longer offered. Stored rows are receive-only.
  */
 enum class SyncRole {
     HOST,
     GUEST,
     BOTH;
 
-    val canEdit: Boolean get() = this != GUEST
+    val canEdit: Boolean get() = this == HOST
 
     companion object {
         fun fromStored(value: String): SyncRole = when (value) {

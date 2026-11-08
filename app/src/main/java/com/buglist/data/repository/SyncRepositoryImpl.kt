@@ -22,7 +22,6 @@ import com.buglist.domain.model.SyncRole
 import com.buglist.domain.repository.SyncRepository
 import com.buglist.domain.sync.BookDebt
 import com.buglist.domain.sync.BookPayment
-import com.buglist.domain.sync.mergeBooks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -52,6 +51,7 @@ class SyncRepositoryImpl @Inject constructor(
             entity?.let { PairingLink(SyncRole.fromStored(it.role)) }
         }
 
+    @Suppress("UNUSED_PARAMETER")
     override suspend fun startCoupling(personId: Long, bothCanEdit: Boolean): String {
         val existing = syncDao.getPairing(personId)
         if (existing != null) {
@@ -59,7 +59,7 @@ class SyncRepositoryImpl @Inject constructor(
         }
         val pairing = PairingEntity(
             personId = personId,
-            role = if (bothCanEdit) "BOTH" else "HOST",
+            role = "HOST",
             roomId = PairingCode.randomRoomId(),
             keyMaterial = PairingCode.randomKey(),
             deviceId = PairingCode.randomDeviceId(),
@@ -68,13 +68,13 @@ class SyncRepositoryImpl @Inject constructor(
         )
         syncDao.upsertPairing(pairing)
         reconcile(personId)
-        return PairingCode.encode(pairing.roomId, pairing.keyMaterial, bothCanEdit)
+        return PairingCode.encode(pairing.roomId, pairing.keyMaterial, false)
     }
 
     override suspend fun acceptCode(personId: Long, code: String): Result<PairingLink> {
         val offer = PairingCode.decode(code)
             ?: return Result.Error("Das ist kein BugList-Kopplungscode")
-        val role = if (offer.scannerIsGuest) SyncRole.GUEST else SyncRole.BOTH
+        val role = if (offer.scannerIsGuest) SyncRole.GUEST else SyncRole.GUEST
         syncDao.upsertPairing(
             PairingEntity(
                 personId = personId,
@@ -86,52 +86,48 @@ class SyncRepositoryImpl @Inject constructor(
                 linkedAt = System.currentTimeMillis()
             )
         )
-        reconcile(personId)
-        return Result.Success(PairingLink(role))
+        val synced = reconcile(personId)
+        return if (synced is Result.Error) Result.Error(synced.message) else Result.Success(PairingLink(role))
     }
 
     override suspend fun unlink(personId: Long) {
         syncDao.deletePairing(personId)
     }
 
-    override suspend fun reconcile(personId: Long) {
+    override suspend fun reconcile(personId: Long): Result<Unit> {
         val mutex = locks.getOrPut(personId) { Mutex() }
-        mutex.withLock {
-            val pairing = syncDao.getPairing(personId) ?: return
+        return mutex.withLock {
+            val pairing = syncDao.getPairing(personId) ?: return@withLock Result.Success(Unit)
             val role = SyncRole.fromStored(pairing.role)
-            if (role != SyncRole.HOST) {
-                pull(pairing, role)
+            if (role == SyncRole.HOST) {
+                push(pairing)?.let { return@withLock Result.Error(it) }
+            } else {
+                pull(pairing)?.let { return@withLock Result.Error(it) }
             }
-            if (role != SyncRole.GUEST) {
-                push(syncDao.getPairing(personId) ?: return)
-            }
+            Result.Success(Unit)
         }
     }
 
-    private suspend fun pull(pairing: PairingEntity, role: SyncRole) {
+    private suspend fun pull(pairing: PairingEntity): String? {
         val payload = try {
             mailbox.latestPayload(PairingCode.topicFor(pairing.roomId))
         } catch (_: Exception) {
-            return
-        } ?: return
-        val plain = SnapshotCrypto.decrypt(payload, pairing.keyMaterial) ?: return
+            return "Stand gerade nicht erreichbar"
+        } ?: return "Noch kein Stand vom anderen Handy"
+        val plain = SnapshotCrypto.decrypt(payload, pairing.keyMaterial)
+            ?: return "Stand passt nicht zum Code"
         val wire = try {
             json.decodeFromString<WireBook>(plain.decodeToString())
         } catch (_: Exception) {
-            return
+            return "Stand passt nicht zum Code"
         }
-        if (wire.from == pairing.deviceId) return
-        val remote = wire.debts.map { it.toLocalBook() }
-        if (role == SyncRole.GUEST) {
-            replaceLocalBook(pairing.personId, remote)
-        } else {
-            val local = loadBook(pairing.personId)
-            applyMerged(pairing.personId, mergeBooks(local, remote))
-        }
+        if (wire.from == pairing.deviceId) return "Noch kein Stand vom anderen Handy"
+        replaceLocalBook(pairing.personId, wire.debts.map { it.toLocalBook() })
         changeSignal.bump()
+        return null
     }
 
-    private suspend fun push(pairing: PairingEntity) {
+    private suspend fun push(pairing: PairingEntity): String? {
         val book = loadBook(pairing.personId)
         val wire = WireBook(
             from = pairing.deviceId,
@@ -139,13 +135,14 @@ class SyncRepositoryImpl @Inject constructor(
         )
         val bytes = json.encodeToString(wire).encodeToByteArray()
         val hash = SnapshotCrypto.sha256(bytes)
-        if (hash == pairing.lastPushedHash) return
+        if (hash == pairing.lastPushedHash) return null
         val payload = SnapshotCrypto.encrypt(bytes, pairing.keyMaterial)
-        try {
+        return try {
             mailbox.publish(PairingCode.topicFor(pairing.roomId), payload)
             syncDao.updatePushedHash(pairing.personId, hash)
+            null
         } catch (_: Exception) {
-            // The next open retries. Nothing about the book is written to a log.
+            "Stand konnte nicht gesendet werden"
         }
     }
 
