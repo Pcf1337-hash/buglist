@@ -8,6 +8,11 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 
 /**
@@ -64,6 +69,32 @@ private val BugListDarkColorScheme = darkColorScheme(
     inversePrimary   = BugListColors.GoldDim,
 )
 
+private fun DrawScope.drawAmbient() {
+    drawRect(
+        Brush.verticalGradient(
+            listOf(
+                Color(0xFF0C1828),
+                Color(0xFF070B14),
+                Color(0xFF080E18)
+            )
+        )
+    )
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x333A8CA8), Color.Transparent),
+            center = Offset(size.width * 0.72f, size.height * 0.06f),
+            radius = size.width * 0.95f
+        )
+    )
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x221C3E68), Color.Transparent),
+            center = Offset(size.width * 0.08f, size.height * 0.92f),
+            radius = size.width * 0.8f
+        )
+    )
+}
+
 /**
  * BugList application theme.
  *
@@ -83,7 +114,8 @@ fun BugListTheme(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .grainOverlay(grainBrush)
+                .drawBehind { drawAmbient() }
+                .grainOverlay(grainBrush, alpha = 0.025f)
         ) {
             content()
         }

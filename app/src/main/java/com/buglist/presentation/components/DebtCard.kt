@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,10 +67,15 @@ fun DebtCard(
 ) {
     val entry = debtWithPayments.entry
     val borderColor = when (entry.status) {
+        DebtStatus.OPEN -> BugListColors.BorderGold
+        DebtStatus.PARTIAL -> BugListColors.Orange.copy(alpha = 0.85f)
+        DebtStatus.PAID -> BugListColors.BorderSubtle
+        DebtStatus.CANCELLED -> BugListColors.BorderSubtle
+    }
+    val glow = when (entry.status) {
         DebtStatus.OPEN -> BugListColors.Gold
         DebtStatus.PARTIAL -> BugListColors.Orange
-        DebtStatus.PAID -> Color.Transparent
-        DebtStatus.CANCELLED -> BugListColors.Muted
+        else -> Color.Transparent
     }
 
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
@@ -83,6 +89,12 @@ fun DebtCard(
         color = BugListColors.SurfaceCard,
         modifier = modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = if (glow == Color.Transparent) 0.dp else 12.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = glow.copy(alpha = 0.32f),
+                spotColor = glow.copy(alpha = 0.22f)
+            )
             .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(20.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .animateContentSize()

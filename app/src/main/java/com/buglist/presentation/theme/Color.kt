@@ -3,53 +3,57 @@ package com.buglist.presentation.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * BugList v2.0.0 Design System color palette.
- * Always dark – no light mode support.
- * Gangster-Rap / Streetstyle aesthetic.
+ * BugList color tokens. Always dark.
+ *
+ * Deep navy black, with a quiet neon cyan as the accent. The name [Gold] is
+ * kept so existing call sites stay the accent. Red and green stay the two
+ * money colors and are not the accent: red means "schuldet mir", green means
+ * "ich schulde" (L-081).
+ *
+ * Text and accent pairs were checked against WCAG 2.2 AA (4.5:1) on
+ * [SurfaceDark] and [SurfaceCard].
  */
 object BugListColors {
     // ── Backgrounds ──────────────────────────────────────────────────────────
-    val Background  = Color(0xFF0D0D0D)  // Deep black background (legacy compat)
-    val SurfaceDark = Color(0xFF0A0A0A)  // True deep black – BiometricLockScreen
-    val SurfaceCard = Color(0xFF141414)  // Card backgrounds
-    val SurfaceElevated = Color(0xFF1C1C1C) // Elevated surfaces, numpad keys
-    val SurfaceOverlay = Color(0xFF242424)  // Dialogs, sheets
+    val Background  = Color(0xFF070B14)
+    val SurfaceDark = Color(0xFF070B14)
+    val SurfaceCard = Color(0xFF0E1626)
+    val SurfaceElevated = Color(0xFF17243A)
+    val SurfaceOverlay = Color(0xFF1C2C46)
 
-    // Legacy aliases kept for backward compat with existing code
-    val Surface     = Color(0xFF1A1A1A)  // Cards and surfaces
-    val SurfaceHigh = Color(0xFF242424)  // Elevated cards
+    val Surface     = Color(0xFF121C30)
+    val SurfaceHigh = Color(0xFF1C2C46)
 
-    // ── Gold / Primary ────────────────────────────────────────────────────────
-    val Gold        = Color(0xFFFFD700)  // Primary accent – FAB, CTAs, headings
-    val GoldDim     = Color(0xFFB8960C)  // Disabled / secondary gold
-    val GoldGlow    = Color(0x33FFD700)  // Glow effect (20% alpha)
-    val BorderGold  = Color(0x66FFD700)  // Gold border (40% alpha)
+    // ── Accent (token name Gold is historical) ───────────────────────────────
+    val Gold        = Color(0xFF7AD7F0)
+    val GoldDim     = Color(0xFF6AA0B4)
+    val GoldGlow    = Color(0x337AD7F0)
+    val BorderGold  = Color(0x807AD7F0)
 
     // ── Text ──────────────────────────────────────────────────────────────────
-    val TextPrimary   = Color(0xFFFFFFFF)  // Primary text
-    val TextSecondary = Color(0xFFAAAAAA)  // Secondary text
-    val TextMuted     = Color(0xFF666666)  // Muted / placeholder text
+    val TextPrimary   = Color(0xFFF4F8FB)
+    val TextSecondary = Color(0xFFC5D4E0)
+    val TextMuted     = Color(0xFF9BB0C2)
 
-    // Legacy aliases
-    val Platinum    = Color(0xFFE5E4E2)  // Primary text (legacy)
-    val Muted       = Color(0xFF666666)  // Secondary text / labels (legacy)
+    val Platinum    = Color(0xFFE7EEF4)
+    val Muted       = Color(0xFF9BB0C2)
 
-    // ── Debt Colors ───────────────────────────────────────────────────────────
-    val DebtGreen    = Color(0xFF00E676)  // Positive amounts / "owes me"
-    val DebtGreenDim = Color(0xFF00C853)  // Dim green
-    val DebtRed      = Color(0xFFFF1744)  // Negative amounts / "I owe" (updated for v2)
-    val DebtRedDim   = Color(0xFFD50000)  // Dim red
+    // ── Debt colors. Kept apart from the cyan accent. ────────────────────────
+    val DebtGreen    = Color(0xFF3DDC97)
+    val DebtGreenDim = Color(0xFF1FA87A)
+    val DebtRed      = Color(0xFFFF6B86)
+    val DebtRedDim   = Color(0xFFD63A52)
 
-    // ── Status Colors ─────────────────────────────────────────────────────────
-    val StatusOpen      = Color(0xFFFFD700)  // OPEN status
-    val StatusPartial   = Color(0xFFFF9800)  // PARTIAL status
-    val StatusPaid      = Color(0xFF00E676)  // PAID status
-    val StatusCancelled = Color(0xFF666666)  // CANCELLED status
-    val Orange          = Color(0xFFFF9800)  // Orange (legacy compat)
+    // ── Status ────────────────────────────────────────────────────────────────
+    val StatusOpen      = Color(0xFF7AD7F0)
+    val StatusPartial   = Color(0xFFF0B429)
+    val StatusPaid      = Color(0xFF3DDC97)
+    val StatusCancelled = Color(0xFF9BB0C2)
+    val Orange          = Color(0xFFF0B429)
 
     // ── Borders / Separators ──────────────────────────────────────────────────
-    val BorderSubtle = Color(0xFF2A2A2A)  // Subtle border
-    val Divider      = Color(0xFF2A2A2A)  // Separator lines (legacy compat)
+    val BorderSubtle = Color(0xFF24344C)
+    val Divider      = Color(0xFF24344C)
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     val White       = Color(0xFFFFFFFF)

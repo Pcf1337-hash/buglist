@@ -289,7 +289,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        containerColor = BugListColors.Background,
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(

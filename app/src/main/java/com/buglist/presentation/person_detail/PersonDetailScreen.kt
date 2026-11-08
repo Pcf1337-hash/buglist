@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Column
@@ -243,7 +244,7 @@ fun PersonDetailScreen(
             }
 
             Scaffold(
-                containerColor = BugListColors.Background,
+                containerColor = Color.Transparent,
                 snackbarHost = {
                     SnackbarHost(hostState = snackbarHostState)
                 },

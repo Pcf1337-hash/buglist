@@ -55,7 +55,7 @@ import com.buglist.presentation.theme.RobotoCondensedFontFamily
 
 /** Preset color palette offered in the divider color picker. */
 private val PRESET_COLORS = listOf(
-    0xFFFFD700.toInt(), // Gold
+    0xFF7AD7F0.toInt(), // Neon cyan
     0xFFE5E4E2.toInt(), // Platinum
     0xFFFF3B3B.toInt(), // DebtRed
     0xFF00E676.toInt(), // DebtGreen

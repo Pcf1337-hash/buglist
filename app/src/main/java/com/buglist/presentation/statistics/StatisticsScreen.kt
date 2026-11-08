@@ -123,7 +123,7 @@ fun StatisticsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        containerColor = BugListColors.Background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {

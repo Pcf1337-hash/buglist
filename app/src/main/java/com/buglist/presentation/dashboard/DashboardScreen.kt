@@ -189,7 +189,7 @@ fun DashboardScreen(
     }
 
     Scaffold(
-        containerColor = BugListColors.SurfaceDark,
+        containerColor = Color.Transparent,
         topBar = {
             Column {
                 TopAppBar(

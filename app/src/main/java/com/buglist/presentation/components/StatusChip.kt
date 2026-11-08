@@ -48,9 +48,9 @@ fun StatusChip(
             BugListColors.DebtGreen
         )
         DebtStatus.CANCELLED -> Triple(
-            BugListColors.Muted,
-            BugListColors.Background,
-            BugListColors.Muted
+            BugListColors.SurfaceHigh,
+            BugListColors.TextSecondary,
+            BugListColors.BorderSubtle
         )
     }
 

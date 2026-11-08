@@ -38,7 +38,7 @@ enum class DividerLineStyle {
 data class Divider(
     val id: Long = 0,
     val label: String,
-    val color: Int = 0xFFFFD700.toInt(),
+    val color: Int = 0xFF7AD7F0.toInt(),
     val lineStyle: DividerLineStyle = DividerLineStyle.SOLID,
     val sortIndex: Int = Int.MAX_VALUE
 )
