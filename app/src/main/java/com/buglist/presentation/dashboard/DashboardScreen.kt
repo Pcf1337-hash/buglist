@@ -78,6 +78,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -95,6 +97,7 @@ import com.buglist.domain.model.PersonWithBalance
 import com.buglist.presentation.add_divider.AddDividerSheet
 import com.buglist.presentation.components.AmountText
 import com.buglist.presentation.components.StreetEmptyState
+import com.buglist.presentation.components.formatAmount
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
 import com.buglist.presentation.theme.BebasNeueFontFamily
@@ -253,11 +256,11 @@ fun DashboardScreen(
                             color = BugListColors.TextPrimary
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        placeholder = {
+                        label = {
                             Text(
                                 text = stringResource(R.string.dashboard_search_hint),
                                 fontFamily = RobotoCondensedFontFamily,
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 color = BugListColors.TextMuted
                             )
                         },
@@ -864,12 +867,32 @@ private fun PersonCard(
         balance < -0.001 -> BugListColors.DebtRed
         else -> BugListColors.BorderSubtle
     }
+    val openLabel = stringResource(R.string.dashboard_open_debts)
+    val directionLabel = when {
+        balance > 0.001 -> stringResource(R.string.dashboard_owed_to_me)
+        balance < -0.001 -> stringResource(R.string.dashboard_i_owe)
+        else -> stringResource(R.string.dashboard_total_balance)
+    }
+    val rowDescription = buildString {
+        append(personWithBalance.person.name)
+        if (personWithBalance.openCount > 0) {
+            append(", ")
+            append(personWithBalance.openCount)
+            append(" ")
+            append(openLabel)
+        }
+        append(", ")
+        append(directionLabel)
+        append(", ")
+        append(formatAmount(kotlin.math.abs(balance), "EUR"))
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 76.dp)
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = rowDescription }
             .background(BugListColors.SurfaceCard)
             .padding(end = 16.dp)
     ) {
@@ -993,7 +1016,13 @@ private fun BalanceTile(
         color    = BugListColors.SurfaceElevated,
         modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "$label, ${formatAmount(amount, "EUR")}"
+                }
+        ) {
             Box(
                 modifier = Modifier
                     .width(24.dp)

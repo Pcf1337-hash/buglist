@@ -611,7 +611,7 @@ private fun TagsSection(
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.Gold,
-                            contentColor = Color.Black
+                            contentColor = BugListColors.SurfaceDark
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {

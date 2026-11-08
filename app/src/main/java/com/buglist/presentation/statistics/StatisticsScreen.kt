@@ -75,6 +75,7 @@ import com.buglist.domain.repository.DayActivityCount
 import com.buglist.presentation.components.AmountText
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.StatusChip
+import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.components.formatAmount
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
@@ -344,7 +345,9 @@ private fun HeroBalanceSection(
             ) {
                 Icon(
                     imageVector = if (delta > 0) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null,
+                    contentDescription = stringResource(
+                        if (delta > 0) R.string.a11y_balance_up else R.string.a11y_balance_down
+                    ),
                     tint = deltaColor,
                     modifier = Modifier.size(16.dp)
                 )
@@ -743,15 +746,9 @@ private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
             )
 
             if (monthlyStats.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.statistics_no_data),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Muted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp)
+                StreetEmptyState(
+                    title = stringResource(R.string.statistics_no_data),
+                    modifier = Modifier.fillMaxWidth()
                 )
             } else {
                 // Chart legend
@@ -850,13 +847,7 @@ private fun TopPersonsSection(
         Spacer(Modifier.height(8.dp))
 
         if (items.isEmpty()) {
-            Text(
-                text = emptyText,
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 14.sp,
-                color = BugListColors.Muted,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            StreetEmptyState(title = emptyText, modifier = Modifier.fillMaxWidth())
         } else {
             Surface(
                 shape = RoundedCornerShape(20.dp),

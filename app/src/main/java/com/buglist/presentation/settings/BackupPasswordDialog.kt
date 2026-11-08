@@ -108,7 +108,9 @@ fun BackupPasswordDialog(
                             Icon(
                                 imageVector = if (showPassword) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,
-                                contentDescription = null,
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.a11y_hide_password else R.string.a11y_show_password
+                                ),
                                 tint = BugListColors.Muted
                             )
                         }
@@ -145,7 +147,9 @@ fun BackupPasswordDialog(
                                 Icon(
                                     imageVector = if (showConfirm) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(
+                                        if (showConfirm) R.string.a11y_hide_password else R.string.a11y_show_password
+                                    ),
                                     tint = BugListColors.Muted
                                 )
                             }

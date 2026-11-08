@@ -33,6 +33,10 @@
     <string name="dashboard_open_debts">offen</string>
     <string name="dashboard_search_hint">Suchen…</string>
     <string name="dashboard_search_close">Suche schließen</string>
+    <string name="a11y_show_password">Passwort anzeigen</string>
+    <string name="a11y_hide_password">Passwort verbergen</string>
+    <string name="a11y_balance_up">Bilanz gestiegen</string>
+    <string name="a11y_balance_down">Bilanz gesunken</string>
     <string name="dashboard_search_empty">NIEMAND GEFUNDEN</string>
     <string name="dashboard_total_balance_label">NETTO-BILANZ</string>
 

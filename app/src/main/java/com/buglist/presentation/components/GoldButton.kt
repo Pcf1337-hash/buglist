@@ -2,7 +2,7 @@ package com.buglist.presentation.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,7 +42,7 @@ fun GoldButton(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .heightIn(min = 56.dp)
             .border(1.dp, if (enabled) BugListColors.BorderGold else BugListColors.BorderSubtle, shape)
     ) {
         Text(
