@@ -95,6 +95,7 @@ import com.buglist.domain.model.Person
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
 import com.buglist.presentation.components.AmountText
+import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.edit_person.EditPersonSheet
 import com.buglist.presentation.components.DebtCard
 import com.buglist.presentation.components.PersonAvatar
@@ -361,20 +362,10 @@ fun PersonDetailScreen(
                     }
                     if (state.debts.isEmpty()) {
                         item {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.person_detail_empty),
-                                    fontFamily = OswaldFontFamily,
-                                    fontSize = 18.sp,
-                                    color = BugListColors.Muted,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            StreetEmptyState(
+                                title = stringResource(R.string.person_detail_empty),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     } else {
                         items(state.debts, key = { it.entry.id }) { debtWithPayments ->
@@ -863,7 +854,7 @@ private fun PersonDetailHeader(
                 ) {
                     Button(
                         onClick = onSettleOwedToMe,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.DebtGreen,
                             contentColor = BugListColors.Background
@@ -882,7 +873,7 @@ private fun PersonDetailHeader(
                     }
                     Button(
                         onClick = onSettleIOwe,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = BugListColors.DebtRed,
                             contentColor = BugListColors.Platinum
@@ -907,7 +898,7 @@ private fun PersonDetailHeader(
                 val textColor = if (hasOpenDebtsOwedToMe) BugListColors.Background else BugListColors.Platinum
                 Button(
                     onClick = onClick,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = buttonColor,
                         contentColor = textColor

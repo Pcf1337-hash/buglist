@@ -2,10 +2,13 @@ package com.buglist.presentation.theme
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 /**
  * BugList v2.0.0 Material 3 Dark Color Scheme.
@@ -13,6 +16,14 @@ import androidx.compose.ui.Modifier
  * Maps the street-style design palette to Material 3 color roles.
  * There is NO light theme – this app is always dark.
  */
+private val BugListShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
 private val BugListDarkColorScheme = darkColorScheme(
     primary            = BugListColors.Gold,
     onPrimary          = BugListColors.SurfaceDark,
@@ -41,6 +52,12 @@ private val BugListDarkColorScheme = darkColorScheme(
     outline        = BugListColors.BorderSubtle,
     outlineVariant = BugListColors.TextMuted,
 
+    surfaceContainerLowest = BugListColors.SurfaceDark,
+    surfaceContainerLow = BugListColors.SurfaceCard,
+    surfaceContainer = BugListColors.Surface,
+    surfaceContainerHigh = BugListColors.SurfaceElevated,
+    surfaceContainerHighest = BugListColors.SurfaceHigh,
+
     scrim            = BugListColors.SurfaceDark,
     inverseSurface   = BugListColors.TextPrimary,
     inverseOnSurface = BugListColors.SurfaceDark,
@@ -60,7 +77,8 @@ fun BugListTheme(
     val grainBrush = rememberGrainBrush()
     MaterialTheme(
         colorScheme = BugListDarkColorScheme,
-        typography = BugListTypography
+        typography = BugListTypography,
+        shapes = BugListShapes
     ) {
         Box(
             modifier = Modifier

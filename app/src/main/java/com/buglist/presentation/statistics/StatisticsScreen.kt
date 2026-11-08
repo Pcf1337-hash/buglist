@@ -438,7 +438,7 @@ private fun InsightCard(insight: Insight) {
     }
 
     OutlinedCard(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = borderColor.copy(alpha = bgAlpha)
         ),
@@ -511,7 +511,7 @@ private fun BentoGridSection(
                 modifier = Modifier.weight(1f)
             )
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface,
                 modifier = Modifier.weight(1f)
             ) {
@@ -548,11 +548,11 @@ private fun AtRiskCard(atRiskAmount: Double) {
     val borderColor = if (hasRisk) BugListColors.DebtRed else BugListColors.Divider
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = containerColor,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -588,7 +588,7 @@ private fun AtRiskCard(atRiskAmount: Double) {
 private fun RepaymentRateTile(rate: Double, modifier: Modifier = Modifier) {
     val pct = (rate * 100).roundToInt().coerceIn(0, 100)
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -652,7 +652,7 @@ private fun RepaymentRateTile(rate: Double, modifier: Modifier = Modifier) {
 private fun AvgDurationTile(avgDays: Double, modifier: Modifier = Modifier) {
     val days = avgDays.roundToInt()
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -695,7 +695,7 @@ private fun OverviewCard(
     showSign: Boolean = false
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = modifier
     ) {
@@ -730,7 +730,7 @@ private fun OverviewCard(
 @Composable
 private fun MonthlyBarChart(monthlyStats: List<MonthlyStats>) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.Surface,
         modifier = Modifier
             .fillMaxWidth()
@@ -859,7 +859,7 @@ private fun TopPersonsSection(
             )
         } else {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface
             ) {
                 Column {
@@ -1037,7 +1037,7 @@ private fun ActivityHeatmapGrid(activityData: Map<Long, DayActivityCount>) {
     val oneDayMs = 86_400_000L
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         color = BugListColors.Surface,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1104,7 +1104,7 @@ private fun StatusDistributionSection(statusCounts: Map<DebtStatus, Int>) {
         Spacer(Modifier.height(8.dp))
 
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1197,7 +1197,7 @@ private fun PaidHistorySection(paidTotals: com.buglist.domain.repository.Statist
         Spacer(Modifier.height(8.dp))
 
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1276,7 +1276,7 @@ private fun ActivitySection(
             )
         } else {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = BugListColors.Surface
             ) {
                 Column {

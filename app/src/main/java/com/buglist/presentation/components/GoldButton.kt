@@ -36,7 +36,7 @@ fun GoldButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = BugListColors.Gold,
             contentColor = BugListColors.Background,

@@ -1,5 +1,6 @@
 package com.buglist.presentation.settings
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -374,7 +375,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Surface(
                         onClick = { importFileLauncher.launch(arrayOf("*/*")) },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = BugListColors.Gold.copy(alpha = 0.08f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -398,7 +399,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Surface(
                         onClick = viewModel::showDeleteConfirm,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = BugListColors.DebtRed.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -419,7 +420,7 @@ fun SettingsScreen(
                     SettingsSection(title = stringResource(R.string.settings_section_debug)) {
                         Surface(
                             onClick = { viewModel.seedTestData() },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = BugListColors.Gold.copy(alpha = 0.12f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -504,7 +505,7 @@ private fun TagsSection(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -656,9 +657,11 @@ private fun SettingsSection(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             color = BugListColors.Surface,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, BugListColors.BorderSubtle, RoundedCornerShape(20.dp))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 content()

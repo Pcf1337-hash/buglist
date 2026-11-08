@@ -1,5 +1,11 @@
 package com.buglist.presentation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,6 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -97,7 +106,7 @@ fun BugListNavHost(
         startDestination = Routes.AUTH
     ) {
         // ── Auth ─────────────────────────────────────────────────────────────
-        composable(Routes.AUTH) {
+        bugListScreen(Routes.AUTH) {
             val viewModel: AuthViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -130,7 +139,7 @@ fun BugListNavHost(
         }
 
         // ── Dashboard ────────────────────────────────────────────────────────
-        composable(Routes.DASHBOARD) {
+        bugListScreen(Routes.DASHBOARD) {
             var showAddItemChoice by remember { mutableStateOf(false) }
             var showAddPerson    by remember { mutableStateOf(false) }
             var showAddDivider   by remember { mutableStateOf(false) }
@@ -208,7 +217,7 @@ fun BugListNavHost(
         }
 
         // ── Person Detail ────────────────────────────────────────────────────
-        composable(
+        bugListScreen(
             route = Routes.PERSON_DETAIL,
             arguments = listOf(navArgument("personId") { type = NavType.LongType })
         ) {
@@ -218,7 +227,7 @@ fun BugListNavHost(
         }
 
         // ── Statistics ───────────────────────────────────────────────────────
-        composable(Routes.STATISTICS) {
+        bugListScreen(Routes.STATISTICS) {
             StatisticsScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToPerson = { personId ->
@@ -228,7 +237,7 @@ fun BugListNavHost(
         }
 
         // ── Settings ─────────────────────────────────────────────────────────
-        composable(Routes.SETTINGS) {
+        bugListScreen(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onDeleteAll = {
@@ -242,4 +251,26 @@ fun BugListNavHost(
             )
         }
     }
+}
+
+private fun NavGraphBuilder.bugListScreen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable androidx.compose.animation.AnimatedContentScope.(NavBackStackEntry) -> Unit
+) {
+    composable(
+        route = route,
+        arguments = arguments,
+        enterTransition = {
+            fadeIn(tween(240, easing = FastOutSlowInEasing)) +
+                slideInHorizontally(tween(280, easing = FastOutSlowInEasing)) { it / 10 }
+        },
+        exitTransition = { fadeOut(tween(160)) },
+        popEnterTransition = { fadeIn(tween(220, easing = FastOutSlowInEasing)) },
+        popExitTransition = {
+            fadeOut(tween(180)) +
+                slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 10 }
+        },
+        content = content
+    )
 }

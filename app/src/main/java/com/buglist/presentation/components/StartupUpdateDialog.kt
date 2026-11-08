@@ -110,7 +110,7 @@ fun StartupUpdateDialog(
                                     .border(
                                         width = 1.dp,
                                         color = BugListColors.Divider,
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(16.dp)
                                     )
                             ) {
                                 val scrollState = rememberScrollState()

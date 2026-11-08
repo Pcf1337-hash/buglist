@@ -230,7 +230,7 @@ private fun NumpadKey(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(14.dp),
         color = BugListColors.SurfaceHigh,
         modifier = modifier.height(64.dp)
     ) {
@@ -262,7 +262,7 @@ private fun BackspaceButton(
     val currentOnLongPress by rememberUpdatedState(onLongPress)
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(14.dp),
         color = BugListColors.SurfaceHigh,
         modifier = modifier
             .height(64.dp)
@@ -296,7 +296,7 @@ private fun QuickButton(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(14.dp),
         color = color.copy(alpha = 0.15f),
         modifier = modifier.height(56.dp)
     ) {

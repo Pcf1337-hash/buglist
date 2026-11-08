@@ -189,7 +189,7 @@ fun AddPaymentSheet(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = BugListColors.Gold,
                     unfocusedBorderColor = BugListColors.Divider,
@@ -227,7 +227,7 @@ fun AddPaymentSheet(
                     )
                 },
                 enabled = amountInput.isNotBlank() && amountInput != "0",
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = buttonColor,
                     contentColor = buttonTextColor

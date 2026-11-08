@@ -139,7 +139,7 @@ fun AddDividerSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(BugListColors.SurfaceHigh)
                     .padding(vertical = 4.dp)
             ) {
@@ -173,7 +173,7 @@ fun AddDividerSheet(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )

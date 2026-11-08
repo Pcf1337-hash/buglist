@@ -79,11 +79,11 @@ fun DebtCard(
         entry.status in listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         color = BugListColors.SurfaceCard,
         modifier = modifier
             .fillMaxWidth()
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(20.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .animateContentSize()
     ) {

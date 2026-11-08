@@ -55,10 +55,10 @@ fun StatusChip(
     }
 
     Surface(
-        shape = RoundedCornerShape(4.dp),
+        shape = RoundedCornerShape(50),
         color = containerColor,
         modifier = modifier
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(4.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(50))
     ) {
         val label = when (status) {
             DebtStatus.OPEN -> stringResource(R.string.status_open)

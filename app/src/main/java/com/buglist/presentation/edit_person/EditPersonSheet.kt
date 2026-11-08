@@ -250,7 +250,7 @@ fun EditPersonSheet(
                 unfocusedTextColor = BugListColors.Platinum,
                 cursorColor = BugListColors.Gold
             )
-            val fieldShape = RoundedCornerShape(8.dp)
+            val fieldShape = RoundedCornerShape(16.dp)
 
             OutlinedTextField(
                 value = nameInput,

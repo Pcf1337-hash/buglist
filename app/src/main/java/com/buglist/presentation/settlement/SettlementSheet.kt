@@ -354,7 +354,7 @@ private fun SettlementInputContent(
             Button(
                 onClick = onConfirm,
                 enabled = isConfirmEnabled,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BugListColors.Gold,
                     contentColor = androidx.compose.ui.graphics.Color.Black,
@@ -421,7 +421,7 @@ private fun SettlementInputContent(
         Surface(
             onClick = { debtsExpanded = !debtsExpanded },
             color = BugListColors.SurfaceHigh,
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
@@ -545,7 +545,7 @@ private fun SettlementInputContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .background(BugListColors.SurfaceHigh, RoundedCornerShape(8.dp))
+                    .background(BugListColors.SurfaceHigh, RoundedCornerShape(16.dp))
                     .padding(vertical = 4.dp)
             ) {
                 Column {
@@ -876,7 +876,7 @@ private fun OverpaymentDialog(
                 Button(
                     onClick = onCounterDebt,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BugListColors.Gold,
                         contentColor = androidx.compose.ui.graphics.Color.Black
@@ -904,13 +904,13 @@ private fun OverpaymentDialog(
                         .border(
                             width = 1.dp,
                             color = BugListColors.Gold.copy(alpha = 0.45f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(16.dp)
                         )
                 ) {
                     TextButton(
                         onClick = onTip,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.settlement_overpay_tip),

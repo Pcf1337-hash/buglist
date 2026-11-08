@@ -253,7 +253,7 @@ fun CoupleSheet(
                         unfocusedBorderColor = BugListColors.BorderSubtle,
                         cursorColor = BugListColors.Gold
                     ),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(16.dp)
                 )
                 Spacer(Modifier.height(8.dp))
                 GoldButton(

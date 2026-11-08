@@ -94,6 +94,7 @@ import com.buglist.domain.model.DividerLineStyle
 import com.buglist.domain.model.PersonWithBalance
 import com.buglist.presentation.add_divider.AddDividerSheet
 import com.buglist.presentation.components.AmountText
+import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
 import com.buglist.presentation.theme.BebasNeueFontFamily
@@ -458,21 +459,9 @@ fun DashboardScreen(
                             // Feature B: empty search state
                             if (searchActive && state.filteredItems.isEmpty()) {
                                 item {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 48.dp, horizontal = 32.dp)
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.dashboard_search_empty),
-                                            fontFamily = OswaldFontFamily,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp,
-                                            color = BugListColors.TextMuted,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
+                                    StreetEmptyState(
+                                        title = stringResource(R.string.dashboard_search_empty)
+                                    )
                                 }
                             }
 
@@ -1000,7 +989,7 @@ private fun BalanceTile(
 ) {
     val accentColor = if (positive) BugListColors.DebtGreen else BugListColors.DebtRed
     Surface(
-        shape    = RoundedCornerShape(10.dp),
+        shape    = RoundedCornerShape(20.dp),
         color    = BugListColors.SurfaceElevated,
         modifier = modifier
     ) {
@@ -1042,28 +1031,10 @@ private fun DashboardEmptyState(onAddItem: () -> Unit) {
             modifier = Modifier.padding(32.dp)
         ) {
             // Large gold group icon
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = BugListColors.Gold,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = stringResource(R.string.dashboard_empty_title),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = BugListColors.Gold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.dashboard_empty_subtitle),
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 14.sp,
-                color = BugListColors.TextSecondary,
-                textAlign = TextAlign.Center
+            StreetEmptyState(
+                title = stringResource(R.string.dashboard_empty_title),
+                subtitle = stringResource(R.string.dashboard_empty_subtitle),
+                icon = Icons.Default.Add
             )
         }
     }
