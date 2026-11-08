@@ -1,6 +1,7 @@
 package com.buglist.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buglist.presentation.theme.BebasNeueFontFamily
@@ -56,6 +58,10 @@ fun AmountInputPad(
     maxValue: Double = 999_999.99,
     currency: String = "EUR",
     modifier: Modifier = Modifier,
+    showQuickAmounts: Boolean = true,
+    keyHeight: Dp = 64.dp,
+    keyGap: Dp = 4.dp,
+    contrastRim: Boolean = false,
     belowDisplay: @Composable () -> Unit = {}
 ) {
     val currencySymbol = when (currency) {
@@ -86,28 +92,28 @@ fun AmountInputPad(
 
         belowDisplay()
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(keyGap))
 
-        // Quick-Minus row
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            listOf(-100, -50, -20, -10).forEach { delta ->
-                QuickButton(
-                    label = delta.toString(),
-                    color = BugListColors.DebtRed,
-                    onClick = {
-                        val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
-                        val newVal = maxOf(0.0, current + delta)
-                        onInputChange(formatForInput(newVal))
-                    },
-                    modifier = Modifier.weight(1f)
-                )
+        if (showQuickAmounts) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf(-100, -50, -20, -10).forEach { delta ->
+                    QuickButton(
+                        label = delta.toString(),
+                        color = BugListColors.DebtRed,
+                        onClick = {
+                            val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
+                            val newVal = maxOf(0.0, current + delta)
+                            onInputChange(formatForInput(newVal))
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
+            Spacer(Modifier.height(keyGap))
         }
-
-        Spacer(Modifier.height(4.dp))
 
         // Numpad
         val rows = listOf(
@@ -118,10 +124,10 @@ fun AmountInputPad(
         )
         rows.forEach { row ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(keyGap),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp)
+                    .padding(bottom = keyGap)
             ) {
                 row.forEach { key ->
                     if (key == "⌫") {
@@ -133,7 +139,8 @@ fun AmountInputPad(
                                 onInputChange(newInput)
                             },
                             onLongPress = { onInputChange("") },
-                            modifier = Modifier.weight(1f)
+                            contrastRim = contrastRim,
+                            modifier = Modifier.weight(1f).height(keyHeight)
                         )
                     } else {
                         NumpadKey(
@@ -142,31 +149,31 @@ fun AmountInputPad(
                                 val newInput = appendInput(inputString, key, maxValue)
                                 onInputChange(newInput)
                             },
-                            modifier = Modifier.weight(1f)
+                            contrastRim = contrastRim,
+                            modifier = Modifier.weight(1f).height(keyHeight)
                         )
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-
-        // Quick-Plus row
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            listOf(10, 20, 50, 100).forEach { delta ->
-                QuickButton(
-                    label = "+$delta",
-                    color = BugListColors.DebtGreen,
-                    onClick = {
-                        val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
-                        val newVal = minOf(maxValue, current + delta)
-                        onInputChange(formatForInput(newVal))
-                    },
-                    modifier = Modifier.weight(1f)
-                )
+        if (showQuickAmounts) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf(10, 20, 50, 100).forEach { delta ->
+                    QuickButton(
+                        label = "+$delta",
+                        color = BugListColors.DebtGreen,
+                        onClick = {
+                            val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
+                            val newVal = minOf(maxValue, current + delta)
+                            onInputChange(formatForInput(newVal))
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -229,13 +236,19 @@ internal fun formatForInput(value: Double): String {
 private fun NumpadKey(
     label: String,
     onClick: () -> Unit,
+    contrastRim: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(14.dp)
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = shape,
         color = BugListColors.SurfaceHigh,
-        modifier = modifier.height(64.dp)
+        modifier = if (contrastRim) {
+            modifier.border(1.5.dp, BugListColors.Gold, shape)
+        } else {
+            modifier
+        }
     ) {
         Text(
             text = label,
@@ -255,6 +268,7 @@ private fun NumpadKey(
 private fun BackspaceButton(
     onTap: () -> Unit,
     onLongPress: () -> Unit,
+    contrastRim: Boolean,
     modifier: Modifier = Modifier
 ) {
     // rememberUpdatedState ensures the pointerInput block (which never restarts because
@@ -264,11 +278,12 @@ private fun BackspaceButton(
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnLongPress by rememberUpdatedState(onLongPress)
 
+    val shape = RoundedCornerShape(14.dp)
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = shape,
         color = BugListColors.SurfaceHigh,
         modifier = modifier
-            .height(64.dp)
+            .then(if (contrastRim) Modifier.border(1.5.dp, BugListColors.Gold, shape) else Modifier)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { currentOnTap() },

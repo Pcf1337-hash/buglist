@@ -16,9 +16,9 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 36
-        // v2.5.1 already shipped as versionCode 56. Android refuses an update
-        // that is not strictly higher, so this build is 57.
-        versionCode = 57
+        // v2.5.1 already shipped as versionCode 56. 57 is the build under test.
+        // 58 is the next installable update for a phone that already has 57.
+        versionCode = 58
         versionName = "2.6.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 

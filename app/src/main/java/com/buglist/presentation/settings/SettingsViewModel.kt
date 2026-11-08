@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.buglist.util.KEY_AMBIENT_MOTION
 import com.buglist.util.KEY_GROUP_INACTIVE
 import com.buglist.util.appDataStore
 import androidx.lifecycle.ViewModel
@@ -58,6 +59,8 @@ data class SettingsUiData(
     val showDescription: Boolean = false,
     /** When true, people with no open debts fold into INAKTIV. Default matches v2.5.1. */
     val groupInactive: Boolean = true,
+    /** Background light may follow tilt. Reduced motion still forces it off. */
+    val ambientMotion: Boolean = true,
     /** True while Argon2 KDF + AES-GCM encryption is running for backup export. */
     val isExportingBackup: Boolean = false,
     /**
@@ -169,10 +172,12 @@ class SettingsViewModel @Inject constructor(
             val currency = prefs[KEY_CURRENCY] ?: "EUR"
             val showDesc = prefs[KEY_SHOW_DESCRIPTION] ?: false
             val groupInactive = prefs[KEY_GROUP_INACTIVE] ?: true
+            val ambientMotion = prefs[KEY_AMBIENT_MOTION] ?: true
             _uiData.value = _uiData.value.copy(
                 currency = currency,
                 showDescription = showDesc,
-                groupInactive = groupInactive
+                groupInactive = groupInactive,
+                ambientMotion = ambientMotion
             )
         }
     }
@@ -193,6 +198,13 @@ class SettingsViewModel @Inject constructor(
         _uiData.value = _uiData.value.copy(showDescription = show)
         viewModelScope.launch {
             context.appDataStore.edit { it[KEY_SHOW_DESCRIPTION] = show }
+        }
+    }
+
+    fun setAmbientMotion(enabled: Boolean) {
+        _uiData.value = _uiData.value.copy(ambientMotion = enabled)
+        viewModelScope.launch {
+            context.appDataStore.edit { it[KEY_AMBIENT_MOTION] = enabled }
         }
     }
 
@@ -289,7 +301,8 @@ class SettingsViewModel @Inject constructor(
                 currency = _uiData.value.currency,
                 autoLockTimeoutSeconds = 60, // legacy field, kept for backup format compatibility
                 showDescription = _uiData.value.showDescription,
-                groupInactive = _uiData.value.groupInactive
+                groupInactive = _uiData.value.groupInactive,
+                ambientMotion = _uiData.value.ambientMotion
             )
             val result = exportEncryptedBackupUseCase(password, settings)
             _uiData.value = when (result) {
@@ -364,12 +377,14 @@ class SettingsViewModel @Inject constructor(
                         prefs[KEY_CURRENCY] = s.currency
                         prefs[KEY_SHOW_DESCRIPTION] = s.showDescription
                         prefs[KEY_GROUP_INACTIVE] = s.groupInactive
+                        prefs[KEY_AMBIENT_MOTION] = s.ambientMotion
                     }
                     _uiData.value = _uiData.value.copy(
                         isImportingBackup = false,
                         currency = s.currency,
                         showDescription = s.showDescription,
-                        groupInactive = s.groupInactive
+                        groupInactive = s.groupInactive,
+                        ambientMotion = s.ambientMotion
                     )
                     _deleteAllEvent.emit(Unit)
                 }

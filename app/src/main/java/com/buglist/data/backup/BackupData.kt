@@ -100,7 +100,9 @@ data class SettingsBackup(
     val autoLockTimeoutSeconds: Int = 60,
     val showDescription: Boolean = false,
     /** Absent in backups from before v2.6.0. Default keeps the v2.5.1 fold. */
-    val groupInactive: Boolean = true
+    val groupInactive: Boolean = true,
+    /** Absent in older backups. Default keeps the light available. */
+    val ambientMotion: Boolean = true
 )
 
 /** Summary shown to the user before confirming an import. */

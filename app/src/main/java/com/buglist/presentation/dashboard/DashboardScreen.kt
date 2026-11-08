@@ -102,6 +102,8 @@ import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
+import com.buglist.presentation.theme.LocalAmbientShift
+import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import sh.calvin.reorderable.ReorderableItem
@@ -1014,7 +1016,7 @@ private fun BalanceTile(
     Surface(
         shape    = RoundedCornerShape(20.dp),
         color    = BugListColors.SurfaceElevated,
-        modifier = modifier
+        modifier = modifier.ambientRim(LocalAmbientShift.current, corner = 20.dp)
     ) {
         Column(
             modifier = Modifier

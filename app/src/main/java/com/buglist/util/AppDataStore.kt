@@ -23,3 +23,6 @@ internal val Context.appDataStore: DataStore<Preferences> by preferencesDataStor
  * Missing on older installs, so the default keeps that behaviour after an upgrade.
  */
 internal val KEY_GROUP_INACTIVE = booleanPreferencesKey("group_inactive_persons")
+
+/** Background light may follow tilt. Default on. Reduced motion still forces it off. */
+internal val KEY_AMBIENT_MOTION = booleanPreferencesKey("ambient_motion")

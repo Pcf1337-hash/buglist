@@ -34,6 +34,8 @@ import com.buglist.domain.model.debtSerial
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Payment
 import com.buglist.presentation.theme.BugListColors
+import com.buglist.presentation.theme.LocalAmbientShift
+import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import java.text.SimpleDateFormat
@@ -84,6 +86,7 @@ fun DebtCard(
         modifier = modifier
             .fillMaxWidth()
             .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(20.dp))
+            .ambientRim(LocalAmbientShift.current)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .animateContentSize()
     ) {
