@@ -2,6 +2,7 @@ package com.buglist.data.sync
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -29,27 +30,41 @@ class NtfyMailbox @Inject constructor() {
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun publish(topic: String, payload: String) {
-        retry {
-            http.post("https://ntfy.sh/$topic") {
-                header("Title", ".")
-                header("Priority", "1")
-                setBody(payload)
+        for (frame in MailboxFraming.frames(payload)) {
+            retry {
+                http.post("https://ntfy.sh/$topic") {
+                    header("Title", ".")
+                    header("Priority", "1")
+                    setBody(frame)
+                }
             }
         }
     }
 
-    /** Cached mailbox messages, oldest first. ntfy keeps them for about twelve hours. */
+    /**
+     * Cached mailbox messages, oldest first. A body that ntfy turned into a file
+     * is downloaded. Split frames are joined back into one ciphertext.
+     */
     suspend fun messages(topic: String): List<String> = retry {
         val body = http.get("https://ntfy.sh/$topic/json?poll=1&since=all").bodyAsText()
-        body.lineSequence().mapNotNull { line ->
-            if (line.isBlank()) return@mapNotNull null
+        val bodies = mutableListOf<String>()
+        for (line in body.lineSequence()) {
+            if (line.isBlank()) continue
             val event = try {
                 json.decodeFromString<MailEvent>(line)
             } catch (_: Exception) {
-                return@mapNotNull null
+                continue
             }
-            if (event.event != "message") null else event.message?.takeIf { it.isNotBlank() }
-        }.toList()
+            if (event.event != "message") continue
+            val attached = event.attachment?.url
+            val text = if (!attached.isNullOrBlank() && attached.startsWith("https://ntfy.sh/")) {
+                runCatching { http.get(attached).bodyAsText() }.getOrNull()
+            } else {
+                event.message
+            }
+            if (!text.isNullOrBlank()) bodies += text
+        }
+        MailboxFraming.assemble(bodies)
     }
 
     private suspend fun <T> retry(block: suspend () -> T): T {
@@ -59,16 +74,32 @@ class NtfyMailbox @Inject constructor() {
                 return block()
             } catch (e: Exception) {
                 last = e
-                if (attempt < 2) delay(400L * (attempt + 1))
+                if (attempt < 2) {
+                    val retryAfter = (e as? ClientRequestException)
+                        ?.response
+                        ?.headers
+                        ?.get("Retry-After")
+                        ?.toLongOrNull()
+                    val pause = if (retryAfter != null) {
+                        (retryAfter.coerceIn(1, 8)) * 1_000
+                    } else {
+                        400L * (attempt + 1)
+                    }
+                    delay(pause)
+                }
             }
         }
         throw last ?: IllegalStateException("mailbox")
     }
 
     @Serializable
+    private data class MailAttachment(val url: String? = null)
+
+    @Serializable
     private data class MailEvent(
         val event: String = "",
         val time: Long = 0,
-        val message: String? = null
+        val message: String? = null,
+        val attachment: MailAttachment? = null
     )
 }
