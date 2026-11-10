@@ -50,7 +50,10 @@ internal class CharmInput {
 }
 
 /** A damped spring with short integration steps, independent of sensor and display rates. */
-internal class CharmSpring {
+internal class CharmSpring(
+    private val stiffness: Float = 140f,
+    private val damping: Float = 15f
+) {
     var position = 0f
         private set
     private var velocity = 0f
@@ -59,7 +62,7 @@ internal class CharmSpring {
         var remaining = seconds.coerceIn(0f, 0.05f)
         while (remaining > 0f) {
             val step = minOf(remaining, 1f / 120f)
-            velocity += (140f * (target - position) - 15f * velocity) * step
+            velocity += (stiffness * (target - position) - damping * velocity) * step
             position += velocity * step
             remaining -= step
         }

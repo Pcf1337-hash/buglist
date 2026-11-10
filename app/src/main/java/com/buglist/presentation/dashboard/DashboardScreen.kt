@@ -105,6 +105,9 @@ import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
+import com.buglist.util.KEY_AMBIENT_MOTION
+import com.buglist.util.appDataStore
+import kotlinx.coroutines.flow.map
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -198,23 +201,13 @@ fun DashboardScreen(
             Column {
                 TopAppBar(
                     title = {
-                        BoxWithConstraints {
-                            val titleSpace = (84 * LocalDensity.current.fontScale + 72).dp
-                            val showCharm = !editMode && !searchActive && maxWidth >= titleSpace
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = stringResource(R.string.app_name),
-                                    fontFamily = OswaldFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 24.sp,
-                                    color = BugListColors.Gold
-                                )
-                                if (showCharm) {
-                                    Spacer(Modifier.width(8.dp))
-                                    GoldCharm()
-                                }
-                            }
-                        }
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            fontFamily = OswaldFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = BugListColors.Gold
+                        )
                     },
                     actions = {
                         if (!editMode) {
@@ -432,7 +425,8 @@ fun DashboardScreen(
                                     DashboardSummaryHeader(
                                         totalBalance  = state.totalBalance,
                                         totalOwedToMe = state.totalOwedToMe,
-                                        totalIOwe     = state.totalIOwe
+                                        totalIOwe     = state.totalIOwe,
+                                        showCharm     = true
                                     )
                                 }
                             }
@@ -962,7 +956,8 @@ private fun PersonCard(
 private fun DashboardSummaryHeader(
     totalBalance: Double,
     totalOwedToMe: Double,
-    totalIOwe: Double
+    totalIOwe: Double,
+    showCharm: Boolean = false
 ) {
     // Color mirrors AmountText logic
     val heroColor = when {
@@ -977,22 +972,35 @@ private fun DashboardSummaryHeader(
             .background(BugListColors.SurfaceCard)
             .padding(horizontal = 16.dp, vertical = 18.dp)
     ) {
-        Text(
-            text = stringResource(R.string.dashboard_total_balance),
-            fontFamily = RobotoCondensedFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 11.sp,
-            color = BugListColors.TextMuted,
-            letterSpacing = 2.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        // Hero balance — 72sp Bebas Neue with tabular figures (no animation)
-        AmountText(
-            amount   = totalBalance,
-            fontSize = 72.sp,
-            modifier = Modifier.fillMaxWidth(),
-            forceColor = heroColor
-        )
+        val context = LocalContext.current
+        val charmEnabled by remember(context) {
+            context.appDataStore.data.map { it[KEY_AMBIENT_MOTION] ?: true }
+        }.collectAsStateWithLifecycle(initialValue = false)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val charmWidth = (maxWidth * 0.50f).coerceAtMost(176.dp)
+            val placeCharm = showCharm && charmEnabled && charmWidth >= 100.dp
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.dashboard_total_balance),
+                    fontFamily = RobotoCondensedFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp,
+                    color = BugListColors.TextMuted,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(end = if (placeCharm) charmWidth else 0.dp)
+                )
+                Spacer(Modifier.height(if (placeCharm) charmWidth * 0.24f else 4.dp))
+                AmountText(
+                    amount = totalBalance,
+                    fontSize = 72.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    forceColor = heroColor
+                )
+            }
+            if (placeCharm) {
+                GoldCharm(charmWidth, Modifier.align(Alignment.TopEnd))
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),

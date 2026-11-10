@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="8dp"
+    android:height="20dp"
+    android:viewportWidth="16"
+    android:viewportHeight="40">
+    <path android:fillType="evenOdd"
+        android:pathData="M8,1 A4.2,4.2 0,1 1,7.99 9.4 A4.2,4.2 0,0 1,8 1 Z M8,3.5 A1.7,1.7 0,1 0,8.01 6.9 A1.7,1.7 0,0 0,8 3.5 Z
+                          M8,11 C12,11 13,14 13,18 C13,22 11,24 8,24 C5,24 3,22 3,18 C3,14 4,11 8,11 Z M8,13.5 C6,13.5 5.6,15.5 5.6,18 C5.6,20.5 6.3,21.5 8,21.5 C9.7,21.5 10.4,20.5 10.4,18 C10.4,15.5 10,13.5 8,13.5 Z
+                          M8,25 C12,25 13,28 13,33 C13,37 11,39 8,39 C5,39 3,37 3,33 C3,28 4,25 8,25 Z M8,27.5 C6,27.5 5.6,30 5.6,33 C5.6,35.4 6.4,36.4 8,36.4 C9.6,36.4 10.4,35.4 10.4,33 C10.4,30 10,27.5 8,27.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="2" android:startY="0" android:endX="14" android:endY="4"
+                android:startColor="#8C581E" android:centerColor="#FFDF8A" android:endColor="#986127" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#53371B"
+        android:pathData="M8.4,7 Q10.1,7 10.1,9 V13.8 Q10.1,15.3 8.4,15.3 H7.5 Q6.2,15.3 6.2,13.8 V9 Q6.2,7 7.5,7 Z
+                          M8.4,21 Q10.1,21 10.1,23 V28 Q10.1,29.4 8.4,29.4 H7.5 Q6.2,29.4 6.2,28 V23 Q6.2,21 7.5,21 Z" />
+    <path android:fillColor="#F4CB78"
+        android:pathData="M7.4,7.8 Q8.9,7.8 8.9,9.2 V13.5 Q8.9,14.6 7.4,14.6 Z
+                          M7.4,21.8 Q8.9,21.8 8.9,23.2 V27.6 Q8.9,28.7 7.4,28.7 Z" />
+</vector>

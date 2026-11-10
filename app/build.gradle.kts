@@ -17,7 +17,7 @@ android {
         minSdk = 26
         targetSdk = 36
         // Motion charm test build; installable over previous test builds.
-        versionCode = 64
+        versionCode = 69
         versionName = "2.6.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 

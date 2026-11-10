@@ -4,14 +4,16 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-10
-**Status:** [~] v2.6.0 – Signierte Test-APK mit goldenem Anhänger (Build 64). Persönlicher Gerätetest und Release-Freigabe offen.
-**Letzte Änderungen:** Der goldene Anhänger auf der Startseite ersetzt den bewegten Hintergrund und die Kartenreflexe. In aufrechter Halterung reagiert er auf kleinere Neigungen und Stöße.
+**Status:** [~] v2.6.0 – Signierter Build 69 mit 3D-Anhänger auf dem Samsung installiert. Release-Freigabe offen.
+**Letzte Änderungen:** Breiteres Blender-Modell mit „Mr. L“, Goldkette und stärkerer Drehung im Feld der Netto-Bilanz. Kette und Anhänger pendeln mit unterschiedlicher Trägheit.
 **Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
 
 ## Teststand 2026-11-10
 
 - [x] Build 64 als Update auf dem Pixel-Emulator installiert. Anhänger neben dem Titel, Reaktion auf Sensorimpulse und Schalter geprüft. 106 Unit-Tests bestanden und Lint ohne Fehler.
-- [ ] Bildrate des Anhängers auf dem persönlichen Handy messen. Der Emulator meldete beim kurzen Impulstest 18 verspätete von 141 Frames.
+- [x] Build 68 auf dem Samsung als Update installiert. Android meldete 12 verspätete Frames von 1.542 seit Start. Die letzten 120 regulären Frames zeigten typischerweise 16,7 ms Abstand zwischen der Darstellung zweier Bilder.
+- [x] Build 68 im Emulator visuell geprüft. Kette und Gravur sichtbar, Drehung bei simulierten Impulsen geprüft. 106 Unit-Tests bestanden, Lint ohne Fehler.
+- [x] Build 69 mit 35 gerenderten Blickwinkeln. Größere Darstellung bei Ruhe und Auslenkung sowie Ein- und Ausschalten im Emulator geprüft. Auf dem Samsung als Update installiert. 106 Unit-Tests bestanden, Lint ohne Fehler.
 
 - [x] Sync-Wizard, Kamera-Berechtigung und Gyro-Sichtbarkeit implementiert; 107 Unit-Tests, 35 instrumentierte Tests grün, Lint ohne Fehler.
 - [x] Build 63 auf beiden Emulatoren als Update installiert. Konflikt → Gast bestätigen → automatisch fertig; gespiegelte Schulden, Zahlungen und Belegnummern geprüft.
