@@ -298,4 +298,6 @@
     <string name="settings_tags_empty">Noch keine Tags vorhanden.</string>
     <string name="add_debt_tags_label">TAGS</string>
     <string name="tag_delete_content_description">Tag löschen: %1$s</string>
+    <string name="amount_delete_digit">Letzte Ziffer löschen</string>
+    <string name="amount_clear">Betrag leeren</string>
 </resources>

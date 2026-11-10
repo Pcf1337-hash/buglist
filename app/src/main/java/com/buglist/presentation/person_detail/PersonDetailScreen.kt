@@ -841,7 +841,7 @@ private fun PersonDetailHeader(
         )
 
         // TILGEN button(s) — only shown when there are open/partial debts
-        if (hasAnyOpenDebts) {
+        if (hasAnyOpenDebts && syncRole?.canEdit != false) {
             Spacer(Modifier.height(16.dp))
             if (hasOpenDebtsOwedToMe && hasOpenDebtsIOwe) {
                 // Both directions have open debts — show two smaller buttons

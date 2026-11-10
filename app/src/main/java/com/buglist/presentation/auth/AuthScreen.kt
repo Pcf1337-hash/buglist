@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -74,16 +73,18 @@ fun AuthScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val shouldShowPrompt by viewModel.shouldShowPrompt.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val promptTitle = stringResource(R.string.auth_biometric_prompt_title)
+    val promptSubtitle = stringResource(R.string.auth_biometric_prompt_subtitle)
+    val promptNegativeButton = stringResource(R.string.auth_biometric_prompt_negative)
 
     // Trigger BiometricPrompt when ViewModel signals it.
-    LaunchedEffect(shouldShowPrompt) {
+    LaunchedEffect(shouldShowPrompt, promptTitle, promptSubtitle, promptNegativeButton) {
         if (shouldShowPrompt) {
             biometricManager.authenticate(
                 activity = activity,
-                title = context.getString(R.string.auth_biometric_prompt_title),
-                subtitle = context.getString(R.string.auth_biometric_prompt_subtitle),
-                negativeButton = context.getString(R.string.auth_biometric_prompt_negative),
+                title = promptTitle,
+                subtitle = promptSubtitle,
+                negativeButton = promptNegativeButton,
                 onResult = { result -> viewModel.onAuthResult(result) }
             )
             viewModel.onPromptShown()

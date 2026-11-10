@@ -37,7 +37,13 @@ object PairingCode {
         val key = parts[2]
         val flag = parts[3]
         if (room.length != 32 || room.any { it !in HEX }) return null
-        if (key.length < 32 || flag != "H" && flag != "B") return null
+        if (flag != "H" && flag != "B") return null
+        // Reject malformed pasted keys before storing a pairing or encrypting.
+        // AES-256 requires exactly 32 decoded bytes, not 32 text characters.
+        val keyBytes = runCatching { Base64.getUrlDecoder().decode(key) }.getOrNull() ?: return null
+        val validKey = keyBytes.size == 32
+        keyBytes.fill(0)
+        if (!validKey) return null
         return PairingOffer(
             roomId = room,
             keyBase64Url = key,

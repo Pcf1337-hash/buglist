@@ -32,4 +32,12 @@ class SnapshotCryptoTest {
         assertEquals(true, PairingCode.decode(code)!!.scannerIsGuest)
         assertNull(PairingCode.decode("keine-kopplung"))
     }
+
+    @Test
+    fun malformedKeysAreRejectedBeforePairing() {
+        val room = PairingCode.randomRoomId()
+        for (key in listOf("!".repeat(43), "A".repeat(32), "A".repeat(64))) {
+            assertNull(PairingCode.decode("BL1.$room.$key.H"))
+        }
+    }
 }

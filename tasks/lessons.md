@@ -823,6 +823,14 @@ _DeleteAllData-Bugfix: 2026-03-18_
 _v1.5.1 Changes: 2026-03-19_
 _Wird nach jedem Fehler erweitert._
 
+## QA-Erkenntnisse 2026-11-10
+
+- Ein lokaler Sync-Hash beweist nicht, dass der Server den Snapshot noch vorhält. Nach Cache-Ablauf auch unveränderte Daten neu veröffentlichen.
+- Beim Ersetzen eines synchronisierten Schuldenstands Löschen und alle Inserts in einer Room-Transaktion ausführen. Schreibfehler dürfen den vorherigen Stand nicht zerstören.
+- Kopplungsschlüssel vor Speicherung als Base64 dekodieren und auf exakt 32 Bytes prüfen; eine Text-Mindestlänge reicht nicht.
+- Pointer-Gesten allein ergeben keine zugängliche Taste. Numpad-Löschen benötigt Click-/LongClick-Semantik und muss aktuelle Eingaben verwenden.
+- Compose-Ressourcentexte im Composable mit stringResource beziehen; LocalContext.getString löst mit der aktuellen Toolchain Lint-Fehler aus.
+
 ## L-095: DiagnosticsManager – Privacy-safe Remote Debugging
 **Problem:** Biometric-Fehler auf Kollegen-Gerät nicht reproduzierbar ohne physischen Zugriff.
 **Root Cause:** Keine Diagnose-Daten verfügbar, kein Logging-System.

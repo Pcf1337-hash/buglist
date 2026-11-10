@@ -3,10 +3,21 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-11-08
-**Status:** [~] v2.6.0 – Kopplung ohne Transaktionsprotokoll
-**Letzte Änderungen:** Beim Koppeln wählt man „Ich führe“ oder „Beide ändern“. Übertragen wird nur der verschlüsselte aktuelle Stand.
-**Emulator:** Läuft (nutze MCP für alle Tests)
+**Letztes Update:** 2026-11-10
+**Status:** [~] v2.6.0 – signierte Test-APK erstellt; persönlicher Gerätetest vor Release offen
+**Letzte Änderungen:** Sync-Austausch atomar, abgelaufenen Mailbox-Stand erneut senden, Kopplungscode validieren, Numpad-Löschen zugänglich, Gast-Tilgen ausblenden und Lint-Fehler beheben.
+**Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
+
+## Teststand 2026-11-10
+
+- [x] Neuesten GitHub-Branch auf Commit `dbf0804` synchronisiert.
+- [x] Codeprüfung und gezielte Fehlerkorrekturen auf `codex/2.6.0-test-build`.
+- [x] 82 Unit-Tests und 28 instrumentierte Tests bestanden; Lint: 0 Fehler.
+- [x] Signierte Release-APK 2.6.0 (58) gebaut und installiert.
+- [x] Update von 2.5.1 mit vorhandener Schuld und Teilzahlung geprüft.
+- [x] Tilgen, Überzahlung, Gegenschuld und Host/Gast-Abgleich mit zwei Emulatoren geprüft.
+- [x] Testbericht: `docs/qa/2026-11-10-v2.6.0.md`.
+- [ ] Persönlicher Test auf physischem Gerät und anschließende Release-Freigabe.
 
 ---
 

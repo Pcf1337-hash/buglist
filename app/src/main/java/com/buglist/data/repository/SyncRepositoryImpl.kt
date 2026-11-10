@@ -1,5 +1,7 @@
 package com.buglist.data.repository
 
+import androidx.room.withTransaction
+import com.buglist.data.local.AppDatabase
 import com.buglist.data.local.dao.DebtEntryDao
 import com.buglist.data.local.dao.PaymentDao
 import com.buglist.data.local.dao.SyncDao
@@ -31,6 +33,7 @@ import com.buglist.domain.sync.BookDebt
 import com.buglist.domain.sync.BookPayment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
@@ -47,7 +50,8 @@ class SyncRepositoryImpl @Inject constructor(
     private val debtEntryDao: DebtEntryDao,
     private val paymentDao: PaymentDao,
     private val mailbox: NtfyMailbox,
-    private val changeSignal: ChangeSignal
+    private val changeSignal: ChangeSignal,
+    private val database: AppDatabase
 ) : SyncRepository {
 
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
@@ -168,11 +172,20 @@ class SyncRepositoryImpl @Inject constructor(
                 publishNote(updated, note)?.let { return@withLock Result.Error(it) }
             }
             if (result.pushBook) {
-                push(updated)?.let { return@withLock Result.Error(it) }
+                // The mailbox expires cached messages. A saved hash alone does not
+                // mean a new or returning guest can still download this book.
+                val bookStillCached = fetched.any { it.t == "book" && it.from == pairing.deviceId }
+                push(updated, force = !bookStillCached)?.let { return@withLock Result.Error(it) }
             }
             val received = book
             if (result.takeBook && received != null) {
-                replaceLocalBook(updated.personId, received)
+                try {
+                    replaceLocalBook(updated.personId, received)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    return@withLock Result.Error("Stand konnte nicht übernommen werden")
+                }
                 changeSignal.bump()
             }
             val problem = visibleProblem(fetchFailed = false, problem = result.problem)
@@ -216,7 +229,7 @@ class SyncRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun push(pairing: PairingEntity): String? {
+    private suspend fun push(pairing: PairingEntity, force: Boolean): String? {
         val book = loadBook(pairing.personId)
         val wire = WireBook(
             from = pairing.deviceId,
@@ -224,7 +237,7 @@ class SyncRepositoryImpl @Inject constructor(
         )
         val bytes = json.encodeToString(wire).encodeToByteArray()
         val hash = SnapshotCrypto.sha256(bytes)
-        if (hash == pairing.lastPushedHash) return null
+        if (!force && hash == pairing.lastPushedHash) return null
         val payload = SnapshotCrypto.encrypt(bytes, pairing.keyMaterial)
         return try {
             mailbox.publish(PairingCode.topicFor(pairing.roomId), payload)
@@ -293,13 +306,17 @@ class SyncRepositoryImpl @Inject constructor(
     }
 
     private suspend fun replaceLocalBook(personId: Long, remote: List<BookDebt>) {
-        debtEntryDao.deleteAllForPerson(personId)
-        syncDao.deleteTombstones(personId)
-        for (debt in remote) {
-            if (debt.deleted) {
-                rememberDebtTombstone(personId, debt)
-            } else {
-                insertDebt(personId, debt)
+        // Keep the previous book if any insert fails or the coroutine is cancelled.
+        // Observers must never see an empty or partially replaced ledger.
+        database.withTransaction {
+            debtEntryDao.deleteAllForPerson(personId)
+            syncDao.deleteTombstones(personId)
+            for (debt in remote) {
+                if (debt.deleted) {
+                    rememberDebtTombstone(personId, debt)
+                } else {
+                    insertDebt(personId, debt)
+                }
             }
         }
     }

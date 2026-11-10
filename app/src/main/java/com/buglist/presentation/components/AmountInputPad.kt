@@ -2,7 +2,7 @@ package com.buglist.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,14 +14,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -30,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
+import com.buglist.R
 
 /**
  * Einhand-optimierter Betragseingabe-Block.
@@ -271,25 +270,21 @@ private fun BackspaceButton(
     contrastRim: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // rememberUpdatedState ensures the pointerInput block (which never restarts because
-    // its key is Unit) always calls the LATEST lambda — not the one captured at first
-    // composition. Without this, every tap after the first re-uses the stale inputString
-    // closure and the delete appears to stop working after one character. (L-037)
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnLongPress by rememberUpdatedState(onLongPress)
-
+    val deleteLabel = stringResource(R.string.amount_delete_digit)
+    val clearLabel = stringResource(R.string.amount_clear)
     val shape = RoundedCornerShape(14.dp)
     Surface(
         shape = shape,
         color = BugListColors.SurfaceHigh,
         modifier = modifier
             .then(if (contrastRim) Modifier.border(1.5.dp, BugListColors.Gold, shape) else Modifier)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { currentOnTap() },
-                    onLongPress = { currentOnLongPress() }
-                )
-            }
+            .semantics { contentDescription = deleteLabel }
+            .combinedClickable(
+                role = Role.Button,
+                onClick = onTap,
+                onLongClickLabel = clearLabel,
+                onLongClick = onLongPress
+            )
     ) {
         Text(
             text = "⌫",
