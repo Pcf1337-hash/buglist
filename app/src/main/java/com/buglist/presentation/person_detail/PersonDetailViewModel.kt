@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -112,10 +113,10 @@ class PersonDetailViewModel @Inject constructor(
 
     private val _coupleError = MutableStateFlow<String?>(null)
     val coupleError: StateFlow<String?> = _coupleError.asStateFlow()
-
-    init {
-        viewModelScope.launch { syncRepository.reconcile(personId) }
-    }
+    private val _coupleBusy = MutableStateFlow(false)
+    val coupleBusy: StateFlow<Boolean> = _coupleBusy.asStateFlow()
+    private val _coupleSynced = MutableStateFlow(false)
+    val coupleSynced: StateFlow<Boolean> = _coupleSynced.asStateFlow()
 
     private val _activeTab = MutableStateFlow(DebtTab.OPEN)
     val activeTab: StateFlow<DebtTab> = _activeTab.asStateFlow()
@@ -129,48 +130,37 @@ class PersonDetailViewModel @Inject constructor(
      */
     private val _refreshTrigger = MutableStateFlow(0L)
 
+    init { refresh() }
+
     /**
      * Forces an immediate re-query of all debt data for this person.
      * Call this after adding/editing a debt entry, or from pull-to-refresh.
      */
     fun refresh() {
-        viewModelScope.launch {
-            when (val result = syncRepository.reconcile(personId)) {
-                is Result.Error -> _coupleError.value = result.message
-                is Result.Success -> if (_coupleError.value != null) _coupleError.value = null
-            }
-            _refreshTrigger.update { it + 1 }
-        }
+        coupleAction { syncRepository.reconcile(personId) }
     }
 
     fun startCoupling(bothCanEdit: Boolean) {
-        viewModelScope.launch {
-            _coupleError.value = null
+        coupleAction {
             _coupleCode.value = syncRepository.startCoupling(personId, bothCanEdit)
+            Result.Success(Unit)
         }
     }
 
     fun acceptCoupling(code: String) {
-        viewModelScope.launch {
+        coupleAction {
             when (val result = syncRepository.acceptCode(personId, code)) {
                 is Result.Success -> {
-                    _coupleError.value = null
                     _coupleCode.value = null
-                    _refreshTrigger.update { it + 1 }
+                    Result.Success(Unit)
                 }
-                is Result.Error -> _coupleError.value = result.message
+                is Result.Error -> Result.Error(result.message)
             }
         }
     }
 
     fun claimRole(host: Boolean) {
-        viewModelScope.launch {
-            when (val result = syncRepository.claimRole(personId, host)) {
-                is Result.Error -> _coupleError.value = result.message
-                is Result.Success -> _coupleError.value = null
-            }
-            _refreshTrigger.update { it + 1 }
-        }
+        coupleAction { syncRepository.claimRole(personId, host) }
     }
 
     fun clearCoupleCode() {
@@ -178,10 +168,38 @@ class PersonDetailViewModel @Inject constructor(
     }
 
     fun unlinkCoupling() {
-        viewModelScope.launch {
+        coupleAction {
             syncRepository.unlink(personId)
             _coupleCode.value = null
-            _coupleError.value = null
+            Result.Success(Unit)
+        }
+    }
+
+    /** Wizard polling and button actions share one in-flight operation. */
+    private fun coupleAction(action: suspend () -> Result<Unit>) {
+        if (_coupleBusy.value) return
+        _coupleBusy.value = true
+        viewModelScope.launch {
+            try {
+                when (val result = action()) {
+                    is Result.Success -> {
+                        _coupleError.value = null
+                        _coupleSynced.value = true
+                    }
+                    is Result.Error -> {
+                        _coupleError.value = result.message
+                        _coupleSynced.value = false
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _coupleError.value = "Verbindung gerade nicht erreichbar. Bitte erneut versuchen."
+                _coupleSynced.value = false
+            } finally {
+                _coupleBusy.value = false
+                _refreshTrigger.update { it + 1 }
+            }
         }
     }
 

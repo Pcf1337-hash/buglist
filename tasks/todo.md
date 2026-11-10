@@ -4,11 +4,17 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-10
-**Status:** [~] v2.6.0 – neue Bezahltliste als signierte Test-APK (Build 59); persönlicher Gerätetest vor Release offen
-**Letzte Änderungen:** Bezahltliste nach Abschlussdatum, Tagesgruppen, ursprüngliches Schulddatum und aufklappbare Zahlungen mit Restbeträgen. Stornierte Einträge getrennt; unbekannte Bezahldaten explizit markiert.
+**Status:** [~] v2.6.0 – Sync-Wizard und sichtbarer Neigungseffekt als signierte Test-APK (Build 63); persönlicher Gerätetest und Release-Freigabe offen
+**Letzte Änderungen:** Geführte Kopplung mit ausdrücklicher Rollenbestätigung auf beiden Handys, Konflikterklärung und automatischer Prüfung ohne wiederholte Veröffentlichungen. Kameradialog repariert; Gyro-Hintergrund sichtbar gemacht. Neue Bezahltliste enthalten.
 **Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
 
 ## Teststand 2026-11-10
+
+- [x] Sync-Wizard, Kamera-Berechtigung und Gyro-Sichtbarkeit implementiert; 107 Unit-Tests, 35 instrumentierte Tests grün, Lint ohne Fehler.
+- [x] Build 63 auf beiden Emulatoren als Update installiert. Konflikt → Gast bestätigen → automatisch fertig; gespiegelte Schulden, Zahlungen und Belegnummern geprüft.
+- [x] Vorhandene Daten beim Update von GitHub 2.5.1 erhalten; unverändertes Signaturzertifikat geprüft.
+- [x] APK: `build/qa/BugList-v2.6.0-sync-wizard.apk`; Anleitung: `docs/SYNC-ANLEITUNG.md`; Bericht: `docs/qa/2026-11-10-sync-wizard.md`.
+- [ ] Optischen QR-Scan und physische Neigung auf echten Handys gemeinsam prüfen; danach Nutzerfreigabe für Veröffentlichung abwarten.
 
 - [x] Bezahltliste überarbeitet: 90 Unit-Tests und 30 instrumentierte Tests grün, Lint ohne Fehler.
 - [x] Build 59 auf Emulator installiert, Bestandsdaten erhalten und Zahlungsfolge visuell geprüft.

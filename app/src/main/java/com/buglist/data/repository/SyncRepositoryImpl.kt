@@ -169,6 +169,11 @@ class SyncRepositoryImpl @Inject constructor(
                     "role" -> SyncNote(t = "role", from = pairing.deviceId, role = message.role)
                     else -> SyncNote(t = "hello", from = pairing.deviceId)
                 }
+                // Polling must not consume the mailbox's publish quota. Keep the
+                // newest own confirmation until it expires; a changed role still
+                // needs a new message even if an older matching role is cached.
+                val retained = fetched.lastOrNull { it.from == note.from && it.t == note.t }
+                if (retained != null && retained.role == note.role) continue
                 publishNote(updated, note)?.let { return@withLock Result.Error(it) }
             }
             if (result.pushBook) {

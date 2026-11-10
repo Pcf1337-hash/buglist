@@ -825,6 +825,10 @@ _Wird nach jedem Fehler erweitert._
 
 ## QA-Erkenntnisse 2026-11-10
 
+- Automatisches Sync-Polling darf keine identischen Bestätigungen veröffentlichen. Letzte eigene Meldung im Cache vergleichen; Rollenwechsel und Cache-Ablauf müssen trotzdem erneut gesendet werden.
+- Android-Berechtigungsdialoge können onUserLeaveHint auslösen. Nur diesen Übergang gezielt überbrücken; Home während des Dialogs muss weiterhin sperren. Mit der signierten App testen.
+- Visuelle Hintergründe am tatsächlichen App-Root prüfen. Eine deckende Surface kann einen korrekt laufenden Sensoreffekt vollständig verbergen.
+
 - Bezahltlisten nach dem tatsächlichen Abschluss der Zahlungen sortieren. Ursprüngliches Schulddatum und Bezahldatum getrennt anzeigen; ohne vollständige Zahlungsaufzeichnungen kein Abschlussdatum erfinden. Stornierungen zählen nicht als bezahlt.
 
 - Ein lokaler Sync-Hash beweist nicht, dass der Server den Snapshot noch vorhält. Nach Cache-Ablauf auch unveränderte Daten neu veröffentlichen.

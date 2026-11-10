@@ -65,6 +65,46 @@ class SyncRepositoryImplTest {
         coVerify(exactly = 2) { mailbox.publish(any(), any()) }
     }
 
+    @Test
+    fun repeatedPollingDoesNotRepublishRetainedRoleOrBook() = runTest {
+        coEvery { syncDao.getPairing(1) } returns pairing
+        coEvery { mailbox.messages(any()) } returns listOf(
+            SnapshotCrypto.encrypt(book.toByteArray(), key),
+            encryptedNote("role", "HOST")
+        )
+
+        repeat(3) { repository().reconcile(1) }
+
+        coVerify(exactly = 0) { mailbox.publish(any(), any()) }
+    }
+
+    @Test
+    fun latestDifferentRoleMustBeSupersededEvenIfMatchingOlderRoleExists() = runTest {
+        coEvery { syncDao.getPairing(1) } returns pairing
+        coEvery { mailbox.messages(any()) } returns listOf(
+            SnapshotCrypto.encrypt(book.toByteArray(), key),
+            encryptedNote("role", "HOST"), encryptedNote("role", "GUEST")
+        )
+
+        repository().reconcile(1)
+
+        coVerify(exactly = 1) { mailbox.publish(any(), any()) }
+    }
+
+    @Test
+    fun waitingPhoneDoesNotRepeatRetainedHello() = runTest {
+        coEvery { syncDao.getPairing(1) } returns pairing.copy(
+            role = "PENDING", wantedRole = null, peerRole = null, peerSeenAt = 0)
+        coEvery { mailbox.messages(any()) } returns listOf(encryptedNote("hello", null))
+
+        repository().reconcile(1)
+
+        coVerify(exactly = 0) { mailbox.publish(any(), any()) }
+    }
+
+    private fun encryptedNote(type: String, role: String?): String = SnapshotCrypto.encrypt(
+        json.encodeToString(SyncNote(t = type, from = "host", role = role)).toByteArray(), key)
+
     private fun repository() = SyncRepositoryImpl(
         syncDao, mockk<DebtEntryDao>(), mockk<PaymentDao>(), mailbox, ChangeSignal(), mockk<AppDatabase>()
     )

@@ -31,6 +31,8 @@ import com.buglist.domain.model.paymentProgress
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
+import com.buglist.presentation.theme.LocalAmbientShift
+import com.buglist.presentation.theme.ambientRim
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,7 +49,7 @@ fun PaidDebtCard(
     val timestamp = SimpleDateFormat("dd.MM.yyyy · HH:mm", Locale.GERMAN)
     val progress = debt.paymentProgress()
     Surface(
-        modifier = modifier.fillMaxWidth().animateContentSize()
+        modifier = modifier.fillMaxWidth().ambientRim(LocalAmbientShift.current).animateContentSize()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(20.dp),
         color = BugListColors.SurfaceCard,

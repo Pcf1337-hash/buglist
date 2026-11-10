@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -104,6 +105,16 @@ private fun DrawScope.drawAmbient(shift: AmbientShift) {
             radius = size.width * 0.7f
         )
     )
+}
+
+/** Keep the actual app root transparent so the theme's tilt-lit background stays visible. */
+@Composable
+fun BugListAppSurface(content: @Composable () -> Unit) {
+    BugListTheme {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+            content()
+        }
+    }
 }
 
 /**

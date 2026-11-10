@@ -16,8 +16,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 36
-        // Test update with the clearer paid history; installable over build 58.
-        versionCode = 59
+        // Guided pairing and visible tilt background; installable over previous test builds.
+        versionCode = 63
         versionName = "2.6.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 

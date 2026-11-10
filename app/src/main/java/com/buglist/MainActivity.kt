@@ -6,17 +6,14 @@ import android.os.Process
 import android.view.WindowManager.LayoutParams.FLAG_SECURE
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import com.buglist.di.DatabaseProvider
 import com.buglist.presentation.BugListNavHost
-import com.buglist.presentation.theme.BugListColors
-import com.buglist.presentation.theme.BugListTheme
+import com.buglist.presentation.theme.BugListAppSurface
 import com.buglist.security.BiometricAuthManager
 import com.buglist.security.SessionManager
+import com.buglist.security.PermissionLeaveGuard
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -35,8 +32,9 @@ import javax.inject.Inject
  * no thumbnail of sensitive data in the Recents screen. On next launch, a fresh [onCreate]
  * is guaranteed → BiometricPrompt is always shown on every open.
  *
- * [onUserLeaveHint] does NOT fire when the app itself starts another Activity (SAF picker,
- * Share Intent, BiometricPrompt overlay) — only genuine user-initiated backgrounding triggers it.
+ * A runtime permission dialog can also trigger [onUserLeaveHint]. During that request,
+ * [PermissionLeaveGuard] defers locking until a real [onStop]; returning from the dialog
+ * resumes the current screen. Leaving for Home still locks and removes the task.
  *
  * ## SplashScreen (L-075)
  * [installSplashScreen] is called BEFORE [super.onCreate] to comply with the SplashScreen API
@@ -48,6 +46,23 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    private val permissionLeaveGuard = PermissionLeaveGuard()
+
+    fun beginRuntimePermissionRequest() = permissionLeaveGuard.beginRequest()
+    fun endRuntimePermissionRequest() = permissionLeaveGuard.endRequest()
+
+    override fun onResume() {
+        super.onResume()
+        permissionLeaveGuard.onResumed()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (permissionLeaveGuard.lockOnStop(isChangingConfigurations)) {
+            sessionManager.lock()
+            finishAndRemoveTask()
+        }
+    }
 
     @Inject
     lateinit var biometricAuthManager: BiometricAuthManager
@@ -80,31 +95,27 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            BugListTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = BugListColors.Background
-                ) {
-                    BugListNavHost(
-                        activity = this@MainActivity,
-                        biometricManager = biometricAuthManager,
-                        sessionManager = sessionManager,
-                        databaseProvider = databaseProvider
-                    )
-                }
+            BugListAppSurface {
+                BugListNavHost(
+                    activity = this@MainActivity,
+                    biometricManager = biometricAuthManager,
+                    sessionManager = sessionManager,
+                    databaseProvider = databaseProvider
+                )
             }
         }
     }
 
     /**
      * Called when the user explicitly leaves the app (Home button, Recents gesture).
-     * NOT called when the app itself starts another Activity (SAF, Share Intent, Biometric overlay).
+     * Runtime permission transitions are guarded; real backgrounding still locks.
      *
      * Locks the session and removes the task from Recents so sensitive data is never
      * visible in the task switcher. The next launch creates a fresh Activity → BiometricPrompt.
      */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (!permissionLeaveGuard.lockOnLeaveHint()) return
         sessionManager.lock()
         finishAndRemoveTask()
     }

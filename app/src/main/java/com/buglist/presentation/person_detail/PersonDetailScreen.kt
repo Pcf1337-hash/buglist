@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -154,6 +155,8 @@ fun PersonDetailScreen(
     val pairing by viewModel.pairing.collectAsStateWithLifecycle()
     val coupleCode by viewModel.coupleCode.collectAsStateWithLifecycle()
     val coupleError by viewModel.coupleError.collectAsStateWithLifecycle()
+    val coupleBusy by viewModel.coupleBusy.collectAsStateWithLifecycle()
+    val coupleSynced by viewModel.coupleSynced.collectAsStateWithLifecycle()
     val canEdit = syncRole?.canEdit != false
 
     val cancelledLabel = stringResource(R.string.person_detail_debt_cancelled)
@@ -262,6 +265,10 @@ fun PersonDetailScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { showCouple = true }) {
+                                Icon(Icons.Default.Sync, contentDescription = stringResource(R.string.wizard_title),
+                                    tint = BugListColors.Gold)
+                            }
                             if (canEdit) IconButton(onClick = { showEditPerson = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
@@ -556,9 +563,12 @@ fun PersonDetailScreen(
 
             if (showCouple) {
                 CoupleSheet(
+                    personName = state.person.name,
                     link = pairing,
                     code = coupleCode,
                     error = coupleError,
+                    busy = coupleBusy,
+                    synced = coupleSynced,
                     onStart = { viewModel.startCoupling(false) },
                     onAccept = viewModel::acceptCoupling,
                     onClaim = viewModel::claimRole,
