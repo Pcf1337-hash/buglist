@@ -75,8 +75,6 @@ import com.buglist.data.remote.UpdateState
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.components.StartupUpdateDialog
 import com.buglist.presentation.theme.BugListColors
-import com.buglist.presentation.theme.LocalAmbientShift
-import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import java.io.File
@@ -671,7 +669,6 @@ private fun SettingsSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, BugListColors.BorderSubtle, RoundedCornerShape(20.dp))
-                .ambientRim(LocalAmbientShift.current, corner = 20.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 content()

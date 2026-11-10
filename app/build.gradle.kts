@@ -16,8 +16,8 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 36
-        // Guided pairing and visible tilt background; installable over previous test builds.
-        versionCode = 63
+        // Motion charm test build; installable over previous test builds.
+        versionCode = 64
         versionName = "2.6.0"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 

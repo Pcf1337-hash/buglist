@@ -32,13 +32,13 @@ Belegnummern und Zahlungen bleiben dabei zusammengehörig.
 Im Nur-Ansehen-Modus ist Bearbeiten gesperrt. **Verbindung trennen** beendet die Kopplung auf diesem Handy;
 die zuletzt übernommenen Daten bleiben erhalten und können danach wieder bearbeitet werden.
 
-## Alte Daten und Neigungseffekt
+## Alte Daten und goldener Anhänger
 
 Das Update übernimmt die vorhandene Datenbank. Für die neue Bezahltliste werden vorhandene Zahlungsdaten
 ausgewertet; fehlende historische Bezahldaten werden als unbekannt angezeigt.
 
-Der Neigungseffekt lässt das cyanblaue Hintergrundlicht und dezente Kartenreflexe auf die Handyneigung reagieren.
-Texte und Beträge bewegen sich nicht. Er lässt sich unter **Einstellungen → Bewegungseffekte** schalten.
-Bei ausgeschalteten Systemanimationen oder fehlendem Sensor bleibt er statisch; während des Tilgens pausiert er.
+Der goldene Anhänger auf der Startseite pendelt bei Neigung und kurzen Bewegungsimpulsen.
+In einer senkrechten Halterung reagiert er auf kleinere Bewegungen. Unter **Einstellungen → Goldener Anhänger**
+lässt er sich ausblenden. Bei ausgeschalteten Systemanimationen bleibt er statisch.
 
 Dieser Stand ist eine Testversion. Die Veröffentlichung erfolgt erst nach der persönlichen Freigabe.

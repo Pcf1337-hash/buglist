@@ -43,7 +43,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +63,6 @@ import com.buglist.domain.model.DebtStatus
 import com.buglist.presentation.components.AmountInputPad
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.components.formatAmount
-import com.buglist.presentation.theme.AmbientGates
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
@@ -107,11 +105,6 @@ fun SettlementSheet(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val openDebts by viewModel.openDebts.collectAsStateWithLifecycle()
     val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    DisposableEffect(Unit) {
-        AmbientGates.acquire()
-        onDispose { AmbientGates.release() }
-    }
-
     var amountInput by rememberSaveable { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showOverpayDialog by remember { mutableStateOf(false) }

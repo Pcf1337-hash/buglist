@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -102,8 +103,6 @@ import com.buglist.presentation.components.PersonAvatar
 import com.buglist.presentation.components.UpdateDialog
 import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
-import com.buglist.presentation.theme.LocalAmbientShift
-import com.buglist.presentation.theme.ambientRim
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
 import sh.calvin.reorderable.ReorderableItem
@@ -199,13 +198,23 @@ fun DashboardScreen(
             Column {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            fontFamily = OswaldFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp,
-                            color = BugListColors.Gold
-                        )
+                        BoxWithConstraints {
+                            val titleSpace = (84 * LocalDensity.current.fontScale + 72).dp
+                            val showCharm = !editMode && !searchActive && maxWidth >= titleSpace
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.app_name),
+                                    fontFamily = OswaldFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp,
+                                    color = BugListColors.Gold
+                                )
+                                if (showCharm) {
+                                    Spacer(Modifier.width(8.dp))
+                                    GoldCharm()
+                                }
+                            }
+                        }
                     },
                     actions = {
                         if (!editMode) {
@@ -1016,7 +1025,7 @@ private fun BalanceTile(
     Surface(
         shape    = RoundedCornerShape(20.dp),
         color    = BugListColors.SurfaceElevated,
-        modifier = modifier.ambientRim(LocalAmbientShift.current, corner = 20.dp)
+        modifier = modifier
     ) {
         Column(
             modifier = Modifier
