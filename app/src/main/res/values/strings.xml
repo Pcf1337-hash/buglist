@@ -300,4 +300,30 @@
     <string name="tag_delete_content_description">Tag löschen: %1$s</string>
     <string name="amount_delete_digit">Letzte Ziffer löschen</string>
     <string name="amount_clear">Betrag leeren</string>
+    <string name="paid_complete">VOLLSTÄNDIG BEZAHLT</string>
+    <string name="paid_date_unknown">Bezahldatum nicht erfasst</string>
+    <string name="paid_original_date">Schuld vom %1$s</string>
+    <string name="paid_received">Erhalten</string>
+    <string name="paid_sent">Gezahlt</string>
+    <string name="paid_no_records">Als bezahlt erfasst · keine einzelnen Zahlungen hinterlegt</string>
+    <plurals name="paid_payment_count">
+        <item quantity="one">%1$d Zahlung erfasst</item>
+        <item quantity="other">%1$d Zahlungen erfasst</item>
+    </plurals>
+    <string name="paid_show_payments">Zahlungen anzeigen ▾</string>
+    <string name="paid_hide_payments">Zahlungen ausblenden ▴</string>
+    <string name="paid_payment_number">%1$d. Zahlung · %2$s</string>
+    <string name="paid_final_payment">Damit vollständig bezahlt · Rest 0,00</string>
+    <string name="paid_remaining_after">Danach noch offen: %1$s</string>
+    <string name="paid_sort_hint">Bezahldatum · neueste zuerst</string>
+    <string name="paid_fifo_hint">Tilgung: älteste offene Schuld zuerst.</string>
+    <string name="paid_cancelled_hint">Stornierte Einträge findest du unter „Alle“.</string>
+    <string name="paid_day_heading">Bezahlt am %1$s</string>
+    <plurals name="paid_debt_count">
+        <item quantity="one">%1$d Schuld vollständig bezahlt</item>
+        <item quantity="other">%1$d Schulden vollständig bezahlt</item>
+    </plurals>
+    <string name="paid_copy_list">Liste kopieren</string>
+    <string name="paid_incomplete_records">Als bezahlt erfasst · Zahlungsaufzeichnungen unvollständig</string>
+    <string name="paid_empty">Noch keine vollständig bezahlten Schulden</string>
 </resources>

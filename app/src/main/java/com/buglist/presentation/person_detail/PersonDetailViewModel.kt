@@ -207,7 +207,7 @@ class PersonDetailViewModel @Inject constructor(
         } else {
             val statuses = when (tab) {
                 DebtTab.OPEN -> listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
-                DebtTab.PAID -> listOf(DebtStatus.PAID, DebtStatus.CANCELLED)
+                DebtTab.PAID -> listOf(DebtStatus.PAID)
                 DebtTab.ALL -> DebtStatus.entries
             }
             // Load ALL debts (no status filter) to compute settlement availability.
@@ -236,7 +236,7 @@ class PersonDetailViewModel @Inject constructor(
                 emit(
                     PersonDetailUiState.Ready(
                         person = person,
-                        debts = enriched,
+                        debts = if (tab == DebtTab.PAID) com.buglist.domain.model.paidHistory(enriched) else enriched,
                         activeTab = tab,
                         expandedDebtId = expandedId,
                         hasOpenDebtsOwedToMe = hasOpenOwedToMe,

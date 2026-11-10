@@ -4,11 +4,15 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-10
-**Status:** [~] v2.6.0 – signierte Test-APK erstellt; persönlicher Gerätetest vor Release offen
-**Letzte Änderungen:** Sync-Austausch atomar, abgelaufenen Mailbox-Stand erneut senden, Kopplungscode validieren, Numpad-Löschen zugänglich, Gast-Tilgen ausblenden und Lint-Fehler beheben.
+**Status:** [~] v2.6.0 – neue Bezahltliste als signierte Test-APK (Build 59); persönlicher Gerätetest vor Release offen
+**Letzte Änderungen:** Bezahltliste nach Abschlussdatum, Tagesgruppen, ursprüngliches Schulddatum und aufklappbare Zahlungen mit Restbeträgen. Stornierte Einträge getrennt; unbekannte Bezahldaten explizit markiert.
 **Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
 
 ## Teststand 2026-11-10
+
+- [x] Bezahltliste überarbeitet: 90 Unit-Tests und 30 instrumentierte Tests grün, Lint ohne Fehler.
+- [x] Build 59 auf Emulator installiert, Bestandsdaten erhalten und Zahlungsfolge visuell geprüft.
+- [x] APK: `build/qa/BugList-v2.6.0-paid-history.apk`; Bericht: `docs/qa/2026-11-10-paid-history.md`.
 
 - [x] Neuesten GitHub-Branch auf Commit `dbf0804` synchronisiert.
 - [x] Codeprüfung und gezielte Fehlerkorrekturen auf `codex/2.6.0-test-build`.

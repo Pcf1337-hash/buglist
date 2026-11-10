@@ -825,6 +825,8 @@ _Wird nach jedem Fehler erweitert._
 
 ## QA-Erkenntnisse 2026-11-10
 
+- Bezahltlisten nach dem tatsächlichen Abschluss der Zahlungen sortieren. Ursprüngliches Schulddatum und Bezahldatum getrennt anzeigen; ohne vollständige Zahlungsaufzeichnungen kein Abschlussdatum erfinden. Stornierungen zählen nicht als bezahlt.
+
 - Ein lokaler Sync-Hash beweist nicht, dass der Server den Snapshot noch vorhält. Nach Cache-Ablauf auch unveränderte Daten neu veröffentlichen.
 - Beim Ersetzen eines synchronisierten Schuldenstands Löschen und alle Inserts in einer Room-Transaktion ausführen. Schreibfehler dürfen den vorherigen Stand nicht zerstören.
 - Kopplungsschlüssel vor Speicherung als Base64 dekodieren und auf exakt 32 Bytes prüfen; eine Text-Mindestlänge reicht nicht.

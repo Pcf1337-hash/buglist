@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -93,6 +93,7 @@ import com.buglist.domain.model.DebtEntry
 import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
+import com.buglist.domain.model.paidAt
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
 import com.buglist.presentation.components.AmountText
@@ -361,91 +362,103 @@ fun PersonDetailScreen(
                             )
                         }
                     }
+                    if (state.activeTab == DebtTab.PAID) {
+                        item { PaidHistoryOverview(state.debts) }
+                    }
                     if (state.debts.isEmpty()) {
                         item {
                             StreetEmptyState(
-                                title = stringResource(R.string.person_detail_empty),
+                                title = stringResource(if (state.activeTab == DebtTab.PAID)
+                                    R.string.paid_empty else R.string.person_detail_empty),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
                     } else {
-                        items(state.debts, key = { it.entry.id }) { debtWithPayments ->
-                            Box {
-                                SwipeableDebtCard(
-                                    debtWithPayments = debtWithPayments,
-                                    expanded = state.expandedDebtId == debtWithPayments.entry.id,
-                                    onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
-                                    // Long press → context menu (Bearbeiten / Stornieren)
-                                    onContextMenu = {
-                                        if (canEdit) contextMenuDebtId = debtWithPayments.entry.id
-                                    },
-                                    onSwipeLeft = {
-                                        if (canEdit) paymentDebtId = debtWithPayments.entry.id
-                                    },
-                                    onSwipeRight = {
-                                        if (canEdit) editDebtEntry = debtWithPayments.entry
-                                    },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                                )
-                                // Context menu — anchored to this card, opens on long press
-                                DropdownMenu(
-                                    expanded = contextMenuDebtId == debtWithPayments.entry.id,
-                                    onDismissRequest = { contextMenuDebtId = null },
-                                    containerColor = BugListColors.Surface
-                                ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.context_menu_edit),
-                                                fontFamily = OswaldFontFamily,
-                                                fontWeight = FontWeight.Bold,
-                                                color = BugListColors.Gold
-                                            )
+                        itemsIndexed(state.debts, key = { _, debt -> debt.entry.id }) { index, debtWithPayments ->
+                            Column {
+                                if (state.activeTab == DebtTab.PAID) {
+                                    val df = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
+                                    val day = debtWithPayments.paidAt?.let { df.format(Date(it)) }
+                                    val previousDay = state.debts.getOrNull(index - 1)?.paidAt?.let { df.format(Date(it)) }
+                                    if (index == 0 || day != previousDay) PaidHistoryDayHeading(day)
+                                }
+                                Box {
+                                    SwipeableDebtCard(
+                                        debtWithPayments = debtWithPayments,
+                                        expanded = state.expandedDebtId == debtWithPayments.entry.id,
+                                        onTap = { viewModel.toggleDebtExpanded(debtWithPayments.entry.id) },
+                                        // Long press → context menu (Bearbeiten / Stornieren)
+                                        onContextMenu = {
+                                            if (canEdit) contextMenuDebtId = debtWithPayments.entry.id
                                         },
-                                        onClick = {
-                                            contextMenuDebtId = null
-                                            editDebtEntry = debtWithPayments.entry
-                                        }
+                                        onSwipeLeft = {
+                                            if (canEdit) paymentDebtId = debtWithPayments.entry.id
+                                        },
+                                        onSwipeRight = {
+                                            if (canEdit) editDebtEntry = debtWithPayments.entry
+                                        },
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                                     )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.context_menu_cancel),
-                                                fontFamily = OswaldFontFamily,
-                                                fontWeight = FontWeight.Bold,
-                                                color = BugListColors.DebtRed
-                                            )
-                                        },
-                                        onClick = {
-                                            contextMenuDebtId = null
-                                            val debtId = debtWithPayments.entry.id
-                                            viewModel.cancelDebt(debtId)
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = cancelledLabel,
-                                                    actionLabel = undoLabel,
-                                                    duration = SnackbarDuration.Short
+                                    // Context menu — anchored to this card, opens on long press
+                                    DropdownMenu(
+                                        expanded = contextMenuDebtId == debtWithPayments.entry.id,
+                                        onDismissRequest = { contextMenuDebtId = null },
+                                        containerColor = BugListColors.Surface
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    stringResource(R.string.context_menu_edit),
+                                                    fontFamily = OswaldFontFamily,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = BugListColors.Gold
                                                 )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    viewModel.undoCancelDebt(debtId)
+                                            },
+                                            onClick = {
+                                                contextMenuDebtId = null
+                                                editDebtEntry = debtWithPayments.entry
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    stringResource(R.string.context_menu_cancel),
+                                                    fontFamily = OswaldFontFamily,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = BugListColors.DebtRed
+                                                )
+                                            },
+                                            onClick = {
+                                                contextMenuDebtId = null
+                                                val debtId = debtWithPayments.entry.id
+                                                viewModel.cancelDebt(debtId)
+                                                scope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = cancelledLabel,
+                                                        actionLabel = undoLabel,
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.undoCancelDebt(debtId)
+                                                    }
                                                 }
                                             }
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.context_menu_delete),
-                                                fontFamily = OswaldFontFamily,
-                                                fontWeight = FontWeight.Bold,
-                                                color = BugListColors.Muted
-                                            )
-                                        },
-                                        onClick = {
-                                            contextMenuDebtId = null
-                                            viewModel.deleteDebtEntry(debtWithPayments.entry.id)
-                                        }
-                                    )
+                                        )
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    stringResource(R.string.context_menu_delete),
+                                                    fontFamily = OswaldFontFamily,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = BugListColors.Muted
+                                                )
+                                            },
+                                            onClick = {
+                                                contextMenuDebtId = null
+                                                viewModel.deleteDebtEntry(debtWithPayments.entry.id)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -727,6 +740,10 @@ private fun PersonDetailHeader(
 ) {
     var nameTaps by remember { mutableIntStateOf(0) }
     var lastNameTap by remember { mutableLongStateOf(0L) }
+    if (activeTab == DebtTab.PAID) {
+        PaidHistoryHeader(person.name, debts.size, syncRole, onDoubleTapBalance, onSecretTap)
+        return
+    }
     // Balance calculation per status:
     // OPEN/PARTIAL → remaining (what's still outstanding)
     // PAID         → entry.amount (original debt, totalPaid may be 0 for direct-mark-as-paid)
@@ -840,8 +857,8 @@ private fun PersonDetailHeader(
             color = BugListColors.Muted.copy(alpha = 0.6f)
         )
 
-        // TILGEN button(s) — only shown when there are open/partial debts
-        if (hasAnyOpenDebts && syncRole?.canEdit != false) {
+        // Settlement belongs to the open ledger; the paid tab is an archive.
+        if (activeTab != DebtTab.PAID && hasAnyOpenDebts && syncRole?.canEdit != false) {
             Spacer(Modifier.height(16.dp))
             if (hasOpenDebtsOwedToMe && hasOpenDebtsIOwe) {
                 // Both directions have open debts — show two smaller buttons
@@ -992,6 +1009,7 @@ private fun SwipeableDebtCard(
 
     SwipeToDismissBox(
         state = dismissState,
+        enableDismissFromEndToStart = debtWithPayments.entry.status in listOf(DebtStatus.OPEN, DebtStatus.PARTIAL),
         backgroundContent = {
             val direction = dismissState.dismissDirection
             Row(
@@ -1125,6 +1143,13 @@ private fun buildShareText(
             }
 
             appendLine("• $date | $amount$meta")
+            if (dwp.entry.status == DebtStatus.PAID) {
+                val completed = dwp.paidAt?.let {
+                    SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMAN).format(Date(it))
+                }
+                appendLine(if (completed != null) "  Vollständig bezahlt am $completed"
+                    else "  Als bezahlt erfasst – Bezahldatum nicht erfasst")
+            }
 
             // Payment lines — oldest first so import applies them in chronological order
             val sortedPayments = dwp.payments.sortedBy { it.date }

@@ -67,6 +67,10 @@ fun DebtCard(
     modifier: Modifier = Modifier
 ) {
     val entry = debtWithPayments.entry
+    if (entry.status == DebtStatus.PAID) {
+        PaidDebtCard(debtWithPayments, modifier = modifier, expanded = expanded, onClick = onClick)
+        return
+    }
     val borderColor = when (entry.status) {
         DebtStatus.OPEN -> BugListColors.BorderGold
         DebtStatus.PARTIAL -> BugListColors.Orange.copy(alpha = 0.85f)
