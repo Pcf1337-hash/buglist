@@ -12,7 +12,7 @@
 
 - [x] Build 71 im Pixel-Emulator visuell geprüft und auf dem Samsung als Update installiert. 107 Unit-Tests bestanden, Lint ohne Fehler.
 - [x] Beim Wechsel zwischen Offen, Bezahlt und Alle bleiben Personenkopf und Tabs an derselben Position. „Liste kopieren“ im Emulator geprüft.
-- [ ] Bildzeiten für Build 71 auf dem Samsung messen.
+- [x] Bildzeiten für Build 71 auf dem Samsung gemessen. Die letzten 120 angezeigten Frames lagen rund 16,7 ms auseinander (etwa 60 FPS über knapp zwei Sekunden). Android meldete im Messfenster 12 verspätete Frames von 2.132.
 - [x] Build 64 als Update auf dem Pixel-Emulator installiert. Anhänger neben dem Titel, Reaktion auf Sensorimpulse und Schalter geprüft. 106 Unit-Tests bestanden und Lint ohne Fehler.
 - [x] Build 68 auf dem Samsung als Update installiert. Android meldete 12 verspätete Frames von 1.542 seit Start. Die letzten 120 regulären Frames zeigten typischerweise 16,7 ms Abstand zwischen der Darstellung zweier Bilder.
 - [x] Build 68 im Emulator visuell geprüft. Kette und Gravur sichtbar, Drehung bei simulierten Impulsen geprüft. 106 Unit-Tests bestanden, Lint ohne Fehler.
