@@ -38,8 +38,8 @@
     <string name="a11y_balance_up">Bilanz gestiegen</string>
     <string name="a11y_balance_down">Bilanz gesunken</string>
     <string name="settlement_close">Schließen</string>
-    <string name="settings_ambient_motion">Goldener Anhänger</string>
-    <string name="settings_ambient_motion_hint">Auf der Startseite reagiert der Anhänger auf Neigung und Bewegung.</string>
+    <string name="settings_ambient_motion">Mr. L anzeigen</string>
+    <string name="settings_ambient_motion_hint">Blendet den goldenen Anhänger auf der Startseite ein oder aus.</string>
     <string name="dashboard_search_empty">NIEMAND GEFUNDEN</string>
     <string name="dashboard_total_balance_label">NETTO-BILANZ</string>
 
