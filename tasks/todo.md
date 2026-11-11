@@ -4,9 +4,16 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-11
-**Status:** [~] v2.6.0 – Signierter Build 71 auf dem Samsung installiert. Release-Freigabe offen.
-**Letzte Änderungen:** Die längere Goldkette ist an der BugList-Leiste befestigt. Der kleinere „Mr. L“-Anhänger pendelt rechts neben der Netto-Bilanz. Der Personenkopf bleibt beim Tabwechsel stehen, und die Übersichten verwenden dieselbe Hintergrundfarbe.
+**Status:** [x] v2.6.1 – Signierter Build 72 als aktuelles GitHub-Release veröffentlicht.
+**Letzte Änderungen:** Der Schalter „Mr. L anzeigen“ blendet den Anhänger auf der Startseite ein oder aus. Der Testbuild 2.6.0 findet und lädt das Update über die Einstellungen.
 **Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
+
+## Veröffentlichung 2026-11-11
+
+- [x] „Mr. L anzeigen“ in Build 72 ein- und ausgeschaltet. Der Anhänger meldet seine Sensoren passend zur Einstellung an und ab.
+- [x] 107 Unit-Tests bestanden, Lint ohne Fehler. APK mit bisherigem Release-Zertifikat signiert und SHA-256 nach öffentlichem Download verglichen.
+- [x] Build 71 hat 2.6.1 in der App gefunden und bis zur Android-Installationsmaske heruntergeladen. Update mit der heruntergeladenen APK im Emulator installiert. Vorhandener Testeintrag blieb erhalten.
+- [x] [GitHub-Release 2.6.1](https://github.com/Pcf1337-hash/buglist/releases/tag/v2.6.1).
 
 ## Teststand 2026-11-10
 
