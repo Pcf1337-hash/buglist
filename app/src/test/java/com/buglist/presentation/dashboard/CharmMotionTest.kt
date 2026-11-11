@@ -52,4 +52,18 @@ class CharmMotionTest {
             assertEquals(0f, spring.position, 0.001f)
         }
     }
+
+    @Test fun sidewaysBumpsSwingTheChainWhileOnlyTurningThePhoneTwistsTheCharm() {
+        val input = CharmInput().apply { orientation(0f, 1f, 0f) }
+        input.acceleration(1.2f, 0.9f)
+        assertTrue(input.target().angle < 0f)
+        assertEquals(0f, input.target().twist, 0.001f)
+
+        input.turn(1f)
+        assertTrue(input.target().twist < -10f)
+        input.turn(-4f)
+        assertEquals(28f, input.target().twist, 0.001f)
+        input.turn(-0.02f)
+        assertEquals(0f, input.target().twist, 0.001f)
+    }
 }

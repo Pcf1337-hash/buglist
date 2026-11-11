@@ -3,13 +3,16 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-11-10
-**Status:** [~] v2.6.0 – Signierter Build 69 mit 3D-Anhänger auf dem Samsung installiert. Release-Freigabe offen.
-**Letzte Änderungen:** Breiteres Blender-Modell mit „Mr. L“, Goldkette und stärkerer Drehung im Feld der Netto-Bilanz. Kette und Anhänger pendeln mit unterschiedlicher Trägheit.
+**Letztes Update:** 2026-11-11
+**Status:** [~] v2.6.0 – Signierter Build 71 auf dem Samsung installiert. Release-Freigabe offen.
+**Letzte Änderungen:** Die längere Goldkette ist an der BugList-Leiste befestigt. Der kleinere „Mr. L“-Anhänger pendelt rechts neben der Netto-Bilanz. Der Personenkopf bleibt beim Tabwechsel stehen, und die Übersichten verwenden dieselbe Hintergrundfarbe.
 **Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
 
 ## Teststand 2026-11-10
 
+- [x] Build 71 im Pixel-Emulator visuell geprüft und auf dem Samsung als Update installiert. 107 Unit-Tests bestanden, Lint ohne Fehler.
+- [x] Beim Wechsel zwischen Offen, Bezahlt und Alle bleiben Personenkopf und Tabs an derselben Position. „Liste kopieren“ im Emulator geprüft.
+- [ ] Bildzeiten für Build 71 auf dem Samsung messen.
 - [x] Build 64 als Update auf dem Pixel-Emulator installiert. Anhänger neben dem Titel, Reaktion auf Sensorimpulse und Schalter geprüft. 106 Unit-Tests bestanden und Lint ohne Fehler.
 - [x] Build 68 auf dem Samsung als Update installiert. Android meldete 12 verspätete Frames von 1.542 seit Start. Die letzten 120 regulären Frames zeigten typischerweise 16,7 ms Abstand zwischen der Darstellung zweier Bilder.
 - [x] Build 68 im Emulator visuell geprüft. Kette und Gravur sichtbar, Drehung bei simulierten Impulsen geprüft. 106 Unit-Tests bestanden, Lint ohne Fehler.

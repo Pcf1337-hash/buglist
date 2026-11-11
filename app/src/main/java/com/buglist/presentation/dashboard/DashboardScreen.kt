@@ -62,6 +62,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -84,6 +86,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -187,6 +190,17 @@ fun DashboardScreen(
     val groupInactive by viewModel.groupInactive.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchFocus = remember { FocusRequester() }
+    val dashboardListState = rememberLazyListState()
+    val atDashboardTop by remember(dashboardListState) {
+        derivedStateOf {
+            dashboardListState.firstVisibleItemIndex == 0 && dashboardListState.firstVisibleItemScrollOffset == 0
+        }
+    }
+    val charmEnabled by remember(context) {
+        context.appDataStore.data.map { it[KEY_AMBIENT_MOTION] ?: true }
+    }.collectAsStateWithLifecycle(initialValue = false)
+    val readyState = uiState as? DashboardUiState.Ready
+    val hasBalance = readyState != null && (readyState.persons.isNotEmpty() || readyState.items.isNotEmpty())
     LaunchedEffect(searchActive) {
         if (searchActive) {
             // The field must be in the tree before focus, or key events (and adb text) miss it.
@@ -198,91 +212,99 @@ fun DashboardScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            fontFamily = OswaldFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp,
-                            color = BugListColors.Gold
-                        )
-                    },
-                    actions = {
-                        if (!editMode) {
-                            if (searchActive) {
-                                IconButton(onClick = {
-                                    searchActive = false
-                                    viewModel.onSearchQueryChanged("")
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.dashboard_search_close),
-                                        tint = BugListColors.Gold
-                                    )
-                                }
-                            } else {
-                                IconButton(onClick = { searchActive = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = stringResource(R.string.dashboard_search_hint),
-                                        tint = BugListColors.TextPrimary
-                                    )
-                                }
-                                IconButton(onClick = onStatistics) {
-                                    Icon(
-                                        imageVector = Icons.Default.BarChart,
-                                        contentDescription = stringResource(R.string.nav_statistics),
-                                        tint = BugListColors.TextPrimary
-                                    )
-                                }
-                                IconButton(onClick = onSettings) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = stringResource(R.string.nav_settings),
-                                        tint = BugListColors.TextPrimary
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.SurfaceDark)
-                )
-                if (searchActive && !editMode) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = viewModel::onSearchQueryChanged,
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            fontFamily = RobotoCondensedFontFamily,
-                            fontSize = 18.sp,
-                            color = BugListColors.TextPrimary
-                        ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        label = {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                Column {
+                    TopAppBar(
+                        title = {
                             Text(
-                                text = stringResource(R.string.dashboard_search_hint),
-                                fontFamily = RobotoCondensedFontFamily,
-                                fontSize = 16.sp,
-                                color = BugListColors.TextMuted
+                                text = stringResource(R.string.app_name),
+                                fontFamily = OswaldFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                color = BugListColors.Gold
                             )
                         },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = BugListColors.TextPrimary,
-                            unfocusedTextColor = BugListColors.TextPrimary,
-                            cursorColor = BugListColors.Gold,
-                            focusedBorderColor = BugListColors.Gold,
-                            unfocusedBorderColor = BugListColors.BorderSubtle
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .focusRequester(searchFocus)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                        actions = {
+                            if (!editMode) {
+                                if (searchActive) {
+                                    IconButton(onClick = {
+                                        searchActive = false
+                                        viewModel.onSearchQueryChanged("")
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = stringResource(R.string.dashboard_search_close),
+                                            tint = BugListColors.Gold
+                                        )
+                                    }
+                                } else {
+                                    IconButton(onClick = { searchActive = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = stringResource(R.string.dashboard_search_hint),
+                                            tint = BugListColors.TextPrimary
+                                        )
+                                    }
+                                    IconButton(onClick = onStatistics) {
+                                        Icon(
+                                            imageVector = Icons.Default.BarChart,
+                                            contentDescription = stringResource(R.string.nav_statistics),
+                                            tint = BugListColors.TextPrimary
+                                        )
+                                    }
+                                    IconButton(onClick = onSettings) {
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = stringResource(R.string.nav_settings),
+                                            tint = BugListColors.TextPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = BugListColors.SurfaceDark)
                     )
+                    if (searchActive && !editMode) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::onSearchQueryChanged,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontFamily = RobotoCondensedFontFamily,
+                                fontSize = 18.sp,
+                                color = BugListColors.TextPrimary
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.dashboard_search_hint),
+                                    fontFamily = RobotoCondensedFontFamily,
+                                    fontSize = 16.sp,
+                                    color = BugListColors.TextMuted
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BugListColors.TextPrimary,
+                                unfocusedTextColor = BugListColors.TextPrimary,
+                                cursorColor = BugListColors.Gold,
+                                focusedBorderColor = BugListColors.Gold,
+                                unfocusedBorderColor = BugListColors.BorderSubtle
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .focusRequester(searchFocus)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    HorizontalDivider(color = BugListColors.BorderSubtle, thickness = 0.5.dp)
                 }
-                HorizontalDivider(color = BugListColors.BorderSubtle, thickness = 0.5.dp)
+                if (hasBalance && charmEnabled && atDashboardTop && !searchActive && !editMode) {
+                    val charmWidth = (maxWidth * 0.36f).coerceAtMost(126.dp)
+                    if (charmWidth >= 92.dp) {
+                        ToolbarCharm(charmWidth, Modifier.matchParentSize())
+                    }
+                }
             }
         },
         floatingActionButton = {
@@ -416,6 +438,7 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxSize().padding(paddingValues)
                     ) {
                         LazyColumn(
+                            state = dashboardListState,
                             contentPadding = PaddingValues(bottom = 112.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
@@ -425,8 +448,7 @@ fun DashboardScreen(
                                     DashboardSummaryHeader(
                                         totalBalance  = state.totalBalance,
                                         totalOwedToMe = state.totalOwedToMe,
-                                        totalIOwe     = state.totalIOwe,
-                                        showCharm     = true
+                                        totalIOwe     = state.totalIOwe
                                     )
                                 }
                             }
@@ -568,6 +590,20 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ToolbarCharm(width: Dp, modifier: Modifier = Modifier) {
+    // Place the mount inside the toolbar and let the chain extend over the balance.
+    Layout(content = { GoldCharm(width) }, modifier = modifier) { measurables, constraints ->
+        val charm = measurables.single().measure(Constraints(maxWidth = constraints.maxWidth))
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            charm.placeRelative(
+                x = constraints.maxWidth - charm.width + 8.dp.roundToPx(),
+                y = constraints.maxHeight - 8.dp.roundToPx()
+            )
         }
     }
 }
@@ -956,8 +992,7 @@ private fun PersonCard(
 private fun DashboardSummaryHeader(
     totalBalance: Double,
     totalOwedToMe: Double,
-    totalIOwe: Double,
-    showCharm: Boolean = false
+    totalIOwe: Double
 ) {
     // Color mirrors AmountText logic
     val heroColor = when {
@@ -972,35 +1007,21 @@ private fun DashboardSummaryHeader(
             .background(BugListColors.SurfaceCard)
             .padding(horizontal = 16.dp, vertical = 18.dp)
     ) {
-        val context = LocalContext.current
-        val charmEnabled by remember(context) {
-            context.appDataStore.data.map { it[KEY_AMBIENT_MOTION] ?: true }
-        }.collectAsStateWithLifecycle(initialValue = false)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val charmWidth = (maxWidth * 0.50f).coerceAtMost(176.dp)
-            val placeCharm = showCharm && charmEnabled && charmWidth >= 100.dp
-            Column(Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.dashboard_total_balance),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 11.sp,
-                    color = BugListColors.TextMuted,
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.padding(end = if (placeCharm) charmWidth else 0.dp)
-                )
-                Spacer(Modifier.height(if (placeCharm) charmWidth * 0.24f else 4.dp))
-                AmountText(
-                    amount = totalBalance,
-                    fontSize = 72.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                    forceColor = heroColor
-                )
-            }
-            if (placeCharm) {
-                GoldCharm(charmWidth, Modifier.align(Alignment.TopEnd))
-            }
-        }
+        Text(
+            text = stringResource(R.string.dashboard_total_balance),
+            fontFamily = RobotoCondensedFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 11.sp,
+            color = BugListColors.TextMuted,
+            letterSpacing = 2.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        AmountText(
+            amount = totalBalance,
+            fontSize = 72.sp,
+            modifier = Modifier.fillMaxWidth(),
+            forceColor = heroColor
+        )
         Spacer(Modifier.height(16.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),

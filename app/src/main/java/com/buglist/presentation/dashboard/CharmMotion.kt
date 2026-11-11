@@ -3,7 +3,7 @@ package com.buglist.presentation.dashboard
 import kotlin.math.abs
 import kotlin.math.sign
 
-internal data class CharmPose(val angle: Float = 0f, val lift: Float = 0f)
+internal data class CharmPose(val angle: Float = 0f, val lift: Float = 0f, val twist: Float = 0f)
 
 /** The third row of the rotation matrix is world up in phone coordinates. */
 internal class CharmInput {
@@ -15,6 +15,7 @@ internal class CharmInput {
     private var tiltZ = 0f
     private var lateral = 0f
     private var vertical = 0f
+    private var yawRate = 0f
 
     fun orientation(upX: Float, upY: Float, upZ: Float) {
         // Hysteresis avoids switching sensitivity back and forth at the threshold.
@@ -34,6 +35,10 @@ internal class CharmInput {
         vertical = y
     }
 
+    fun turn(radiansPerSecond: Float) {
+        yawRate = radiansPerSecond
+    }
+
     fun target(): CharmPose {
         val tiltThreshold = if (upright) 0.004f else 0.018f
         val accelerationThreshold = if (upright) 0.16f else 0.45f
@@ -42,11 +47,15 @@ internal class CharmInput {
             6f * gain * deadband(lateral, accelerationThreshold)
         val lift = 60f * deadband(tiltZ, tiltThreshold) +
             2.5f * gain * deadband(vertical, accelerationThreshold)
-        return CharmPose(angle.coerceIn(-10f, 10f), lift.coerceIn(-3.5f, 3.5f))
+        // The hanging mass resists a turn of its support and then catches up.
+        val twist = (14f * deadband(-yawRate, 0.06f)).coerceIn(-28f, 28f)
+        return CharmPose(angle.coerceIn(-10f, 10f), lift.coerceIn(-3.5f, 3.5f), twist)
     }
 
-    private fun deadband(value: Float, threshold: Float): Float =
-        (abs(value) - threshold).coerceAtLeast(0f) * sign(value)
+    private fun deadband(value: Float, threshold: Float): Float {
+        val magnitude = abs(value)
+        return if (magnitude <= threshold) 0f else (magnitude - threshold) * sign(value)
+    }
 }
 
 /** A damped spring with short integration steps, independent of sensor and display rates. */

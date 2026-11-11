@@ -206,6 +206,13 @@ fun PersonDetailScreen(
             }
         }
         is PersonDetailUiState.Ready -> {
+            val copyHistory: () -> Unit = {
+                val history = buildShareText(state.person.name, state.activeTab, state.debts)
+                clipboardManager.setText(AnnotatedString(history))
+                scope.launch {
+                    snackbarHostState.showSnackbar("Historie kopiert – bereit zum Teilen ✓")
+                }
+            }
             if (showDeleteConfirm) {
                 AlertDialog(
                     onDismissRequest = { showDeleteConfirm = false },
@@ -318,48 +325,22 @@ fun PersonDetailScreen(
                     contentPadding = PaddingValues(bottom = 80.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    item {
+                    item(key = "person_header") {
                         PersonDetailHeader(
                             person = state.person,
-                            debts = state.debts,
-                            activeTab = state.activeTab,
-                            hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
-                            hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
                             reliabilityScore = state.reliabilityScore,
-                            onSettleOwedToMe = { if (canEdit) settlementDirection = true },
-                            onSettleIOwe = { if (canEdit) settlementDirection = false },
                             syncRole = syncRole,
-                            onSecretTap = { showCouple = true },
-                            onLongPressBalance = {
-                                // Copy just the net balance to clipboard
-                                val balance = buildBalanceText(state.debts)
-                                clipboardManager.setText(AnnotatedString(balance))
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Betrag kopiert ✓")
-                                }
-                            },
-                            onDoubleTapBalance = {
-                                // Copy full formatted tab history — ready to paste in any messenger
-                                val history = buildShareText(
-                                    personName = state.person.name,
-                                    activeTab = state.activeTab,
-                                    debts = state.debts
-                                )
-                                clipboardManager.setText(AnnotatedString(history))
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Historie kopiert – bereit zum Teilen ✓")
-                                }
-                            }
+                            onSecretTap = { showCouple = true }
                         )
                     }
-                    item {
+                    item(key = "debt_tabs") {
                         DebtTabRow(
                             activeTab = state.activeTab,
                             onTabChange = viewModel::setActiveTab
                         )
                     }
                     if (syncRole == com.buglist.domain.model.SyncRole.GUEST) {
-                        item {
+                        item(key = "viewer_notice") {
                             Text(
                                 text = stringResource(R.string.couple_role_guest),
                                 fontFamily = RobotoCondensedFontFamily,
@@ -370,7 +351,31 @@ fun PersonDetailScreen(
                         }
                     }
                     if (state.activeTab == DebtTab.PAID) {
-                        item { PaidHistoryOverview(state.debts) }
+                        item(key = "paid_overview") {
+                            PaidHistoryOverview(
+                                state.debts,
+                                onCopy = copyHistory,
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(160), placementSpec = null, fadeOutSpec = null
+                                )
+                            )
+                        }
+                    } else {
+                        item(key = "balance_overview") {
+                            PersonDetailBalance(
+                                debts = state.debts,
+                                hasOpenDebtsOwedToMe = state.hasOpenDebtsOwedToMe,
+                                hasOpenDebtsIOwe = state.hasOpenDebtsIOwe,
+                                canEdit = canEdit,
+                                onSettleOwedToMe = { if (canEdit) settlementDirection = true },
+                                onSettleIOwe = { if (canEdit) settlementDirection = false },
+                                onLongPressBalance = {
+                                    clipboardManager.setText(AnnotatedString(buildBalanceText(state.debts)))
+                                    scope.launch { snackbarHostState.showSnackbar("Betrag kopiert ✓") }
+                                },
+                                onDoubleTapBalance = copyHistory
+                            )
+                        }
                     }
                     if (state.debts.isEmpty()) {
                         item {
@@ -381,8 +386,8 @@ fun PersonDetailScreen(
                             )
                         }
                     } else {
-                        itemsIndexed(state.debts, key = { _, debt -> debt.entry.id }) { index, debtWithPayments ->
-                            Column {
+                        itemsIndexed(state.debts, key = { _, debt -> "${state.activeTab.name}:${debt.entry.id}" }) { index, debtWithPayments ->
+                            Column(Modifier.animateItem(fadeInSpec = tween(160), placementSpec = null, fadeOutSpec = null)) {
                                 if (state.activeTab == DebtTab.PAID) {
                                     val df = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
                                     val day = debtWithPayments.paidAt?.let { df.format(Date(it)) }
@@ -736,49 +741,23 @@ private fun ImportDebtListDialog(
 @Composable
 private fun PersonDetailHeader(
     person: Person,
-    debts: List<DebtEntryWithPayments>,
-    activeTab: DebtTab,
-    hasOpenDebtsOwedToMe: Boolean,
-    hasOpenDebtsIOwe: Boolean,
     reliabilityScore: Int,
-    onSettleOwedToMe: () -> Unit,
-    onSettleIOwe: () -> Unit,
     syncRole: com.buglist.domain.model.SyncRole?,
-    onSecretTap: () -> Unit,
-    onLongPressBalance: () -> Unit,
-    onDoubleTapBalance: () -> Unit
+    onSecretTap: () -> Unit
 ) {
     var nameTaps by remember { mutableIntStateOf(0) }
     var lastNameTap by remember { mutableLongStateOf(0L) }
-    if (activeTab == DebtTab.PAID) {
-        PaidHistoryHeader(person.name, debts.size, syncRole, onDoubleTapBalance, onSecretTap)
-        return
-    }
-    // Balance calculation per status:
-    // OPEN/PARTIAL → remaining (what's still outstanding)
-    // PAID         → entry.amount (original debt, totalPaid may be 0 for direct-mark-as-paid)
-    // CANCELLED    → 0 (irrelevant)
-    val netBalance = debts.sumOf { dwp ->
-        val amount = when (dwp.entry.status) {
-            DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
-            DebtStatus.PAID -> dwp.entry.amount
-            DebtStatus.CANCELLED -> 0.0
-        }
-        if (dwp.entry.isOwedToMe) amount else -amount
-    }
-    val hasAnyOpenDebts = hasOpenDebtsOwedToMe || hasOpenDebtsIOwe
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxWidth()
             .background(BugListColors.Surface)
-            .padding(24.dp)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
         // Reliability ring around avatar — red < 40, orange < 75, green >= 75
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(84.dp)
+            modifier = Modifier.size(64.dp)
         ) {
             val ringColor = when {
                 reliabilityScore >= 75 -> BugListColors.DebtGreen
@@ -786,7 +765,7 @@ private fun PersonDetailHeader(
                 else                   -> BugListColors.DebtRed
             }
             val sweep = (reliabilityScore.coerceIn(0, 100) / 100f) * 360f
-            Canvas(modifier = Modifier.size(84.dp)) {
+            Canvas(modifier = Modifier.size(64.dp)) {
                 // Background track
                 drawArc(
                     color = BugListColors.Divider,
@@ -807,7 +786,7 @@ private fun PersonDetailHeader(
             PersonAvatar(
                 name = person.name,
                 avatarColor = person.avatarColor,
-                size = 72.dp,
+                size = 54.dp,
                 avatarImagePath = person.avatarImagePath
             )
         }
@@ -849,7 +828,36 @@ private fun PersonDetailHeader(
                 color = BugListColors.Gold
             )
         }
-        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PersonDetailBalance(
+    debts: List<DebtEntryWithPayments>,
+    hasOpenDebtsOwedToMe: Boolean,
+    hasOpenDebtsIOwe: Boolean,
+    canEdit: Boolean,
+    onSettleOwedToMe: () -> Unit,
+    onSettleIOwe: () -> Unit,
+    onLongPressBalance: () -> Unit,
+    onDoubleTapBalance: () -> Unit
+) {
+    val netBalance = debts.sumOf { dwp ->
+        val amount = when (dwp.entry.status) {
+            DebtStatus.OPEN, DebtStatus.PARTIAL -> dwp.remaining
+            DebtStatus.PAID -> dwp.entry.amount
+            DebtStatus.CANCELLED -> 0.0
+        }
+        if (dwp.entry.isOwedToMe) amount else -amount
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BugListColors.Surface)
+            .padding(horizontal = 24.dp, vertical = 12.dp)
+    ) {
         // Long press → copy balance | Double tap → copy full tab history
         AmountText(
             amount = netBalance,
@@ -867,8 +875,7 @@ private fun PersonDetailHeader(
             color = BugListColors.Muted.copy(alpha = 0.6f)
         )
 
-        // Settlement belongs to the open ledger; the paid tab is an archive.
-        if (activeTab != DebtTab.PAID && hasAnyOpenDebts && syncRole?.canEdit != false) {
+        if (canEdit && (hasOpenDebtsOwedToMe || hasOpenDebtsIOwe)) {
             Spacer(Modifier.height(16.dp))
             if (hasOpenDebtsOwedToMe && hasOpenDebtsIOwe) {
                 // Both directions have open debts — show two smaller buttons

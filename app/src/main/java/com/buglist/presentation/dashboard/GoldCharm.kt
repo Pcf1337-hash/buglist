@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +21,10 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,7 +59,7 @@ internal fun GoldCharm(width: Dp, modifier: Modifier = Modifier) {
                 animateCharm(context) { rotation, bounce, turn ->
                     angle = rotation.coerceIn(-11f, 11f)
                     lift = bounce.coerceIn(-4f, 4f)
-                    twist = turn.coerceIn(-11f, 11f)
+                    twist = turn.coerceIn(-30f, 30f)
                 }
             } finally {
                 angle = 0f
@@ -65,21 +70,27 @@ internal fun GoldCharm(width: Dp, modifier: Modifier = Modifier) {
     }
     val artworkWidth = width - 16.dp
     val artworkHeight = artworkWidth * (224f / 400f)
-    val hangOffset = 14.dp
+    val mountInset = 3.dp
+    val hangOffset = 36.dp
     val chainHeight = hangOffset + artworkHeight * 0.17f
     val atlas = ImageBitmap.imageResource(R.drawable.buglist_gold_charm_atlas)
     val frameSize = IntSize(atlas.width / 5, atlas.height / 7)
     // As the chain tilts towards the viewer its projection shortens; it never stretches.
-    fun projectedLift() = abs(lift) * 0.25f + (twist * twist / 121f) * 0.9f
+    fun projectedLift() = abs(lift) * 0.25f
     Box(
-        modifier.size(width = width, height = hangOffset + artworkHeight + 16.dp).clipToBounds(),
-        contentAlignment = Alignment.Center
+        modifier
+            .size(width = width + 56.dp, height = mountInset + hangOffset + artworkHeight + 8.dp)
+            .clipToBounds(),
+        contentAlignment = Alignment.TopCenter
     ) {
         Box(
-            Modifier.size(width = artworkWidth, height = hangOffset + artworkHeight).graphicsLayer {
-                transformOrigin = TransformOrigin(0.5f, 0f)
-                rotationZ = angle * 1.35f
-            }
+            Modifier
+                .padding(top = mountInset)
+                .size(width = artworkWidth, height = hangOffset + artworkHeight)
+                .graphicsLayer {
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                    rotationZ = angle * 1.35f
+                }
         ) {
             Image(
                 painter = painterResource(R.drawable.buglist_gold_chain),
@@ -94,14 +105,10 @@ internal fun GoldCharm(width: Dp, modifier: Modifier = Modifier) {
                 Modifier.align(Alignment.BottomCenter)
                     .size(artworkWidth, artworkHeight)
                     .preferredFrameRate(60f)
-                    .graphicsLayer {
-                        transformOrigin = TransformOrigin(0.5f, 0.17f)
-                        translationY = -projectedLift().dp.toPx()
-                        rotationZ = (0.32f * (twist - angle)).coerceIn(-4.5f, 4.5f)
-                    }
+                    .graphicsLayer { translationY = -projectedLift().dp.toPx() }
             ) {
                 // The atlas stores 35 evenly spaced views of the same model, from left to right.
-                val frame = (17f + 17f * twist / 11f).roundToInt()
+                val frame = (17f + 17f * twist / 43f).roundToInt()
                 drawImage(
                     image = atlas,
                     srcOffset = IntOffset(frame % 5 * frameSize.width, frame / 5 * frameSize.height),
@@ -109,6 +116,22 @@ internal fun GoldCharm(width: Dp, modifier: Modifier = Modifier) {
                     dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
                 )
             }
+        }
+        Canvas(Modifier.size(width = 23.dp, height = 7.dp)) {
+            drawRoundRect(
+                Color(0xFF33261B),
+                size = Size(size.width, 5.dp.toPx()),
+                cornerRadius = CornerRadius(2.dp.toPx())
+            )
+            drawLine(
+                Color(0xFFCAA772),
+                start = Offset(3.dp.toPx(), 1.dp.toPx()),
+                end = Offset(size.width - 3.dp.toPx(), 1.dp.toPx()),
+                strokeWidth = 1.dp.toPx()
+            )
+            val pivot = Offset(center.x, mountInset.toPx())
+            drawCircle(Color(0xFFE5B866), 2.6.dp.toPx(), pivot)
+            drawCircle(Color(0xFF734A21), 1.1.dp.toPx(), pivot)
         }
     }
 }
@@ -125,7 +148,8 @@ private suspend fun animateCharm(context: Context, draw: (angle: Float, lift: Fl
         ?: manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
     val acceleration = manager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         ?: orientation?.let { manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
-    if (orientation == null && acceleration == null) return
+    val gyroscope = manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+    if (orientation == null && acceleration == null && gyroscope == null) return
 
     // Registered on the main thread, so the frame loop and sensor callbacks share one target.
     val input = CharmInput()
@@ -144,6 +168,7 @@ private suspend fun animateCharm(context: Context, draw: (angle: Float, lift: Fl
                     hasOrientation = true
                 }
                 Sensor.TYPE_LINEAR_ACCELERATION -> input.acceleration(values[0], values[1])
+                Sensor.TYPE_GYROSCOPE -> input.turn(values[1])
                 Sensor.TYPE_ACCELEROMETER -> if (hasOrientation) {
                     input.acceleration(
                         values[0] - matrix[6] * SensorManager.GRAVITY_EARTH,
@@ -161,14 +186,15 @@ private suspend fun animateCharm(context: Context, draw: (angle: Float, lift: Fl
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
     }
 
-    val rotation = CharmSpring()
+    val rotation = CharmSpring(stiffness = 90f, damping = 12f)
     val bounce = CharmSpring()
     // The pendant turns around its own eyelet more slowly than the chain swings.
     val twist = CharmSpring(stiffness = 78f, damping = 11f)
     try {
         val rotationActive = orientation?.let { manager.registerListener(listener, it, 20_000) } == true
         val accelerationActive = acceleration?.let { manager.registerListener(listener, it, 20_000) } == true
-        if (!rotationActive && !accelerationActive) return
+        val turnActive = gyroscope?.let { manager.registerListener(listener, it, 20_000) } == true
+        if (!rotationActive && !accelerationActive && !turnActive) return
         while (true) {
             wake.receive()
             var lastFrame = withFrameNanos { it }
@@ -178,7 +204,7 @@ private suspend fun animateCharm(context: Context, draw: (angle: Float, lift: Fl
                     lastFrame = frame
                     val rotating = rotation.advance(target.angle, elapsed)
                     val bouncing = bounce.advance(target.lift, elapsed)
-                    val turning = twist.advance((target.angle + 0.6f * target.lift).coerceIn(-11f, 11f), elapsed)
+                    val turning = twist.advance(target.twist, elapsed)
                     draw(rotation.position, bounce.position, twist.position)
                     rotating || bouncing || turning
                 }
