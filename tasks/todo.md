@@ -4,7 +4,7 @@
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
 **Letztes Update:** 2026-11-14
-**Status:** [~] v2.6.3 – Öffentlicher Build 78 wird für das In-App-Update vorbereitet.
+**Status:** [x] v2.6.3 – Signierter Build 78 als aktuelles GitHub-Release veröffentlicht.
 **Letzte Änderungen:** Einzelne Tilgungen, LED-Neontastatur, klare Bestätigungsbuttons, X zum Schließen und Nos-MVP mit Gesamttilgung und Quote. Tilgungsabschluss als einmaliges Ereignis, Schutz gegen Doppelbuchungen.
 
 ## Veröffentlichung 2026-11-14
@@ -13,8 +13,9 @@
 - [x] S26 von GitHub 2.6.1 auf Teststand 2.6.2 aktualisiert. Bestehende Daten, Belegnummern und Gastkopplung vor/nach verglichen und erhalten.
 - [x] Festes X, abgeschaltete Wischgeste, neue Tilgungsmaske und Eingabe auf dem S26 geprüft, ohne bestehende Zahlungsdaten zu ändern.
 - [x] LED-Impuls ergänzt, damit auch der erste Klick zuverlässig aufleuchtet.
-- [~] Öffentliches Release 2.6.3 statt Testversion 2.6.2, damit das In-App-Update auch auf Testgeräten angeboten wird.
-- [ ] Öffentlichen APK-Download und In-App-Update verifizieren.
+- [x] Öffentliches Release 2.6.3 statt Testversion 2.6.2, damit das In-App-Update auch auf Testgeräten angeboten wird.
+- [x] Öffentlicher und In-App-Download SHA-256-identisch; Update von 2.6.2 auf 2.6.3 erkannt, heruntergeladene APK im Emulator als Update installiert.
+- [x] [GitHub-Release 2.6.3](https://github.com/Pcf1337-hash/buglist/releases/tag/v2.6.3).
 - [x] Bericht: `docs/qa/2026-11-14-simple-payments.md`.
 
 ## Veröffentlichung 2026-11-11

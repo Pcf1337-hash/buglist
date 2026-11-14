@@ -32,6 +32,10 @@
 
 ## Auslieferung
 
-- Test-APK: `build/qa/release-2.6.3/app-release.apk` (Build 78).
+- Signierte APK: `build/qa/release-2.6.3/app-release.apk` (Build 78).
 - Bisheriges Release-Zertifikat; direkt über 2.6.1 installierbar.
-- Noch nicht als neues GitHub-Release veröffentlicht.
+- Als reguläres aktuelles [GitHub-Release 2.6.3](https://github.com/Pcf1337-hash/buglist/releases/tag/v2.6.3) veröffentlicht; Tag zeigt auf `d339c4f7df4a946c4919083d9bb633b55e68b43c`.
+- Öffentlicher Download und Download direkt aus der App sind SHA-256-identisch mit der gebauten APK: `eb40ae561091e4c6c14ac4c4a55e295207819f9b3d456c566cecb178d7af75fc`.
+- In-App-Prüfung im Emulator: 2.6.2 erkennt 2.6.3, zeigt den Changelog und lädt bis „Bereit zum Installieren“. Android zeigt für die frisch installierte App erwartungsgemäß die Berechtigungsmaske für Installation aus dieser Quelle. Diese Berechtigung wurde nicht geändert.
+- Die von der App heruntergeladene APK anschließend mit `adb install -r` installiert; Version 2.6.3 (78) und erhaltenes Erstinstallationsdatum geprüft.
+- Auf dem S26 kann die finale Version über Einstellungen → Auf Updates prüfen geladen werden; das Gerät ist derzeit nicht mehr per USB erreichbar.
