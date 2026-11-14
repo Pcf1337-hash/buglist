@@ -1,35 +1,25 @@
 package com.buglist.presentation.settlement
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,33 +50,26 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.buglist.R
-import com.buglist.domain.model.DebtStatus
 import com.buglist.presentation.components.AmountInputPad
 import com.buglist.presentation.components.GoldButton
 import com.buglist.presentation.components.formatAmount
-import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.presentation.theme.RobotoCondensedFontFamily
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
  * Bottom sheet for settling (tilging) debts of a person against a total amount using FIFO.
  *
  * Features:
- * - Shows total open amount and number of open entries.
- * - Expandable list of individual open debt entries.
- * - Live preview list updates as the user types an amount.
+ * - Minimal amount entry with a shared keypad.
  * - Confirmation dialog before committing.
- * - Success state shows which entries were settled.
- * - Toast confirmation fires immediately after settlement via [SettlementViewModel.toastEvent].
+ * - Completion is a one-shot event after a successful booking.
  *
  * Swipe and scrim do not close the sheet. Close and system back do, without booking.
  *
  * @param personId      The person whose debts are being settled.
- * @param personName    Shown in the sheet header.
+ * @param personName    Retained for callers identifying the person.
  * @param isOwedToMe    Which direction of debts to settle.
  * @param currency      Currency for display (default EUR).
  * @param onDismiss     Called when the sheet is closed without settlement.
@@ -110,7 +94,7 @@ fun SettlementSheet(
     var showOverpayDialog by remember { mutableStateOf(false) }
 
     // Decides whether to show the regular confirm dialog or the overpayment dialog.
-    // Called from both the header quick-confirm button and the bottom TILGEN button.
+    // Called from the confirm button below the amount display.
     val handleConfirm: () -> Unit = {
         val inputAmount = parseAmountInput(amountInput)
         val totalOpen = when (val s = uiState) {
@@ -136,12 +120,10 @@ fun SettlementSheet(
         viewModel.updatePreview(parsed)
     }
 
-    // React to Success state — close sheet and notify caller
-    LaunchedEffect(uiState) {
-        if (uiState is SettlementUiState.Success) {
-            val state = uiState as SettlementUiState.Success
-            val message = formatAmount(state.result.totalSettled, currency)
-            onSuccess(message)
+    val currentOnSuccess by rememberUpdatedState(onSuccess)
+    LaunchedEffect(viewModel, currency) {
+        viewModel.completedSettlements.collect { result ->
+            currentOnSuccess(formatAmount(result.totalSettled, currency))
         }
     }
 
@@ -225,13 +207,13 @@ fun SettlementSheet(
         sheetGesturesEnabled = false,
         dragHandle = null,
         properties = ModalBottomSheetProperties(
-            shouldDismissOnBackPress = true,
+            shouldDismissOnBackPress = uiState !is SettlementUiState.Processing,
             shouldDismissOnClickOutside = false
         ),
         containerColor = BugListColors.Surface
     ) {
         when (val state = uiState) {
-            is SettlementUiState.Processing -> {
+            is SettlementUiState.Processing, is SettlementUiState.Success -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -240,14 +222,6 @@ fun SettlementSheet(
                 ) {
                     CircularProgressIndicator(color = BugListColors.Gold)
                 }
-            }
-
-            is SettlementUiState.Success -> {
-                SettlementSuccessContent(
-                    result = state.result,
-                    currency = currency,
-                    onDone = onDismiss
-                )
             }
 
             is SettlementUiState.Error -> {
@@ -276,33 +250,23 @@ fun SettlementSheet(
 
             is SettlementUiState.Idle -> {
                 SettlementInputContent(
-                    state = state,
-                    personName = personName,
-                    isOwedToMe = isOwedToMe,
                     currency = currency,
                     amountInput = amountInput,
                     onAmountInputChange = { newInput -> amountInput = newInput },
-                    previewItems = emptyList(),
                     onConfirm = handleConfirm,
                     onClose = onDismiss,
-                    openDebts = openDebts
+                    totalOpen = state.totalOpen
                 )
             }
 
             is SettlementUiState.Preview -> {
                 SettlementInputContent(
-                    state = null,
-                    personName = personName,
-                    isOwedToMe = isOwedToMe,
                     currency = currency,
                     amountInput = amountInput,
                     onAmountInputChange = { newInput -> amountInput = newInput },
-                    previewItems = state.preview,
                     onConfirm = handleConfirm,
                     onClose = onDismiss,
-                    totalOpen = state.totalOpen,
-                    openCount = state.openCount,
-                    openDebts = openDebts
+                    totalOpen = state.totalOpen
                 )
             }
         }
@@ -311,481 +275,44 @@ fun SettlementSheet(
 
 @Composable
 private fun SettlementInputContent(
-    state: SettlementUiState.Idle?,
-    personName: String,
-    isOwedToMe: Boolean,
     currency: String,
     amountInput: String,
     onAmountInputChange: (String) -> Unit,
-    previewItems: List<SettlementPreviewItem>,
     onConfirm: () -> Unit,
     onClose: () -> Unit,
-    totalOpen: Double = state?.totalOpen ?: 0.0,
-    openCount: Int = state?.openCount ?: 0,
-    openDebts: List<com.buglist.domain.model.DebtEntryWithPayments> = emptyList()
+    totalOpen: Double
 ) {
-    val scrollState = rememberScrollState()
-    val hasValidAmount = parseAmountInput(amountInput) > 0.001
-    val isConfirmEnabled = hasValidAmount && totalOpen > 0.001
-
-    BoxWithConstraints(Modifier.fillMaxWidth().fillMaxHeight(0.96f)) {
-    val keyHeight = ((maxHeight - 280.dp) / 4).coerceIn(48.dp, 72.dp)
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
-                Text(
-                    text = stringResource(R.string.settlement_title),
-                    fontFamily = OswaldFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    color = BugListColors.Gold
-                )
-                Text(
-                    text = personName,
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Muted
-                )
-            }
-            IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.settlement_close),
-                    tint = BugListColors.Platinum
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(scrollState)
-        ) {
-        Spacer(Modifier.height(12.dp))
-
-        // Direction label
-        val directionLabel = if (isOwedToMe) {
-            stringResource(R.string.settlement_direction_owed_to_me)
-        } else {
-            stringResource(R.string.settlement_direction_i_owe)
-        }
-        Text(
-            text = directionLabel,
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = BugListColors.Gold,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        // Summary row — entries count left, total amount right
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.settlement_open_entries, openCount),
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 13.sp,
-                color = BugListColors.Muted,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = formatAmount(totalOpen, currency),
-                fontFamily = BebasNeueFontFamily,
-                fontSize = 24.sp,
-                color = if (isOwedToMe) BugListColors.DebtGreen else BugListColors.DebtRed
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Expandable list of open debt entries
-        var debtsExpanded by rememberSaveable { mutableStateOf(false) }
-
-        Surface(
-            onClick = { debtsExpanded = !debtsExpanded },
-            color = BugListColors.SurfaceHigh,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.settlement_open_list_title),
-                        fontFamily = OswaldFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = BugListColors.Platinum,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = if (debtsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = BugListColors.Gold
-                    )
-                }
-
-                if (debtsExpanded && openDebts.isNotEmpty()) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                        color = BugListColors.Divider
-                    )
-                    openDebts.forEachIndexed { index, debtWithPayments ->
-                        val dateStr = remember(debtWithPayments.entry.date) {
-                            SimpleDateFormat("dd.MM.yy", Locale.GERMAN)
-                                .format(Date(debtWithPayments.entry.date))
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = debtWithPayments.entry.description ?: dateStr,
-                                    fontFamily = RobotoCondensedFontFamily,
-                                    fontSize = 13.sp,
-                                    color = BugListColors.Platinum
-                                )
-                                if (debtWithPayments.entry.description != null) {
-                                    Text(
-                                        text = dateStr,
-                                        fontFamily = RobotoCondensedFontFamily,
-                                        fontSize = 11.sp,
-                                        color = BugListColors.Muted
-                                    )
-                                }
-                                if (debtWithPayments.entry.tags.isNotEmpty()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    SettlementTagRow(tags = debtWithPayments.entry.tags)
-                                }
-                            }
-                            Text(
-                                text = formatAmount(debtWithPayments.remaining, currency),
-                                fontFamily = BebasNeueFontFamily,
-                                fontSize = 16.sp,
-                                color = BugListColors.Gold
-                            )
-                        }
-                        if (index < openDebts.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                color = BugListColors.Divider
-                            )
-                        }
-                    }
+    val isConfirmEnabled = parseAmountInput(amountInput) > 0.001 && totalOpen > 0.001
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val keyHeight = ((maxHeight - 220.dp) / 4).coerceIn(48.dp, 64.dp)
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.End) {
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close,
+                        contentDescription = stringResource(R.string.settlement_close),
+                        tint = BugListColors.Platinum)
                 }
             }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        if (previewItems.isNotEmpty() && hasValidAmount) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.settlement_preview_title),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = BugListColors.Platinum,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .background(BugListColors.SurfaceHigh, RoundedCornerShape(16.dp))
-                    .padding(vertical = 4.dp)
-            ) {
-                Column {
-                    previewItems.forEachIndexed { index, item ->
-                        SettlementPreviewRow(item = item, currency = currency)
-                        if (index < previewItems.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                color = BugListColors.Divider
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-        }
-        AmountInputPad(
-            inputString = amountInput,
-            onInputChange = onAmountInputChange,
-            maxValue = 999_999.99,
-            currency = currency,
-            modifier = Modifier.fillMaxWidth(),
-            showQuickAmounts = false,
-            keyHeight = keyHeight,
-            keyGap = 8.dp,
-            contrastRim = true,
-            belowDisplay = {
-                GoldButton(
-                    text = stringResource(R.string.settlement_confirm_button),
-                    onClick = onConfirm,
-                    enabled = isConfirmEnabled
-                )
-            }
-        )
-    }
-    }
-}
-
-@Composable
-private fun SettlementPreviewRow(
-    item: SettlementPreviewItem,
-    currency: String
-) {
-    val dateStr = remember(item.entry.date) {
-        SimpleDateFormat("dd.MM.yy", Locale.GERMAN).format(Date(item.entry.date))
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Status indicator
-        val (indicatorText, indicatorColor) = when {
-            !item.isTouched -> "  " to BugListColors.Muted
-            item.resultingStatus == DebtStatus.PAID -> "✓" to BugListColors.DebtGreen
-            else -> "~" to BugListColors.Gold
-        }
-
-        Text(
-            text = indicatorText,
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = indicatorColor,
-            modifier = Modifier.width(20.dp)
-        )
-
-        Spacer(Modifier.width(8.dp))
-
-        // Entry description / date
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.entry.description ?: dateStr,
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 13.sp,
-                color = BugListColors.Platinum
-            )
-            Text(
-                text = dateStr,
-                fontFamily = RobotoCondensedFontFamily,
-                fontSize = 11.sp,
-                color = BugListColors.Muted
-            )
-            if (item.entry.tags.isNotEmpty()) {
-                Spacer(Modifier.height(3.dp))
-                SettlementTagRow(tags = item.entry.tags)
-            }
-        }
-
-        Spacer(Modifier.width(8.dp))
-
-        // Amount paid in this settlement (if touched)
-        if (item.isTouched) {
-            Text(
-                text = formatAmount(item.amountToPay, currency),
-                fontFamily = BebasNeueFontFamily,
-                fontSize = 16.sp,
-                color = BugListColors.Gold
-            )
-            Spacer(Modifier.width(8.dp))
-        }
-
-        // Result status label
-        val (statusLabel, statusColor) = when {
-            !item.isTouched -> stringResource(R.string.settlement_preview_open) to BugListColors.Muted
-            item.resultingStatus == DebtStatus.PAID ->
-                stringResource(R.string.settlement_preview_paid) to BugListColors.DebtGreen
-            else -> stringResource(R.string.settlement_preview_partial) to BugListColors.Gold
-        }
-
-        Text(
-            text = statusLabel,
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = statusColor
-        )
-    }
-}
-
-@Composable
-private fun SettlementSuccessContent(
-    result: com.buglist.domain.model.SettlementResult,
-    currency: String,
-    onDone: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.CheckCircle,
-            contentDescription = null,
-            tint = BugListColors.DebtGreen,
-            modifier = Modifier.size(56.dp)
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            text = stringResource(R.string.settlement_success_title),
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = BugListColors.DebtGreen
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = "${formatAmount(result.totalSettled, currency)} ${stringResource(R.string.settlement_success_settled)}",
-            fontFamily = BebasNeueFontFamily,
-            fontSize = 28.sp,
-            color = BugListColors.Gold
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Fully settled entries
-        result.settledEntries.forEach { settled ->
-            val dateStr = SimpleDateFormat("dd.MM", Locale.GERMAN).format(Date(settled.debtEntry.date))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("✓ ", fontFamily = OswaldFontFamily, fontSize = 14.sp, color = BugListColors.DebtGreen)
-                Text(
-                    text = stringResource(R.string.settlement_success_entry_paid, dateStr),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Platinum,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // Partial entry (if any)
-        result.partialEntry?.let { partial ->
-            val dateStr = SimpleDateFormat("dd.MM", Locale.GERMAN).format(Date(partial.debtEntry.date))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "\u25d1 ",
-                    fontFamily = OswaldFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Gold
-                )
-                Text(
-                    text = stringResource(
-                        R.string.settlement_success_entry_partial,
-                        dateStr,
-                        formatAmount(
-                            maxOf(0.0, partial.debtEntry.amount - partial.amountPaid),
-                            currency
-                        )
-                    ),
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 14.sp,
-                    color = BugListColors.Platinum,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        GoldButton(
-            text = stringResource(R.string.settlement_success_done),
-            onClick = onDone
-        )
-
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-/**
- * Renders a compact row of tag chips, wrapping to multiple lines if needed.
- * Used in both the expandable open-debts list and the settlement preview rows.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SettlementTagRow(tags: List<String>) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        tags.forEach { tag ->
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = BugListColors.Gold.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp)
+            AmountInputPad(
+                inputString = amountInput,
+                onInputChange = onAmountInputChange,
+                currency = currency,
+                modifier = Modifier.fillMaxWidth(),
+                keyHeight = keyHeight,
+                belowDisplay = {
+                    GoldButton(
+                        text = stringResource(R.string.settlement_confirm_button),
+                        emphasized = true,
+                        onClick = onConfirm,
+                        enabled = isConfirmEnabled
                     )
-                    .padding(horizontal = 5.dp, vertical = 1.dp)
-            ) {
-                Text(
-                    text = tag,
-                    fontFamily = RobotoCondensedFontFamily,
-                    fontSize = 10.sp,
-                    color = BugListColors.Gold
-                )
-            }
+                }
+            )
         }
     }
 }
 
-/**
- * Dialog shown when the user enters a settlement amount that exceeds the total open debt.
- *
- * Offers two choices:
- * - **GEGENSCHULD** (primary): settle all open debts, then create a reverse debt entry for
- *   the [overpayAmount] in the opposite direction.
- * - **TRINKGELD** (secondary): settle with the full [inputAmount] — the use case caps at
- *   the open total, so the excess simply disappears (treated as a tip).
- *
- * @param inputAmount   The amount the user entered.
- * @param totalOpen     The total of all currently open debts.
- * @param overpayAmount The difference [inputAmount] − [totalOpen].
- * @param isOwedToMe    Direction of the settled debts (determines counter-debt direction label).
- * @param currency      Currency code for display.
- * @param onDismiss     Called when the dialog is closed without action.
- * @param onTip         Called when the user chooses "TRINKGELD" (ignore excess).
- * @param onCounterDebt Called when the user chooses "GEGENSCHULD" (create reverse debt).
- */
 @Composable
 private fun OverpaymentDialog(
     inputAmount: Double,

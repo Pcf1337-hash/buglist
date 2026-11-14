@@ -16,9 +16,9 @@ android {
         applicationId = "com.buglist"
         minSdk = 26
         targetSdk = 36
-        // Motion charm test build; installable over previous test builds.
-        versionCode = 72
-        versionName = "2.6.1"
+        // Public version is newer than the 2.6.2 test builds for in-app updates.
+        versionCode = 78
+        versionName = "2.6.3"
         buildConfigField("String", "NTFY_TOPIC_URL", "\"https://ntfy.sh/BugListLogs\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

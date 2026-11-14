@@ -1,21 +1,37 @@
 package com.buglist.presentation.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -29,21 +45,22 @@ import com.buglist.presentation.theme.BebasNeueFontFamily
 import com.buglist.presentation.theme.BugListColors
 import com.buglist.presentation.theme.OswaldFontFamily
 import com.buglist.R
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Einhand-optimierter Betragseingabe-Block.
  *
  * Layout (von oben nach unten):
  * 1. Display — aktueller Betrag in Bebas Neue Gold, groß
- * 2. Schnell-Minus-Zeile: -100 / -50 / -20 / -10 (rot)
- * 3. Numpad: 7-8-9 / 4-5-6 / 1-2-3 / ,-0-⌫
- * 4. Schnell-Plus-Zeile: +10 / +20 / +50 / +100 (grün)
+ * 2. Numpad: 7-8-9 / 4-5-6 / 1-2-3 / ,-0-⌫
  *
  * Validierungsregeln (see L-036):
  * - Max. ein Dezimalkomma
  * - Max. 2 Nachkommastellen
  * - Maximalwert: 999.999,99
- * - Schnell-Buttons subtrahieren min. bis 0 (nie negativ)
  *
  * @param inputString   Current raw input string (e.g., "123,45"). State hoisted by caller.
  * @param onInputChange Called with the new input string after every keystroke or button.
@@ -57,10 +74,8 @@ fun AmountInputPad(
     maxValue: Double = 999_999.99,
     currency: String = "EUR",
     modifier: Modifier = Modifier,
-    showQuickAmounts: Boolean = true,
     keyHeight: Dp = 64.dp,
-    keyGap: Dp = 4.dp,
-    contrastRim: Boolean = false,
+    keyGap: Dp = 8.dp,
     belowDisplay: @Composable () -> Unit = {}
 ) {
     val currencySymbol = when (currency) {
@@ -93,27 +108,6 @@ fun AmountInputPad(
 
         Spacer(Modifier.height(keyGap))
 
-        if (showQuickAmounts) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                listOf(-100, -50, -20, -10).forEach { delta ->
-                    QuickButton(
-                        label = delta.toString(),
-                        color = BugListColors.DebtRed,
-                        onClick = {
-                            val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
-                            val newVal = maxOf(0.0, current + delta)
-                            onInputChange(formatForInput(newVal))
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-            Spacer(Modifier.height(keyGap))
-        }
-
         // Numpad
         val rows = listOf(
             listOf("7", "8", "9"),
@@ -138,7 +132,6 @@ fun AmountInputPad(
                                 onInputChange(newInput)
                             },
                             onLongPress = { onInputChange("") },
-                            contrastRim = contrastRim,
                             modifier = Modifier.weight(1f).height(keyHeight)
                         )
                     } else {
@@ -148,30 +141,9 @@ fun AmountInputPad(
                                 val newInput = appendInput(inputString, key, maxValue)
                                 onInputChange(newInput)
                             },
-                            contrastRim = contrastRim,
                             modifier = Modifier.weight(1f).height(keyHeight)
                         )
                     }
-                }
-            }
-        }
-
-        if (showQuickAmounts) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                listOf(10, 20, 50, 100).forEach { delta ->
-                    QuickButton(
-                        label = "+$delta",
-                        color = BugListColors.DebtGreen,
-                        onClick = {
-                            val current = inputString.replace(",", ".").toDoubleOrNull() ?: 0.0
-                            val newVal = minOf(maxValue, current + delta)
-                            onInputChange(formatForInput(newVal))
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
                 }
             }
         }
@@ -218,48 +190,36 @@ internal fun appendInput(current: String, digit: String, maxValue: Double): Stri
     return candidate
 }
 
-/**
- * Formats a Double for display in the input pad (German locale: comma as decimal separator).
- */
-internal fun formatForInput(value: Double): String {
-    if (value == 0.0) return ""
-    return if (value == kotlin.math.floor(value)) {
-        value.toLong().toString()
-    } else {
-        // Format with up to 2 decimal places, using comma
-        String.format(java.util.Locale.ROOT, "%.2f", value).replace(".", ",").trimEnd('0').trimEnd(',')
-    }
-}
-
 @Composable
 private fun NumpadKey(
     label: String,
     onClick: () -> Unit,
-    contrastRim: Boolean,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val feedback = keyPressFeedback(interactionSource)
     Surface(
-        onClick = onClick,
+        onClick = { feedback.pulse(); onClick() },
+        interactionSource = interactionSource,
         shape = shape,
         color = BugListColors.SurfaceHigh,
-        modifier = if (contrastRim) {
-            modifier.border(1.5.dp, BugListColors.Gold, shape)
-        } else {
-            modifier
-        }
+        modifier = modifier.then(feedback.modifier).border(1.5.dp, BugListColors.Gold, shape)
     ) {
-        Text(
-            text = label,
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 26.sp,
-            color = BugListColors.Gold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp)
-        )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                maxLines = 1,
+                color = BugListColors.Gold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+            )
+        }
     }
 }
 
@@ -267,63 +227,106 @@ private fun NumpadKey(
 private fun BackspaceButton(
     onTap: () -> Unit,
     onLongPress: () -> Unit,
-    contrastRim: Boolean,
     modifier: Modifier = Modifier
 ) {
     val deleteLabel = stringResource(R.string.amount_delete_digit)
     val clearLabel = stringResource(R.string.amount_clear)
     val shape = RoundedCornerShape(14.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val feedback = keyPressFeedback(interactionSource)
     Surface(
         shape = shape,
         color = BugListColors.SurfaceHigh,
         modifier = modifier
-            .then(if (contrastRim) Modifier.border(1.5.dp, BugListColors.Gold, shape) else Modifier)
+            .then(feedback.modifier)
+            .border(1.5.dp, BugListColors.Gold, shape)
             .semantics { contentDescription = deleteLabel }
             .combinedClickable(
                 role = Role.Button,
-                onClick = onTap,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = { feedback.pulse(); onTap() },
                 onLongClickLabel = clearLabel,
-                onLongClick = onLongPress
+                onLongClick = { feedback.pulse(); onLongPress() }
             )
     ) {
-        Text(
-            text = "⌫",
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 26.sp,
-            color = BugListColors.Platinum,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp)
-        )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "⌫",
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                maxLines = 1,
+                color = BugListColors.Platinum,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+            )
+        }
     }
 }
 
+private val KeyHaloStrokes = listOf(14f to 0.10f, 8f to 0.24f, 4f to 0.55f)
+
+private class KeyFeedback(val modifier: Modifier, val pulse: () -> Unit)
+
+/** Every accepted click flashes, including the first tap and accessibility activation. */
 @Composable
-private fun QuickButton(
-    label: String,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = color.copy(alpha = 0.15f),
-        modifier = modifier.height(56.dp)
-    ) {
-        Text(
-            text = label,
-            fontFamily = OswaldFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            color = color,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 9.dp),
-            letterSpacing = 0.5.sp
-        )
+private fun keyPressFeedback(interactionSource: MutableInteractionSource): KeyFeedback {
+    val press = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val pulseJob = remember { mutableStateOf<Job?>(null) }
+    val pulse: () -> Unit = {
+        pulseJob.value?.cancel()
+        pulseJob.value = scope.launch {
+            press.snapTo(1f)
+            delay(90)
+            press.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 280f))
+        }
     }
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collectLatest { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    pulseJob.value?.cancel()
+                    press.animateTo(1f, tween(65))
+                }
+                is PressInteraction.Release -> {
+                    if (pulseJob.value?.isActive == true) return@collectLatest
+                    // Keep release feedback for holds and cancelled click gestures.
+                    if (press.value < 1f) press.animateTo(1f, tween(45))
+                    press.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 280f))
+                }
+                is PressInteraction.Cancel -> {
+                    pulseJob.value?.cancel()
+                    press.animateTo(0f, tween(80))
+                }
+            }
+        }
+    }
+    val feedbackModifier = Modifier
+        .graphicsLayer {
+            val scale = 1f - 0.085f * press.value
+            scaleX = scale
+            scaleY = scale
+        }
+        .drawWithContent {
+            val glow = press.value.coerceIn(0f, 1f)
+            if (glow > 0f) {
+                // Layered strokes give a visible LED halo without an offscreen blur.
+                KeyHaloStrokes.forEach { (width, alpha) ->
+                    drawRoundRect(BugListColors.Gold.copy(alpha = alpha * glow),
+                        cornerRadius = CornerRadius(14.dp.toPx()), style = Stroke(width.dp.toPx()))
+                }
+            }
+            drawContent()
+            if (glow > 0f) {
+                val corner = CornerRadius(14.dp.toPx())
+                drawRoundRect(BugListColors.Gold.copy(alpha = 0.28f * glow), cornerRadius = corner)
+                drawRoundRect(Color.White.copy(alpha = 0.95f * glow), cornerRadius = corner,
+                    style = Stroke(3.dp.toPx()))
+            }
+        }
+    return KeyFeedback(feedbackModifier, pulse)
 }

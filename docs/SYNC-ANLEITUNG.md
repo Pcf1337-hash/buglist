@@ -34,8 +34,9 @@ die zuletzt übernommenen Daten bleiben erhalten und können danach wieder bearb
 
 ## Alte Daten und goldener Anhänger
 
-Das Update übernimmt die vorhandene Datenbank. Für die neue Bezahltliste werden vorhandene Zahlungsdaten
-ausgewertet; fehlende historische Bezahldaten werden als unbekannt angezeigt.
+Das Update übernimmt die vorhandene Datenbank. Unter **Bezahlt** erscheinen die einzelnen gespeicherten Tilgungen
+mit Betrag und Datum, einschließlich Teiltilgungen auf offene Schulden. Ein Tipp auf den Betrag öffnet die Details.
+Alte Bezahlt-Markierungen ohne Zahlungsdaten stehen als **Als bezahlt markiert** mit unbekanntem Datum in der Liste.
 
 Der goldene Anhänger auf der Startseite pendelt bei Neigung und kurzen Bewegungsimpulsen.
 In einer senkrechten Halterung reagiert er auf kleinere Bewegungen. Unter **Einstellungen → Goldener Anhänger**

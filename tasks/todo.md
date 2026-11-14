@@ -3,10 +3,19 @@
 > Nach jedem Task aktualisieren.
 > `[ ]` = offen | `[~]` = in Arbeit | `[x]` = abgeschlossen + verifiziert
 
-**Letztes Update:** 2026-11-11
-**Status:** [x] v2.6.1 – Signierter Build 72 als aktuelles GitHub-Release veröffentlicht.
-**Letzte Änderungen:** Der Schalter „Mr. L anzeigen“ blendet den Anhänger auf der Startseite ein oder aus. Der Testbuild 2.6.0 findet und lädt das Update über die Einstellungen.
-**Emulator:** Zwei API-36-Emulatoren geprüft. Host führt die Liste, Gast kann nur ansehen.
+**Letztes Update:** 2026-11-14
+**Status:** [~] v2.6.3 – Öffentlicher Build 78 wird für das In-App-Update vorbereitet.
+**Letzte Änderungen:** Einzelne Tilgungen, LED-Neontastatur, klare Bestätigungsbuttons, X zum Schließen und Nos-MVP mit Gesamttilgung und Quote. Tilgungsabschluss als einmaliges Ereignis, Schutz gegen Doppelbuchungen.
+
+## Veröffentlichung 2026-11-14
+
+- [x] 118 Unit-Tests und 36 Android-Tests auf dem finalen Anwendungscode bestanden; Lint ohne Fehler.
+- [x] S26 von GitHub 2.6.1 auf Teststand 2.6.2 aktualisiert. Bestehende Daten, Belegnummern und Gastkopplung vor/nach verglichen und erhalten.
+- [x] Festes X, abgeschaltete Wischgeste, neue Tilgungsmaske und Eingabe auf dem S26 geprüft, ohne bestehende Zahlungsdaten zu ändern.
+- [x] LED-Impuls ergänzt, damit auch der erste Klick zuverlässig aufleuchtet.
+- [~] Öffentliches Release 2.6.3 statt Testversion 2.6.2, damit das In-App-Update auch auf Testgeräten angeboten wird.
+- [ ] Öffentlichen APK-Download und In-App-Update verifizieren.
+- [x] Bericht: `docs/qa/2026-11-14-simple-payments.md`.
 
 ## Veröffentlichung 2026-11-11
 

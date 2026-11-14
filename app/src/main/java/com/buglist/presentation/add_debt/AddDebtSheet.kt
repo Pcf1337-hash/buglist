@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,10 +18,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -32,12 +35,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -85,25 +86,7 @@ fun AddDebtSheet(
     val selectedTagIds by viewModel.selectedTagIds.collectAsStateWithLifecycle()
     val showDescription by viewModel.showDescription.collectAsStateWithLifecycle()
 
-    // 80% swipe-down threshold: track sheet height and current drag offset.
-    // confirmValueChange blocks the hide transition unless the sheet has been
-    // dragged ≥ 80% of its own height (or the layout hasn't been measured yet).
-    var sheetHeightPx by remember { mutableFloatStateOf(0f) }
-    val dismissAllowed = remember { mutableStateOf(false) }
-    val sheetState: SheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { targetValue ->
-            targetValue != SheetValue.Hidden || dismissAllowed.value
-        }
-    )
-
-    // Observe the sheet's drag offset via snapshotFlow and update dismissAllowed.
-    // requireOffset() is backed by snapshot state so snapshotFlow re-emits on every frame.
-    LaunchedEffect(sheetState, sheetHeightPx) {
-        if (sheetHeightPx <= 0f) return@LaunchedEffect
-        snapshotFlow { runCatching { sheetState.requireOffset() }.getOrDefault(0f) }
-            .collect { offset -> dismissAllowed.value = offset >= sheetHeightPx * 0.8f }
-    }
+    val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // In edit mode: pre-select the tags attached to the existing debt entry.
     LaunchedEffect(existingDebt) {
@@ -145,28 +128,32 @@ fun AddDebtSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = BugListColors.Surface,
-        modifier = Modifier.onSizeChanged { size -> sheetHeightPx = size.height.toFloat() }
+        sheetGesturesEnabled = false,
+        dragHandle = null,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = true,
+            shouldDismissOnClickOutside = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(bottom = 24.dp)
-        ) {
-            // Header — title differs by mode
-            Text(
-                text = if (isEditMode)
-                    stringResource(R.string.edit_debt_title)
-                else
-                    stringResource(R.string.add_debt_title).uppercase(),
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = BugListColors.Gold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
+        Column(Modifier.navigationBarsPadding().imePadding()) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(if (isEditMode) R.string.edit_debt_title else R.string.add_debt_title).uppercase(),
+                    fontFamily = OswaldFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = BugListColors.Gold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.settlement_close),
+                        tint = BugListColors.Platinum)
+                }
+            }
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             // Amount pad
             AmountInputPad(
                 inputString = amountInput,
@@ -175,6 +162,7 @@ fun AddDebtSheet(
                 belowDisplay = {
                     GoldButton(
                         text = stringResource(R.string.action_save),
+                        emphasized = true,
                         onClick = {
                             if (existingDebt != null) {
                                 viewModel.updateDebt(
@@ -321,6 +309,7 @@ fun AddDebtSheet(
                     color = BugListColors.DebtRed,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+            }
             }
         }
     }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -95,9 +96,11 @@ import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
 import com.buglist.domain.model.paidAt
+import com.buglist.domain.model.repaymentHistory
 import com.buglist.presentation.add_debt.AddDebtSheet
 import com.buglist.presentation.add_debt.AddPaymentSheet
 import com.buglist.presentation.components.AmountText
+import com.buglist.presentation.components.RepaymentCard
 import com.buglist.presentation.components.StreetEmptyState
 import com.buglist.presentation.edit_person.EditPersonSheet
 import com.buglist.presentation.components.DebtCard
@@ -141,8 +144,9 @@ fun PersonDetailScreen(
     var editDebtEntry by remember { mutableStateOf<DebtEntry?>(null) }
     // Settlement sheet: null = closed, true = settling "owed to me", false = settling "I owe"
     var settlementDirection by remember { mutableStateOf<Boolean?>(null) }
-    // Easter egg: kiss emoji for person named "Nos"
+    // MVP celebration after a successful repayment for Nos.
     var showKissEgg by remember { mutableStateOf(false) }
+    var kissDirection by remember { mutableStateOf(true) }
     // Tracks which debt entry's context menu is open (null = closed)
     var contextMenuDebtId by remember { mutableStateOf<Long?>(null) }
 
@@ -206,6 +210,8 @@ fun PersonDetailScreen(
             }
         }
         is PersonDetailUiState.Ready -> {
+            val repayments = remember(state.debts) { repaymentHistory(state.debts) }
+            var expandedRepaymentKey by remember { mutableStateOf<String?>(null) }
             val copyHistory: () -> Unit = {
                 val history = buildShareText(state.person.name, state.activeTab, state.debts)
                 clipboardManager.setText(AnnotatedString(history))
@@ -339,7 +345,7 @@ fun PersonDetailScreen(
                             onTabChange = viewModel::setActiveTab
                         )
                     }
-                    if (syncRole == com.buglist.domain.model.SyncRole.GUEST) {
+                    if (syncRole == com.buglist.domain.model.SyncRole.GUEST && state.activeTab != DebtTab.PAID) {
                         item(key = "viewer_notice") {
                             Text(
                                 text = stringResource(R.string.couple_role_guest),
@@ -353,7 +359,6 @@ fun PersonDetailScreen(
                     if (state.activeTab == DebtTab.PAID) {
                         item(key = "paid_overview") {
                             PaidHistoryOverview(
-                                state.debts,
                                 onCopy = copyHistory,
                                 modifier = Modifier.animateItem(
                                     fadeInSpec = tween(160), placementSpec = null, fadeOutSpec = null
@@ -377,7 +382,26 @@ fun PersonDetailScreen(
                             )
                         }
                     }
-                    if (state.debts.isEmpty()) {
+                    if (state.activeTab == DebtTab.PAID) {
+                        if (repayments.isEmpty()) {
+                            item {
+                                StreetEmptyState(title = stringResource(R.string.repayment_empty),
+                                    modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                        items(repayments, key = { "repayment:${it.key}" }) { repayment ->
+                            RepaymentCard(
+                                item = repayment,
+                                expanded = expandedRepaymentKey == repayment.key,
+                                onAmountClick = {
+                                    expandedRepaymentKey = repayment.key.takeUnless { it == expandedRepaymentKey }
+                                },
+                                modifier = Modifier
+                                    .animateItem(fadeInSpec = tween(160), placementSpec = null, fadeOutSpec = null)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                        }
+                    } else if (state.debts.isEmpty()) {
                         item {
                             StreetEmptyState(
                                 title = stringResource(if (state.activeTab == DebtTab.PAID)
@@ -388,12 +412,6 @@ fun PersonDetailScreen(
                     } else {
                         itemsIndexed(state.debts, key = { _, debt -> "${state.activeTab.name}:${debt.entry.id}" }) { index, debtWithPayments ->
                             Column(Modifier.animateItem(fadeInSpec = tween(160), placementSpec = null, fadeOutSpec = null)) {
-                                if (state.activeTab == DebtTab.PAID) {
-                                    val df = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-                                    val day = debtWithPayments.paidAt?.let { df.format(Date(it)) }
-                                    val previousDay = state.debts.getOrNull(index - 1)?.paidAt?.let { df.format(Date(it)) }
-                                    if (index == 0 || day != previousDay) PaidHistoryDayHeading(day)
-                                }
                                 Box {
                                     SwipeableDebtCard(
                                         debtWithPayments = debtWithPayments,
@@ -487,7 +505,6 @@ fun PersonDetailScreen(
                     onSaved = {
                         showAddDebt = false
                         viewModel.refresh()
-                        if (state.person.name.lowercase() == "nos") showKissEgg = true
                     }
                 )
             }
@@ -520,7 +537,10 @@ fun PersonDetailScreen(
                         onDismiss = { paymentDebtId = null },
                         onSaved = {
                             paymentDebtId = null
-                            if (state.person.name.lowercase() == "nos") showKissEgg = true
+                            if (state.person.name.trim().equals("nos", ignoreCase = true)) {
+                                kissDirection = debtWithPayments.entry.isOwedToMe
+                                showKissEgg = true
+                            }
                         }
                     )
                 }
@@ -536,7 +556,10 @@ fun PersonDetailScreen(
                     onDismiss = { settlementDirection = null },
                     onSuccess = { _ ->
                         settlementDirection = null
-                        if (state.person.name.lowercase() == "nos") showKissEgg = true
+                        if (state.person.name.trim().equals("nos", ignoreCase = true)) {
+                            kissDirection = currentSettlementDirection
+                            showKissEgg = true
+                        }
                     }
                 )
             }
@@ -589,45 +612,14 @@ fun PersonDetailScreen(
                 )
             }
 
-            // Easter egg overlay — kiss emoji for person named "Nos"
+            // Non-blocking MVP celebration; totals include all historical entries.
             if (showKissEgg) {
-                KissEggOverlay(onFinished = { showKissEgg = false })
+                NosMvpOverlay(
+                    summaries = state.repaymentSummaries.filter { it.isOwedToMe == kissDirection },
+                    onFinished = { showKissEgg = false }
+                )
             }
         }
-    }
-}
-
-/**
- * Full-screen overlay that fades in the kiss emoji (💋), holds briefly, then fades out.
- * Total duration: ~1500ms. Calls [onFinished] when the animation completes.
- *
- * Used as an Easter Egg when a debt action is performed for a person named "Nos".
- */
-@Composable
-private fun KissEggOverlay(onFinished: () -> Unit) {
-    val alpha = remember { Animatable(0f) }
-
-    LaunchedEffect(Unit) {
-        // Fade in: 400ms
-        alpha.animateTo(1f, animationSpec = tween(durationMillis = 400))
-        // Hold: 700ms
-        kotlinx.coroutines.delay(700L)
-        // Fade out: 400ms
-        alpha.animateTo(0f, animationSpec = tween(durationMillis = 400))
-        onFinished()
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { this.alpha = alpha.value },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "\uD83D\uDC8B",
-            fontSize = 120.sp,
-            fontFamily = BebasNeueFontFamily
-        )
     }
 }
 
@@ -1128,6 +1120,18 @@ private fun buildShareText(
     activeTab: DebtTab,
     debts: List<DebtEntryWithPayments>
 ): String {
+    if (activeTab == DebtTab.PAID) {
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMAN)
+        return buildString {
+            appendLine("Tilgungen mit ${personName.uppercase()}")
+            repaymentHistory(debts).forEach { item ->
+                val direction = if (item.payment == null) "Als bezahlt markiert"
+                    else if (item.debt.entry.isOwedToMe) "Tilgung erhalten" else "Tilgung gezahlt"
+                val date = item.date?.let { dateFormat.format(Date(it)) } ?: "Datum nicht erfasst"
+                appendLine("• $date | $direction | ${com.buglist.presentation.components.formatAmount(item.amount, item.debt.entry.currency)}")
+            }
+        }.trimEnd()
+    }
     val tabLabel = when (activeTab) {
         DebtTab.OPEN -> "Offen"
         DebtTab.PAID -> "Bezahlt"

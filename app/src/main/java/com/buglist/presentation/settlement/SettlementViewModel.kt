@@ -9,7 +9,6 @@ import com.buglist.domain.model.SettlementResult
 import com.buglist.domain.usecase.AddDebtUseCase
 import com.buglist.domain.usecase.SettleDebtsUseCase
 import com.buglist.domain.repository.DebtRepository
-import com.buglist.domain.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 /**
@@ -72,19 +73,14 @@ sealed class SettlementUiState {
  * 2. As user inputs an amount: recomputes [SettlementUiState.Preview] live.
  * 3. On confirm: runs [SettleDebtsUseCase] and transitions to [SettlementUiState.Success].
  *
- * Toast events are emitted via [toastEvent] as a one-shot [SharedFlow] immediately after a
- * successful settlement. This is independent of [uiState] so the sheet can show a Toast while
- * closing — no double-booking guard needed.
- *
- * @param personId    The ID of the person whose debts are being settled.
- * @param isOwedToMe  Which direction of debts to settle.
+ * Completion is delivered through [completedSettlements] without replay, independently
+ * of the persistent screen state. Reopening the sheet never repeats a success callback.
  */
 @HiltViewModel
 class SettlementViewModel @Inject constructor(
     private val settleDebtsUseCase: SettleDebtsUseCase,
     private val addDebtUseCase: AddDebtUseCase,
-    private val debtRepository: DebtRepository,
-    private val tagRepository: TagRepository
+    private val debtRepository: DebtRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SettlementUiState>(
@@ -95,15 +91,10 @@ class SettlementViewModel @Inject constructor(
     private val _openDebts = MutableStateFlow<List<com.buglist.domain.model.DebtEntryWithPayments>>(emptyList())
     val openDebts: StateFlow<List<com.buglist.domain.model.DebtEntryWithPayments>> = _openDebts.asStateFlow()
 
-    /**
-     * One-shot event emitted immediately after a successful settlement.
-     * The Sheet collects this independently of [uiState] to show a Toast confirmation.
-     * Emitted BEFORE [SettlementUiState.Success] so the Toast fires while the sheet is still
-     * visible and then the sheet closes.
-     * replay=0 ensures each event is delivered exactly once (no stale replay on recomposition).
-     */
-    private val _toastEvent = MutableSharedFlow<Pair<Double, Long>>(extraBufferCapacity = 1)
-    val toastEvent: SharedFlow<Pair<Double, Long>> = _toastEvent.asSharedFlow()
+    /** Completion is an event, never replayed when the same sheet opens again. */
+    private val _completedSettlements = MutableSharedFlow<SettlementResult>(extraBufferCapacity = 1)
+    val completedSettlements: SharedFlow<SettlementResult> = _completedSettlements.asSharedFlow()
+    private var loadJob: Job? = null
 
     // Cached list of open debts with their remaining amounts — loaded once per sheet open
     private var openDebtsCache: List<com.buglist.domain.model.DebtEntryWithPayments> = emptyList()
@@ -113,20 +104,23 @@ class SettlementViewModel @Inject constructor(
      * Must be called when the sheet is shown, before any user interaction.
      */
     fun loadOpenDebts(personId: Long, isOwedToMe: Boolean) {
-        viewModelScope.launch {
+        if (_uiState.value is SettlementUiState.Processing) return
+        loadJob?.cancel()
+        openDebtsCache = emptyList()
+        _openDebts.value = emptyList()
+        // Reset synchronously, before the repository suspends. A previous Success
+        // must never be mistaken for a new payment when the sheet reopens.
+        _uiState.value = SettlementUiState.Idle(totalOpen = 0.0, openCount = 0)
+        loadJob = viewModelScope.launch {
             try {
                 openDebtsCache = debtRepository.getOpenDebtsForPerson(personId, isOwedToMe)
-                    .map { dwp ->
-                        val tagNames = tagRepository.getTagsForDebtEntry(dwp.entry.id)
-                            .map { it.name }
-                        dwp.copy(entry = dwp.entry.copy(tags = tagNames))
-                    }
                 _openDebts.value = openDebtsCache
-                val totalOpen = openDebtsCache.sumOf { it.remaining }
                 _uiState.value = SettlementUiState.Idle(
-                    totalOpen = totalOpen,
+                    totalOpen = openDebtsCache.sumOf { it.remaining },
                     openCount = openDebtsCache.size
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.value = SettlementUiState.Error("Fehler beim Laden: ${e.message}")
             }
@@ -139,6 +133,7 @@ class SettlementViewModel @Inject constructor(
      */
     fun updatePreview(inputAmount: Double) {
         val currentState = _uiState.value
+        if (currentState !is SettlementUiState.Idle && currentState !is SettlementUiState.Preview) return
         val totalOpen = when (currentState) {
             is SettlementUiState.Idle -> currentState.totalOpen
             is SettlementUiState.Preview -> currentState.totalOpen
@@ -160,58 +155,53 @@ class SettlementViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Executes the settlement transaction for the given amount and direction.
-     *
-     * On success:
-     * 1. Emits a [toastEvent] with the settled amount and timestamp — shown as a Toast
-     *    confirmation while the sheet is still closing.
-     * 2. Transitions to [SettlementUiState.Success] which triggers the sheet to close.
-     *
-     * The next press of TILGEN opens a fresh sheet (new [loadOpenDebts] call) and shows
-     * no Toast — no double-booking guard required.
-     */
-    fun settleDebts(personId: Long, totalAmount: Double, isOwedToMe: Boolean) {
+    /** One active booking at a time, even if confirm is tapped twice rapidly. */
+    private fun beginSettlement(amount: Double): Boolean {
+        val current = _uiState.value
+        if (current !is SettlementUiState.Idle && current !is SettlementUiState.Preview) return false
+        if (!amount.isFinite() || amount <= 0 || openDebtsCache.isEmpty()) return false
+        return _uiState.compareAndSet(current, SettlementUiState.Processing)
+    }
+
+    private fun runSettlement(block: suspend () -> Result<SettlementResult>) {
         viewModelScope.launch {
-            _uiState.value = SettlementUiState.Processing
-            when (val result = settleDebtsUseCase(personId, totalAmount, isOwedToMe)) {
-                is Result.Success -> {
-                    // Emit toast first — sheet will still render briefly while closing
-                    _toastEvent.emit(Pair(totalAmount, System.currentTimeMillis()))
-                    _uiState.value = SettlementUiState.Success(result.data)
+            try {
+                when (val result = block()) {
+                    is Result.Success -> {
+                        if (result.data.totalSettled <= 0.001) {
+                            _uiState.value = SettlementUiState.Error("Es wurde kein Betrag getilgt.")
+                        } else {
+                            _uiState.value = SettlementUiState.Success(result.data)
+                            _completedSettlements.emit(result.data)
+                        }
+                    }
+                    is Result.Error -> _uiState.value = SettlementUiState.Error(result.message)
                 }
-                is Result.Error -> _uiState.value = SettlementUiState.Error(result.message)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = SettlementUiState.Error("Tilgung fehlgeschlagen: ${e.message}")
             }
         }
     }
 
-    /**
-     * Settles all open debts up to [totalOpen] and creates a counter-debt entry for
-     * the overpayment amount (totalAmount − totalOpen) in the opposite direction.
-     *
-     * Flow:
-     * 1. Runs [SettleDebtsUseCase] with [totalOpen] (caps at exactly what is owed).
-     * 2. On success: inserts a new [DebtEntry] via [AddDebtUseCase] for [overpayAmount]
-     *    in the opposite direction (`!isOwedToMe`), with description "Tilgungsüberschuss".
-     * 3. Emits [toastEvent] and transitions to [SettlementUiState.Success].
-     *
-     * @param personId    Person to settle debts for.
-     * @param totalAmount Full amount the user entered (> totalOpen).
-     * @param isOwedToMe  Direction of the settled debts.
-     * @param currency    Currency code for the counter-debt entry (e.g. "EUR").
-     */
+    fun settleDebts(personId: Long, totalAmount: Double, isOwedToMe: Boolean) {
+        if (!beginSettlement(totalAmount)) return
+        runSettlement { settleDebtsUseCase(personId, totalAmount, isOwedToMe) }
+    }
+
+    /** Settles the open balance, then records an overpayment in the opposite direction. */
     fun settleDebtsWithCounterDebt(
         personId: Long,
         totalAmount: Double,
         isOwedToMe: Boolean,
         currency: String
     ) {
-        viewModelScope.launch {
-            _uiState.value = SettlementUiState.Processing
-            val totalOpen = openDebtsCache.sumOf { it.remaining }
-            val overpayAmount = totalAmount - totalOpen
-
-            when (val settlementResult = settleDebtsUseCase(personId, totalOpen, isOwedToMe)) {
+        if (!beginSettlement(totalAmount)) return
+        val totalOpen = openDebtsCache.sumOf { it.remaining }
+        val overpayAmount = totalAmount - totalOpen
+        runSettlement {
+            when (val settlement = settleDebtsUseCase(personId, totalOpen, isOwedToMe)) {
                 is Result.Success -> {
                     val counterDebt = DebtEntry(
                         personId = personId,
@@ -222,19 +212,12 @@ class SettlementViewModel @Inject constructor(
                         date = System.currentTimeMillis(),
                         status = DebtStatus.OPEN
                     )
-                    when (val counterResult = addDebtUseCase(counterDebt)) {
-                        is Result.Success -> {
-                            _toastEvent.emit(Pair(totalAmount, System.currentTimeMillis()))
-                            _uiState.value = SettlementUiState.Success(settlementResult.data)
-                        }
-                        is Result.Error -> {
-                            _uiState.value = SettlementUiState.Error(
-                                "Gegenschuld konnte nicht angelegt werden: ${counterResult.message}"
-                            )
-                        }
+                    when (val counter = addDebtUseCase(counterDebt)) {
+                        is Result.Success -> settlement
+                        is Result.Error -> Result.Error("Gegenschuld konnte nicht angelegt werden: ${counter.message}")
                     }
                 }
-                is Result.Error -> _uiState.value = SettlementUiState.Error(settlementResult.message)
+                is Result.Error -> settlement
             }
         }
     }

@@ -20,7 +20,10 @@ class AmountInputPadTest {
     fun accessibleDeleteUsesCurrentInputAndOffersClearAction() {
         compose.setContent {
             var input by remember { mutableStateOf("") }
-            AmountInputPad(inputString = input, onInputChange = { input = it }, showQuickAmounts = false)
+            AmountInputPad(inputString = input, onInputChange = { input = it })
+        }
+        listOf("+10", "+20", "+50", "+100", "-10", "-20", "-50", "-100").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
         }
         compose.onNodeWithText("1").performClick()
         compose.onNodeWithText("2").performClick()

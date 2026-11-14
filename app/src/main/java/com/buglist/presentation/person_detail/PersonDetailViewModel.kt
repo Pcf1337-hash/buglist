@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.buglist.domain.model.DebtEntryWithPayments
 import com.buglist.domain.model.DebtStatus
 import com.buglist.domain.model.Person
+import com.buglist.domain.model.RepaymentSummary
+import com.buglist.domain.model.repaymentSummaries
 import com.buglist.domain.model.Result
 import com.buglist.domain.model.SyncRole
 import com.buglist.domain.repository.PaymentRepository
@@ -75,7 +77,9 @@ sealed class PersonDetailUiState {
         /** true if there are OPEN or PARTIAL entries where the user owes the person. */
         val hasOpenDebtsIOwe: Boolean,
         /** Reliability score 0–100 = paidCount / totalCount (CANCELLED excluded). */
-        val reliabilityScore: Int
+        val reliabilityScore: Int,
+        /** All entries, independent of the selected tab. */
+        val repaymentSummaries: List<RepaymentSummary> = emptyList()
     ) : PersonDetailUiState()
     object PersonNotFound : PersonDetailUiState()
 }
@@ -225,7 +229,7 @@ class PersonDetailViewModel @Inject constructor(
         } else {
             val statuses = when (tab) {
                 DebtTab.OPEN -> listOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
-                DebtTab.PAID -> listOf(DebtStatus.PAID)
+                DebtTab.PAID -> listOf(DebtStatus.OPEN, DebtStatus.PARTIAL, DebtStatus.PAID)
                 DebtTab.ALL -> DebtStatus.entries
             }
             // Load ALL debts (no status filter) to compute settlement availability.
@@ -233,7 +237,10 @@ class PersonDetailViewModel @Inject constructor(
             // Explicit type annotation needed to unify both if/else branches in flatMapLatest.
             debtRepository.getDebtEntriesWithPaymentsForPerson(personId).transformLatest<List<DebtEntryWithPayments>, PersonDetailUiState> { allDebts ->
                 val openStatuses = setOf(DebtStatus.OPEN, DebtStatus.PARTIAL)
-                val filtered = allDebts.filter { it.entry.status in statuses }
+                val filtered = allDebts.filter {
+                    it.entry.status in statuses &&
+                        (tab != DebtTab.PAID || it.payments.isNotEmpty() || it.entry.status == DebtStatus.PAID)
+                }
                 val hasOpenOwedToMe = allDebts.any {
                     it.entry.isOwedToMe && it.entry.status in openStatuses
                 }
@@ -254,12 +261,13 @@ class PersonDetailViewModel @Inject constructor(
                 emit(
                     PersonDetailUiState.Ready(
                         person = person,
-                        debts = if (tab == DebtTab.PAID) com.buglist.domain.model.paidHistory(enriched) else enriched,
+                        debts = enriched,
                         activeTab = tab,
                         expandedDebtId = expandedId,
                         hasOpenDebtsOwedToMe = hasOpenOwedToMe,
                         hasOpenDebtsIOwe = hasOpenIOwe,
-                        reliabilityScore = reliabilityScore
+                        reliabilityScore = reliabilityScore,
+                        repaymentSummaries = repaymentSummaries(allDebts)
                     )
                 )
             }
